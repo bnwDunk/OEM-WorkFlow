@@ -1,23 +1,46 @@
 import { useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import type { AuthUser } from './data/adminDashboard'
 import FlowPage from './page/FlowPage'
 import LoginPage from './page/LoginPage'
 import './App.css'
 
-function AppRoutes() {
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    () => localStorage.getItem('oem-auth') === 'true',
-  )
+const fallbackUser: AuthUser = {
+  id: 2,
+  name: 'OEM User',
+  email: 'user@oem.local',
+  role: 'user',
+  department: 'Sales',
+}
 
-  function handleLogin() {
+function readStoredUser() {
+  const rawUser = localStorage.getItem('oem-user')
+  if (!rawUser) return null
+
+  try {
+    return JSON.parse(rawUser) as AuthUser
+  } catch {
+    return null
+  }
+}
+
+function AppRoutes() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
+
+  function handleLogin(user: AuthUser) {
     localStorage.setItem('oem-auth', 'true')
-    setIsLoggedIn(true)
+    localStorage.setItem('oem-user', JSON.stringify(user))
+    setCurrentUser(user)
   }
 
   function handleLogout() {
     localStorage.removeItem('oem-auth')
-    setIsLoggedIn(false)
+    localStorage.removeItem('oem-user')
+    setCurrentUser(null)
   }
+
+  const isLoggedIn = Boolean(currentUser) || localStorage.getItem('oem-auth') === 'true'
+  const user = currentUser || fallbackUser
 
   return (
     <Routes>
@@ -35,7 +58,7 @@ function AppRoutes() {
         path="/flow"
         element={
           isLoggedIn ? (
-            <FlowPage onLogout={handleLogout} />
+            <FlowPage currentUser={user} onLogout={handleLogout} />
           ) : (
             <Navigate to="/login" replace />
           )

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AdminDashboard from './AdminDashboard'
 import CompanyModal from '../components/oem/CompanyModal'
 import ConfigView from '../components/oem/ConfigView'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
@@ -12,13 +13,15 @@ import {
   departments,
   flowStops,
 } from '../data/oemWorkflow'
+import type { AuthUser } from '../data/adminDashboard'
 import type { Customer } from '../data/oemWorkflow'
 
 type FlowPageProps = {
+  currentUser: AuthUser
   onLogout: () => void
 }
 
-type ActiveView = 'overview' | 'detail' | 'dept' | 'config'
+type ActiveView = 'overview' | 'detail' | 'dept' | 'config' | 'admin'
 type ModalState =
   | { type: 'company'; customerId: string }
   | { type: 'reset'; customerId: string; phase: number }
@@ -28,13 +31,13 @@ function cloneCustomers() {
   return structuredClone(createInitialCustomers())
 }
 
-function FlowPage({ onLogout }: FlowPageProps) {
+function FlowPage({ currentUser, onLogout }: FlowPageProps) {
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<ActiveView>('overview')
   const [customers, setCustomers] = useState<Customer[]>(cloneCustomers)
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [viewedPhase, setViewedPhase] = useState(0)
-  const [currentDept, setCurrentDept] = useState('Sales')
+  const [currentDept, setCurrentDept] = useState(currentUser.department)
   const [bellOpen, setBellOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
@@ -74,7 +77,7 @@ function FlowPage({ onLogout }: FlowPageProps) {
     setActiveView('detail')
   }
 
-  function handleChangeView(view: 'overview' | 'dept' | 'config') {
+  function handleChangeView(view: 'overview' | 'dept' | 'config' | 'admin') {
     setActiveView(view)
     setBellOpen(false)
     setProfileOpen(false)
@@ -219,6 +222,7 @@ function FlowPage({ onLogout }: FlowPageProps) {
       <OemTopNav
         activeView={activeView}
         bellOpen={bellOpen}
+        currentUser={currentUser}
         currentDept={currentDept}
         departments={departments}
         notifications={notifications}
@@ -278,6 +282,8 @@ function FlowPage({ onLogout }: FlowPageProps) {
       )}
 
       {activeView === 'config' && <ConfigView />}
+
+      {activeView === 'admin' && currentUser.role === 'admin' && <AdminDashboard />}
 
       {modal?.type === 'company' && modalCustomer && (
         <CompanyModal

@@ -260,6 +260,27 @@
   width: 240px;
 }
 
+.profile-summary {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--page-bg);
+}
+
+.profile-summary span,
+.profile-summary em {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.profile-summary em {
+  font-style: normal;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
 .dropdown-panel h5 {
   margin: 2px 6px 8px;
   color: var(--ink-muted);
@@ -875,6 +896,201 @@ button:disabled {
   font-size: 13px;
 }
 
+.admin-page {
+  width: min(1240px, 100%);
+}
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-stat,
+.admin-section,
+.department-tile {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.admin-stat {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.admin-stat span,
+.admin-section-head p,
+.department-tile span,
+.department-tile dt {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-stat strong {
+  font-size: 28px;
+}
+
+.admin-section {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.admin-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.admin-section-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.admin-section-head p {
+  margin: 4px 0 0;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--page-bg);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-table td strong,
+.admin-table td span {
+  display: block;
+}
+
+.admin-table td span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-table select,
+.admin-table input,
+.admin-inline-form input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.admin-table input {
+  width: 100%;
+  min-width: 130px;
+}
+
+.flow-table {
+  min-width: 980px;
+}
+
+.flow-table td:first-child {
+  min-width: 220px;
+}
+
+.flow-create-form {
+  min-width: min(560px, 100%);
+}
+
+.flow-create-form select {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.status-toggle {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  text-transform: capitalize;
+}
+
+.status-toggle.active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.status-toggle.inactive {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.admin-inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-inline-form button {
+  padding: 0 14px;
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
+.danger-text-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.department-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.department-tile {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.department-tile strong,
+.department-tile span {
+  display: block;
+}
+
+.department-tile dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.department-tile dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -945,6 +1161,11 @@ button:disabled {
   .phase-rail {
     grid-template-columns: repeat(3, minmax(180px, 1fr));
   }
+
+  .admin-stat-grid,
+  .department-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -984,6 +1205,7 @@ button:disabled {
   }
 
   .page-heading,
+  .admin-section-head,
   .customer-head,
   .deptwork-row {
     align-items: flex-start;
@@ -1005,6 +1227,16 @@ button:disabled {
 
   .issue-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-stat-grid,
+  .department-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inline-form {
+    width: 100%;
+    flex-direction: column;
   }
 
   .dropdown-panel {

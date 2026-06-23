@@ -1,9 +1,10 @@
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BrandBlock from '../components/BrandBlock'
+import type { AuthUser } from '../data/adminDashboard'
 
 type LoginPageProps = {
-  onLogin: () => void
+  onLogin: (user: AuthUser) => void
 }
 
 function LoginPage({ onLogin }: LoginPageProps) {
@@ -11,7 +12,17 @@ function LoginPage({ onLogin }: LoginPageProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onLogin()
+    const data = new FormData(event.currentTarget)
+    const email = String(data.get('email') || '').trim().toLowerCase()
+    const isAdmin = email === 'admin@oem.local'
+
+    onLogin({
+      id: isAdmin ? 1 : 2,
+      name: isAdmin ? 'OEM Admin' : 'OEM User',
+      email: isAdmin ? 'admin@oem.local' : 'user@oem.local',
+      role: isAdmin ? 'admin' : 'user',
+      department: isAdmin ? 'Admin' : 'Sales',
+    })
     navigate('/flow', { replace: true })
   }
 
@@ -47,7 +58,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Email
             <input
               autoComplete="email"
-              defaultValue="pm@oem-control.com"
+              defaultValue="admin@oem.local"
               name="email"
               type="email"
             />
@@ -56,7 +67,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Password
             <input
               autoComplete="current-password"
-              defaultValue="password"
+              defaultValue="password123"
               name="password"
               type="password"
             />
