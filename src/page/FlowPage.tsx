@@ -17,6 +17,7 @@ import type { AuthUser } from '../data/adminDashboard'
 import type { Customer } from '../data/oemWorkflow'
 
 type FlowPageProps = {
+  accessToken: string
   currentUser: AuthUser
   onLogout: () => void
 }
@@ -31,7 +32,7 @@ function cloneCustomers() {
   return structuredClone(createInitialCustomers())
 }
 
-function FlowPage({ currentUser, onLogout }: FlowPageProps) {
+function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<ActiveView>('overview')
   const [customers, setCustomers] = useState<Customer[]>(cloneCustomers)
@@ -283,7 +284,7 @@ function FlowPage({ currentUser, onLogout }: FlowPageProps) {
 
       {activeView === 'config' && <ConfigView />}
 
-      {activeView === 'admin' && currentUser.role === 'admin' && <AdminDashboard />}
+      {activeView === 'admin' && currentUser.role === 'admin' && <AdminDashboard token={accessToken} />}
 
       {modal?.type === 'company' && modalCustomer && (
         <CompanyModal

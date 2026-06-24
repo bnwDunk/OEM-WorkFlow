@@ -13,6 +13,10 @@ const fallbackUser: AuthUser = {
   department: 'Sales',
 }
 
+function readStoredToken() {
+  return localStorage.getItem('oem-access-token')
+}
+
 function readStoredUser() {
   const rawUser = localStorage.getItem('oem-user')
   if (!rawUser) return null
@@ -26,20 +30,27 @@ function readStoredUser() {
 
 function AppRoutes() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
+  const [accessToken, setAccessToken] = useState<string | null>(() => readStoredToken())
 
-  function handleLogin(user: AuthUser) {
+  function handleLogin(user: AuthUser, accessTokenValue: string, refreshTokenValue: string) {
     localStorage.setItem('oem-auth', 'true')
     localStorage.setItem('oem-user', JSON.stringify(user))
+    localStorage.setItem('oem-access-token', accessTokenValue)
+    localStorage.setItem('oem-refresh-token', refreshTokenValue)
     setCurrentUser(user)
+    setAccessToken(accessTokenValue)
   }
 
   function handleLogout() {
     localStorage.removeItem('oem-auth')
     localStorage.removeItem('oem-user')
+    localStorage.removeItem('oem-access-token')
+    localStorage.removeItem('oem-refresh-token')
     setCurrentUser(null)
+    setAccessToken(null)
   }
 
-  const isLoggedIn = Boolean(currentUser) || localStorage.getItem('oem-auth') === 'true'
+  const isLoggedIn = Boolean(currentUser && accessToken)
   const user = currentUser || fallbackUser
 
   return (
@@ -58,7 +69,7 @@ function AppRoutes() {
         path="/flow"
         element={
           isLoggedIn ? (
-            <FlowPage currentUser={user} onLogout={handleLogout} />
+            <FlowPage accessToken={accessToken || ''} currentUser={user} onLogout={handleLogout} />
           ) : (
             <Navigate to="/login" replace />
           )

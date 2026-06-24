@@ -138,6 +138,16 @@
   color: #fff;
 }
 
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--coral-soft);
+  color: var(--coral);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .oem-app-shell {
   min-height: 100svh;
   background: var(--page-bg);
@@ -1061,6 +1071,20 @@ button:disabled {
   border: 0;
   background: var(--coral-soft);
   color: var(--coral);
+}
+
+.update-text-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
+.flow-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .department-grid {

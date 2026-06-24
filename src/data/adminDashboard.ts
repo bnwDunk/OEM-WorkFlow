@@ -9,6 +9,7 @@ export type AuthUser = {
 }
 
 export type ManagedUser = AuthUser & {
+  departmentId?: number | null
   status: 'active' | 'inactive'
   lastLogin: string
 }
