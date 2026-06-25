@@ -6,6 +6,7 @@ This setup runs the app with Docker Compose:
 - `backend`: Node/Express API
 - `workflow-sync`: one-shot job that syncs OEM Flow stages/phases into MySQL
 - `mysql`: MySQL 8.4 with persistent volume
+- `phpmyadmin`: browser UI for managing MySQL
 
 ## Files
 
@@ -41,6 +42,7 @@ JWT_ACCESS_SECRET
 JWT_REFRESH_SECRET
 CLIENT_ORIGIN
 APP_PORT
+PHPMYADMIN_PORT
 ```
 
 Start the stack:
@@ -54,6 +56,14 @@ Open:
 ```text
 http://SERVER_IP:8088
 ```
+
+Open phpMyAdmin:
+
+```text
+http://SERVER_IP:8089
+```
+
+phpMyAdmin connects to the `mysql` container. Login uses the MySQL root password from `.env.production`.
 
 ## Useful Commands
 
@@ -82,4 +92,4 @@ docker compose --env-file .env.production exec mysql \
   mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" oem_app > oem_app_backup.sql
 ```
 
-Do not expose MySQL to the public internet. Put Nginx/Caddy or an internal load balancer in front of `APP_PORT` if you need HTTPS/domain routing.
+Do not expose MySQL to the public internet. Put Nginx/Caddy or an internal load balancer in front of `APP_PORT` if you need HTTPS/domain routing. If the server is reachable outside the company network, restrict `PHPMYADMIN_PORT` with firewall/VPN.
