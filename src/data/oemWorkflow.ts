@@ -45,11 +45,18 @@ export type IssueItem = {
   time: string
 }
 
+export type CustomerTag = {
+  id?: number
+  name: string
+  color?: string | null
+}
+
 export type Customer = {
   id: string
+  databaseId?: number
   name: string
   currentPhase: number
-  tags: string[]
+  tags: CustomerTag[]
   info: {
     costSyrup: string
     costPackage: string
@@ -261,7 +268,7 @@ export function createInitialCustomers(): Customer[] {
       id: 'siam-foods',
       name: 'บริษัท สยามฟู้ดส์ จำกัด',
       currentPhase: 2,
-      tags: ['น้ำหวานแต่งกลิ่น'],
+      tags: [{ name: 'น้ำหวานแต่งกลิ่น' }],
       info: {
         costSyrup: '21.00',
         costPackage: '4.00',
@@ -289,7 +296,7 @@ export function createInitialCustomers(): Customer[] {
       id: 'green-plus',
       name: 'Green Plus Lab',
       currentPhase: 8,
-      tags: ['Zero Sugar', 'อาหารเสริม'],
+      tags: [{ name: 'Zero Sugar' }, { name: 'อาหารเสริม' }],
       info: {
         costSyrup: '18.50',
         costPackage: '6.20',

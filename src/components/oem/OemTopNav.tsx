@@ -1,13 +1,15 @@
+import type { AuthUser } from '../../data/adminDashboard'
 import type { Department, NotificationItem } from '../../data/oemWorkflow'
 
 type OemTopNavProps = {
   activeView: string
+  currentUser: AuthUser
   currentDept: string
   departments: Department[]
   notifications: (NotificationItem & { customerName: string })[]
   bellOpen: boolean
   profileOpen: boolean
-  onChangeView: (view: 'overview' | 'dept' | 'config') => void
+  onChangeView: (view: 'overview' | 'dept' | 'config' | 'admin') => void
   onChangeDept: (dept: string) => void
   onToggleBell: () => void
   onToggleProfile: () => void
@@ -17,6 +19,7 @@ type OemTopNavProps = {
 function OemTopNav({
   activeView,
   bellOpen,
+  currentUser,
   currentDept,
   departments,
   notifications,
@@ -40,6 +43,11 @@ function OemTopNav({
         <button className={activeView === 'config' ? 'active' : ''} onClick={() => onChangeView('config')} type="button">
           Configuration
         </button>
+        {currentUser.role === 'admin' && (
+          <button className={activeView === 'admin' ? 'active' : ''} onClick={() => onChangeView('admin')} type="button">
+            Admin
+          </button>
+        )}
       </nav>
 
       <div className="oem-nav-actions">
@@ -60,11 +68,17 @@ function OemTopNav({
         )}
 
         <button className="profile-btn" onClick={onToggleProfile} type="button">
-          <span className="avatar">{currentDept.slice(0, 1)}</span>
-          {currentDept}
+          <span className="avatar">{currentUser.name.slice(0, 1)}</span>
+          {currentUser.name}
         </button>
         {profileOpen && (
           <div className="dropdown-panel profile-menu">
+            <h5>Signed in</h5>
+            <div className="profile-summary">
+              <strong>{currentUser.name}</strong>
+              <span>{currentUser.email}</span>
+              <em>{currentUser.role}</em>
+            </div>
             <h5>ดูในนามแผนก</h5>
             {departments.map((department) => (
               <button

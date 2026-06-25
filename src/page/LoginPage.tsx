@@ -1,18 +1,62 @@
 import type { FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BrandBlock from '../components/BrandBlock'
+import type { AuthUser } from '../data/adminDashboard'
+import { apiRequest } from '../lib/api'
 
 type LoginPageProps = {
-  onLogin: () => void
+  onLogin: (user: AuthUser, accessToken: string, refreshToken: string) => void
+}
+
+type LoginResponse = {
+  access_token: string
+  refresh_token: string
+  user: {
+    id: number
+    name: string
+    email: string
+    role: AuthUser['role']
+    department: { name: string } | null
+  }
 }
 
 function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onLogin()
-    navigate('/flow', { replace: true })
+    const data = new FormData(event.currentTarget)
+    const email = String(data.get('email') || '').trim().toLowerCase()
+    const password = String(data.get('password') || '')
+
+    try {
+      setError('')
+      setLoading(true)
+      const response = await apiRequest<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      })
+
+      onLogin(
+        {
+          id: response.user.id,
+          name: response.user.name,
+          email: response.user.email,
+          role: response.user.role,
+          department: response.user.department?.name || 'Sales',
+        },
+        response.access_token,
+        response.refresh_token,
+      )
+      navigate('/flow', { replace: true })
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : 'Login failed.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -47,7 +91,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Email
             <input
               autoComplete="email"
-              defaultValue="pm@oem-control.com"
+              defaultValue="admin@oem.local"
               name="email"
               type="email"
             />
@@ -56,14 +100,15 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Password
             <input
               autoComplete="current-password"
-              defaultValue="password"
+              defaultValue="password123"
               name="password"
               type="password"
             />
           </label>
           <button className="login-submit" type="submit">
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
+          {error && <p className="form-error">{error}</p>}
         </form>
       </section>
     </main>

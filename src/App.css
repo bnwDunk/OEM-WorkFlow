@@ -118,6 +118,7 @@
 
 .login-form input,
 .modal-box input,
+.modal-box select,
 .issue-form input,
 .issue-form select {
   width: 100%;
@@ -136,6 +137,16 @@
   border-color: var(--teal);
   background: var(--teal);
   color: #fff;
+}
+
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--coral-soft);
+  color: var(--coral);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .oem-app-shell {
@@ -260,6 +271,27 @@
   width: 240px;
 }
 
+.profile-summary {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--page-bg);
+}
+
+.profile-summary span,
+.profile-summary em {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.profile-summary em {
+  font-style: normal;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
 .dropdown-panel h5 {
   margin: 2px 6px 8px;
   color: var(--ink-muted);
@@ -348,9 +380,48 @@ button:disabled {
   color: var(--ink-muted);
 }
 
+.overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primary-action-btn {
+  padding: 0 16px;
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
 .customer-list {
   display: grid;
   gap: 12px;
+}
+
+.overview-state {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.overview-state.error {
+  border-color: #f2b8b5;
+  background: #fff7f6;
+  color: #b42318;
+}
+
+.admin-success {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #b6e2c4;
+  border-radius: 10px;
+  background: #f3fbf5;
+  color: #087443;
+  font-weight: 800;
 }
 
 .customer-card,
@@ -404,6 +475,22 @@ button:disabled {
   color: var(--teal);
   font-size: 11px;
   font-weight: 800;
+}
+
+.tag-add-btn {
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tag-add-btn:hover {
+  border-color: var(--teal);
+  color: var(--teal);
 }
 
 .badges {
@@ -875,6 +962,335 @@ button:disabled {
   font-size: 13px;
 }
 
+.admin-page {
+  width: min(1240px, 100%);
+}
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-stat,
+.admin-section,
+.department-tile {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.admin-stat {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.admin-stat span,
+.admin-section-head p,
+.department-tile span,
+.department-tile dt {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-stat strong {
+  font-size: 28px;
+}
+
+.admin-section {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.admin-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.admin-section-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.admin-section-head p {
+  margin: 4px 0 0;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--page-bg);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-table td strong,
+.admin-table td span {
+  display: block;
+}
+
+.admin-table td span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.admin-table select,
+.admin-table input,
+.admin-inline-form input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.admin-table input {
+  width: 100%;
+  min-width: 130px;
+}
+
+.flow-table {
+  min-width: 980px;
+}
+
+.flow-table td:first-child {
+  min-width: 220px;
+}
+
+.flow-create-form {
+  min-width: min(560px, 100%);
+}
+
+.flow-create-form select {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.status-toggle {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  text-transform: capitalize;
+}
+
+.status-toggle.active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.status-toggle.inactive {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.admin-inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-inline-form button {
+  padding: 0 14px;
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
+.danger-text-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.update-text-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--teal);
+  color: #fff;
+}
+
+.flow-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.flow-structure-modal {
+  width: min(1320px, calc(100vw - 48px));
+  gap: 16px;
+}
+
+.structure-modal-head,
+.structure-stage-head,
+.structure-phase-row {
+  display: grid;
+  gap: 10px;
+}
+
+.structure-modal-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.structure-modal-head p {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+}
+
+.structure-stage-list {
+  display: grid;
+  gap: 12px;
+}
+
+.structure-stage {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--page-bg) 42%, var(--surface));
+}
+
+.structure-stage-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.structure-stage-head label,
+.phase-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.structure-phase-list {
+  display: grid;
+  gap: 8px;
+}
+
+.structure-phase-row {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.phase-fields {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.structure-stage input,
+.structure-phase-row input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.add-phase-btn {
+  justify-self: start;
+}
+
+.department-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 6px;
+}
+
+.department-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.department-chip input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--teal);
+}
+
+.department-chip.selected {
+  border-color: transparent;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.department-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.department-tile {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.department-tile strong,
+.department-tile span {
+  display: block;
+}
+
+.department-tile dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.department-tile dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -923,6 +1339,82 @@ button:disabled {
   color: #fff;
 }
 
+.tag-modal {
+  width: min(560px, 100%);
+}
+
+.tag-suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.tag-suggestion span {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--teal);
+}
+
+.tag-suggestion.selected {
+  border-width: 2px;
+}
+
+.color-field {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 32px;
+  min-height: 32px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+.color-swatch.selected {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--line);
+}
+
+.color-palette input[type="color"] {
+  width: 40px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.tag-preview {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--page-bg);
+}
+
 .reset-choice {
   display: grid;
   gap: 10px;
@@ -944,6 +1436,11 @@ button:disabled {
 @media (max-width: 1100px) {
   .phase-rail {
     grid-template-columns: repeat(3, minmax(180px, 1fr));
+  }
+
+  .admin-stat-grid,
+  .department-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -984,6 +1481,7 @@ button:disabled {
   }
 
   .page-heading,
+  .admin-section-head,
   .customer-head,
   .deptwork-row {
     align-items: flex-start;
@@ -1005,6 +1503,16 @@ button:disabled {
 
   .issue-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-stat-grid,
+  .department-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inline-form {
+    width: 100%;
+    flex-direction: column;
   }
 
   .dropdown-panel {
