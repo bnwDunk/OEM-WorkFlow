@@ -58,8 +58,8 @@ services:
       context: ${BACKEND_CONTEXT:-../../OEM-backend}
       dockerfile: Dockerfile
     depends_on:
-      mysql:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
     command: ["npm", "run", "sync:workflow"]
     environment:
       NODE_ENV: production
@@ -70,6 +70,22 @@ services:
       DB_NAME: ${DB_NAME:-oem_app}
     volumes:
       - ${FRONTEND_WORKFLOW_FILE:-./src/data/oemWorkflow.ts}:/OEM/oem-workflow/src/data/oemWorkflow.ts:ro
+
+  db-migrate:
+    build:
+      context: ${BACKEND_CONTEXT:-../../OEM-backend}
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ["npm", "run", "migrate:prod"]
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${DB_NAME:-oem_app}
 
   frontend:
     build:
