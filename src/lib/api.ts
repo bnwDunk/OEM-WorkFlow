@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
+if (!API_BASE_URL) {
+  throw new Error('VITE_API_BASE_URL is required. Please set it in the frontend .env file.')
+}
 
 type ApiOptions = RequestInit & {
   token?: string | null
@@ -8,6 +12,21 @@ type RefreshResponse = {
   access_token: string
   refresh_token: string
   user: unknown
+}
+
+function normalizeStoredUser(user: unknown) {
+  if (!user || typeof user !== 'object') return user
+
+  const value = user as {
+    department?: string | { name?: string } | null
+  }
+
+  if (!value.department || typeof value.department === 'string') return user
+
+  return {
+    ...value,
+    department: value.department.name || 'Sales',
+  }
 }
 
 async function refreshAccessToken() {
@@ -27,7 +46,7 @@ async function refreshAccessToken() {
   const body = await response.json() as RefreshResponse
   localStorage.setItem('oem-access-token', body.access_token)
   localStorage.setItem('oem-refresh-token', body.refresh_token)
-  localStorage.setItem('oem-user', JSON.stringify(body.user))
+  localStorage.setItem('oem-user', JSON.stringify(normalizeStoredUser(body.user)))
 
   return body.access_token
 }

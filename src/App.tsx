@@ -17,12 +17,35 @@ function readStoredToken() {
   return localStorage.getItem('oem-access-token')
 }
 
+function normalizeUser(user: unknown): AuthUser | null {
+  if (!user || typeof user !== 'object') return null
+
+  const value = user as {
+    id: number
+    name: string
+    email: string
+    role: AuthUser['role']
+    department?: string | { name?: string } | null
+  }
+
+  return {
+    id: value.id,
+    name: value.name,
+    email: value.email,
+    role: value.role,
+    department:
+      typeof value.department === 'object' && value.department
+        ? value.department.name || 'Sales'
+        : value.department || 'Sales',
+  }
+}
+
 function readStoredUser() {
   const rawUser = localStorage.getItem('oem-user')
   if (!rawUser) return null
 
   try {
-    return JSON.parse(rawUser) as AuthUser
+    return normalizeUser(JSON.parse(rawUser))
   } catch {
     return null
   }

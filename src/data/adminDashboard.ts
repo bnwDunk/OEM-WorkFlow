@@ -27,11 +27,23 @@ export type ManagedFlow = {
   id: number
   code: string
   name: string
-  version: number
   sourceFlowId: number | null
+  sourceFlowName?: string | null
   stageCount: number
   phaseCount: number
   status: 'active' | 'draft' | 'inactive'
+  updatedAt: string
+}
+
+export type ManagedCustomerProject = {
+  id: number
+  slug: string
+  name: string
+  status: 'active' | 'completed' | 'paused' | 'cancelled'
+  flowId: number | null
+  flowName: string | null
+  currentPhaseId: number | null
+  currentPhaseName: string | null
   updatedAt: string
 }
 
@@ -77,7 +89,6 @@ export const demoFlows: ManagedFlow[] = [
     id: 1,
     code: 'OEM_FLOW',
     name: 'OEM Flow',
-    version: 1,
     sourceFlowId: null,
     stageCount: 5,
     phaseCount: 20,
@@ -88,7 +99,6 @@ export const demoFlows: ManagedFlow[] = [
     id: 2,
     code: 'OEM_FLOW_ZERO_SUGAR',
     name: 'OEM Flow - Zero Sugar',
-    version: 1,
     sourceFlowId: 1,
     stageCount: 5,
     phaseCount: 20,

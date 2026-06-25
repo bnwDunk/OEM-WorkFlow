@@ -1,9 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  demoDepartments,
-  demoFlows,
-  demoUsers,
-} from '../data/adminDashboard'
 import { apiRequest } from '../lib/api'
 import type {
   AppRole,
@@ -18,7 +13,23 @@ type AdminDashboardProps = {
   token: string
 }
 
-type FlowDraft = Pick<ManagedFlow, 'name' | 'status' | 'version'>
+type FlowDraft = Pick<ManagedFlow, 'name' | 'status'>
+type FlowPhaseDraft = {
+  id?: number
+  label: string
+  name: string
+  departments?: Pick<ManagedDepartment, 'id' | 'name'>[]
+  departmentIds?: number[]
+}
+type FlowStageDraft = {
+  id?: number
+  name: string
+  phases: FlowPhaseDraft[]
+}
+type FlowStructure = {
+  flow: Pick<ManagedFlow, 'id' | 'name'>
+  stages: FlowStageDraft[]
+}
 
 function AdminDashboard({ token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -27,9 +38,13 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   const [flowDrafts, setFlowDrafts] = useState<Record<number, FlowDraft>>({})
   const [newDepartmentName, setNewDepartmentName] = useState('')
   const [newFlowName, setNewFlowName] = useState('')
-  const [sourceFlowId, setSourceFlowId] = useState(demoFlows[0]?.id || 0)
+  const [sourceFlowId, setSourceFlowId] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [busyAction, setBusyAction] = useState('')
+  const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
 
   const stats = useMemo(
     () => ({
@@ -62,7 +77,6 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             {
               name: flow.name,
               status: flow.status,
-              version: flow.version,
             },
           ]),
         ),
@@ -70,21 +84,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       setSourceFlowId(flowsResponse.flows[0]?.id || 0)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load admin data.')
-      setUsers(demoUsers)
-      setDepartments(demoDepartments)
-      setFlows(demoFlows)
-      setFlowDrafts(
-        Object.fromEntries(
-          demoFlows.map((flow) => [
-            flow.id,
-            {
-              name: flow.name,
-              status: flow.status,
-              version: flow.version,
-            },
-          ]),
-        ),
-      )
+      setUsers([])
+      setDepartments([])
+      setFlows([])
+      setFlowDrafts({})
+      setSourceFlowId(0)
     } finally {
       setLoading(false)
     }
@@ -95,15 +99,25 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   }, [token])
 
   async function updateUser(userId: number, patch: Partial<ManagedUser>) {
-    await apiRequest(`/admin/users/${userId}`, {
-      method: 'PATCH',
-      token,
-      body: JSON.stringify(patch),
-    })
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`user-${userId}`)
+      await apiRequest(`/admin/users/${userId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(patch),
+      })
 
-    setUsers((current) =>
-      current.map((user) => (user.id === userId ? { ...user, ...patch } : user)),
-    )
+      setUsers((current) =>
+        current.map((user) => (user.id === userId ? { ...user, ...patch } : user)),
+      )
+      setActionMessage('Updated user.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update user.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   async function toggleDepartment(departmentId: number) {
@@ -111,37 +125,61 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     if (!department) return
 
     const status = department.status === 'active' ? 'inactive' : 'active'
-    await apiRequest(`/admin/departments/${departmentId}`, {
-      method: 'PATCH',
-      token,
-      body: JSON.stringify({ status }),
-    })
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`department-${departmentId}`)
+      await apiRequest(`/admin/departments/${departmentId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ status }),
+      })
 
-    setDepartments((current) =>
-      current.map((department) =>
-        department.id === departmentId
-          ? { ...department, status }
-          : department,
-      ),
-    )
+      setDepartments((current) =>
+        current.map((department) =>
+          department.id === departmentId
+            ? { ...department, status }
+            : department,
+        ),
+      )
+      setActionMessage('Updated department.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update department.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   async function addDepartment() {
     const name = newDepartmentName.trim()
     if (!name) return
 
-    await apiRequest('/admin/departments', {
-      method: 'POST',
-      token,
-      body: JSON.stringify({ name }),
-    })
-    setNewDepartmentName('')
-    await loadAdminData()
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction('department-create')
+      await apiRequest('/admin/departments', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ name }),
+      })
+      setNewDepartmentName('')
+      await loadAdminData()
+      setActionMessage('Created department.')
+    } catch (createError) {
+      setActionError(createError instanceof Error ? createError.message : 'Failed to create department.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   function getFlowName(flowId: number | null) {
     if (!flowId) return 'Original'
     return flows.find((flow) => flow.id === flowId)?.name || 'Unknown source'
+  }
+
+  function getSourceFlowLabel(flow: ManagedFlow) {
+    return flow.sourceFlowName || getFlowName(flow.sourceFlowId)
   }
 
   function updateFlowDraft(flowId: number, patch: Partial<FlowDraft>) {
@@ -154,44 +192,259 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     }))
   }
 
+  async function openStructureEditor(flow: ManagedFlow) {
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-structure-${flow.id}`)
+      const response = await apiRequest<FlowStructure>(`/admin/flows/${flow.id}/structure`, { token })
+      setStructureEditor({
+        ...response,
+        stages: response.stages.map((stage) => ({
+          ...stage,
+          phases: stage.phases.map((phase) => ({
+            ...phase,
+            departmentIds: phase.departments?.map((department) => department.id) || [],
+          })),
+        })),
+      })
+    } catch (loadError) {
+      setActionError(loadError instanceof Error ? loadError.message : 'Failed to load flow structure.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  function updateStage(stageIndex: number, patch: Partial<FlowStageDraft>) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, index) =>
+          index === stageIndex ? { ...stage, ...patch } : stage,
+        ),
+      }
+    })
+  }
+
+  function updatePhase(stageIndex: number, phaseIndex: number, patch: Partial<FlowPhaseDraft>) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, index) =>
+          index === stageIndex
+            ? {
+                ...stage,
+                phases: stage.phases.map((phase, itemIndex) =>
+                  itemIndex === phaseIndex ? { ...phase, ...patch } : phase,
+                ),
+              }
+            : stage,
+        ),
+      }
+    })
+  }
+
+  function addStage() {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: [
+          ...current.stages,
+          {
+            name: `Stage ${current.stages.length + 1}`,
+            phases: [{ label: '1', name: 'New phase', departmentIds: departments[0] ? [departments[0].id] : [] }],
+          },
+        ],
+      }
+    })
+  }
+
+  function removeStage(stageIndex: number) {
+    setStructureEditor((current) => {
+      if (!current || current.stages.length <= 1) return current
+
+      return {
+        ...current,
+        stages: current.stages.filter((_, index) => index !== stageIndex),
+      }
+    })
+  }
+
+  function addPhase(stageIndex: number) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, index) =>
+          index === stageIndex
+            ? {
+                ...stage,
+                phases: [
+                  ...stage.phases,
+                  { label: String(stage.phases.length + 1), name: 'New phase', departmentIds: departments[0] ? [departments[0].id] : [] },
+                ],
+              }
+            : stage,
+        ),
+      }
+    })
+  }
+
+  function removePhase(stageIndex: number, phaseIndex: number) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, index) =>
+          index === stageIndex
+            ? { ...stage, phases: stage.phases.filter((_, itemIndex) => itemIndex !== phaseIndex) }
+            : stage,
+        ),
+      }
+    })
+  }
+
+  function togglePhaseDepartment(stageIndex: number, phaseIndex: number, departmentId: number) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, index) =>
+          index === stageIndex
+            ? {
+                ...stage,
+                phases: stage.phases.map((phase, itemIndex) => {
+                  if (itemIndex !== phaseIndex) return phase
+
+                  const departmentIds = phase.departmentIds || []
+                  const nextDepartmentIds = departmentIds.includes(departmentId)
+                    ? departmentIds.filter((item) => item !== departmentId)
+                    : [...departmentIds, departmentId]
+
+                  return {
+                    ...phase,
+                    departmentIds: nextDepartmentIds,
+                  }
+                }),
+              }
+            : stage,
+        ),
+      }
+    })
+  }
+
+  async function saveStructure() {
+    if (!structureEditor) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-structure-save-${structureEditor.flow.id}`)
+      const stages = structureEditor.stages.map((stage) => ({
+        ...stage,
+        phases: stage.phases.map((phase) => ({
+          id: phase.id,
+          label: phase.label,
+          name: phase.name,
+          departmentIds: phase.departmentIds || [],
+        })),
+      }))
+
+      await apiRequest(`/admin/flows/${structureEditor.flow.id}/structure`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ stages }),
+      })
+      setStructureEditor(null)
+      await loadAdminData()
+      setActionMessage('Updated flow structure.')
+    } catch (saveError) {
+      setActionError(saveError instanceof Error ? saveError.message : 'Failed to update flow structure.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function saveFlowDetails(flowId: number) {
     const draft = flowDrafts[flowId]
     if (!draft) return
 
-    await apiRequest(`/admin/flows/${flowId}`, {
-      method: 'PATCH',
-      token,
-      body: JSON.stringify(draft),
-    })
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-update-${flowId}`)
+      await apiRequest(`/admin/flows/${flowId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(draft),
+      })
 
-    setFlows((current) =>
-      current.map((flow) => (flow.id === flowId ? { ...flow, ...draft, updatedAt: 'Just now' } : flow)),
-    )
+      setFlows((current) =>
+        current.map((flow) => (flow.id === flowId ? { ...flow, ...draft, updatedAt: 'Just now' } : flow)),
+      )
+      setActionMessage('Updated flow.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update flow.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   async function createFlowFromSource() {
     const source = flows.find((flow) => flow.id === sourceFlowId)
     const name = newFlowName.trim()
-    if (!source || !name) return
+    if (!name) return
 
-    await apiRequest('/admin/flows', {
-      method: 'POST',
-      token,
-      body: JSON.stringify({ name, sourceFlowId: source.id }),
-    })
-    setNewFlowName('')
-    await loadAdminData()
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction('flow-create')
+      await apiRequest('/admin/flows', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(source ? { name, sourceFlowId: source.id } : { name }),
+      })
+      setNewFlowName('')
+      await loadAdminData()
+      setActionMessage('Created flow.')
+    } catch (createError) {
+      setActionError(createError instanceof Error ? createError.message : 'Failed to create flow.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   async function deleteFlow(flowId: number) {
-    if (flows.length <= 1) return
+    if (flows.length <= 1) {
+      setActionError('Cannot delete the last flow template.')
+      return
+    }
 
-    await apiRequest(`/admin/flows/${flowId}`, {
-      method: 'DELETE',
-      token,
-    })
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-delete-${flowId}`)
+      await apiRequest(`/admin/flows/${flowId}`, {
+        method: 'DELETE',
+        token,
+      })
 
-    setFlows((current) => current.filter((flow) => flow.id !== flowId))
+      setFlows((current) => current.filter((flow) => flow.id !== flowId))
+      setActionMessage('Deleted flow.')
+    } catch (deleteError) {
+      setActionError(deleteError instanceof Error ? deleteError.message : 'Failed to delete flow.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   return (
@@ -204,6 +457,8 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       </div>
 
       {error && <p className="form-error">{error}</p>}
+      {actionError && <p className="form-error">{actionError}</p>}
+      {actionMessage && <p className="admin-success">{actionMessage}</p>}
       {loading && <p className="empty-note">Loading admin data...</p>}
 
       <div className="admin-stat-grid" aria-label="Admin summary">
@@ -239,8 +494,10 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             <select
               aria-label="Source flow"
               onChange={(event) => setSourceFlowId(Number(event.target.value))}
+              disabled={flows.length === 0}
               value={sourceFlowId}
             >
+              {flows.length === 0 && <option value={0}>Standard OEM template</option>}
               {flows.map((flow) => (
                 <option key={flow.id} value={flow.id}>{flow.name}</option>
               ))}
@@ -251,7 +508,9 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               placeholder="New flow name"
               value={newFlowName}
             />
-            <button onClick={createFlowFromSource} type="button">Create flow</button>
+            <button disabled={Boolean(busyAction) || !newFlowName.trim()} onClick={createFlowFromSource} type="button">
+              {busyAction === 'flow-create' ? 'Creating...' : 'Create flow'}
+            </button>
           </div>
         </div>
 
@@ -261,7 +520,6 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               <tr>
                 <th>Flow</th>
                 <th>Based on</th>
-                <th>Version</th>
                 <th>Structure</th>
                 <th>Status</th>
                 <th>Updated</th>
@@ -269,16 +527,19 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               </tr>
             </thead>
             <tbody>
+              {!loading && flows.length === 0 && (
+                <tr>
+                  <td colSpan={6}>No flows found in database.</td>
+                </tr>
+              )}
               {flows.map((flow) => {
                 const draft = flowDrafts[flow.id] || {
                   name: flow.name,
                   status: flow.status,
-                  version: flow.version,
                 }
                 const hasChanges =
                   draft.name !== flow.name ||
-                  draft.status !== flow.status ||
-                  draft.version !== flow.version
+                  draft.status !== flow.status
 
                 return (
                   <tr key={flow.id}>
@@ -290,17 +551,17 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                       />
                       <span>{flow.code}</span>
                     </td>
-                    <td>{getFlowName(flow.sourceFlowId)}</td>
+                    <td>{getSourceFlowLabel(flow)}</td>
                     <td>
-                      <input
-                        aria-label={`Version for ${flow.name}`}
-                        min="1"
-                        onChange={(event) => updateFlowDraft(flow.id, { version: Number(event.target.value) || 1 })}
-                        type="number"
-                        value={draft.version}
-                      />
+                      <button
+                        className="update-text-btn"
+                        disabled={Boolean(busyAction)}
+                        onClick={() => openStructureEditor(flow)}
+                        type="button"
+                      >
+                        {flow.stageCount} stages / {flow.phaseCount} phases
+                      </button>
                     </td>
-                    <td>{flow.stageCount} stages / {flow.phaseCount} phases</td>
                     <td>
                       <select
                         aria-label={`Status for ${flow.name}`}
@@ -317,14 +578,14 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                       <div className="flow-action-row">
                         <button
                           className="update-text-btn"
-                          disabled={!hasChanges}
+                          disabled={Boolean(busyAction) || !hasChanges}
                           onClick={() => saveFlowDetails(flow.id)}
                           type="button"
                         >
-                          Update
+                          {busyAction === `flow-update-${flow.id}` ? 'Updating...' : 'Update'}
                         </button>
-                        <button className="danger-text-btn" onClick={() => deleteFlow(flow.id)} type="button">
-                          Delete
+                        <button className="danger-text-btn" disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
+                          {busyAction === `flow-delete-${flow.id}` ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
                     </td>
@@ -391,6 +652,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                     <button
                       className={`status-toggle ${user.status}`}
                       onClick={() => updateUser(user.id, { status: user.status === 'active' ? 'inactive' : 'active' })}
+                      disabled={Boolean(busyAction)}
                       type="button"
                     >
                       {user.status}
@@ -417,7 +679,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               placeholder="Department name"
               value={newDepartmentName}
             />
-            <button onClick={addDepartment} type="button">Add</button>
+            <button disabled={Boolean(busyAction) || !newDepartmentName.trim()} onClick={addDepartment} type="button">Add</button>
           </div>
         </div>
         <div className="department-grid">
@@ -439,6 +701,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               </dl>
               <button
                 className={`status-toggle ${department.status}`}
+                disabled={Boolean(busyAction)}
                 onClick={() => toggleDepartment(department.id)}
                 type="button"
               >
@@ -448,6 +711,97 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           ))}
         </div>
       </section>
+
+      {structureEditor && (
+        <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && setStructureEditor(null)}>
+          <section className="modal-box flow-structure-modal">
+            <div className="structure-modal-head">
+              <div>
+                <h3>{structureEditor.flow.name}</h3>
+                <p>Edit stages and phases for this flow.</p>
+              </div>
+              <button className="update-text-btn" onClick={addStage} type="button">Add stage</button>
+            </div>
+
+            <div className="structure-stage-list">
+              {structureEditor.stages.map((stage, stageIndex) => (
+                <section className="structure-stage" key={stage.id || `stage-${stageIndex}`}>
+                  <div className="structure-stage-head">
+                    <label>
+                      Stage {stageIndex + 1}
+                      <input
+                        aria-label={`Stage ${stageIndex + 1} name`}
+                        onChange={(event) => updateStage(stageIndex, { name: event.target.value })}
+                        value={stage.name}
+                      />
+                    </label>
+                    <button
+                      className="danger-text-btn"
+                      disabled={structureEditor.stages.length <= 1}
+                      onClick={() => removeStage(stageIndex)}
+                      type="button"
+                    >
+                      Delete stage
+                    </button>
+                  </div>
+
+                  <div className="structure-phase-list">
+                    {stage.phases.map((phase, phaseIndex) => (
+                      <div className="structure-phase-row" key={phase.id || `phase-${phaseIndex}`}>
+                        <div className="phase-fields">
+                          <label>
+                            Phase
+                            <input
+                              aria-label={`Phase ${phaseIndex + 1} label`}
+                              onChange={(event) => updatePhase(stageIndex, phaseIndex, { label: event.target.value })}
+                              value={phase.label}
+                            />
+                          </label>
+                          <label>
+                            Name
+                            <input
+                              aria-label={`Phase ${phaseIndex + 1} name`}
+                              onChange={(event) => updatePhase(stageIndex, phaseIndex, { name: event.target.value })}
+                              value={phase.name}
+                            />
+                          </label>
+                          <button className="danger-text-btn" onClick={() => removePhase(stageIndex, phaseIndex)} type="button">
+                            Delete
+                          </button>
+                        </div>
+                        <div className="department-picker" aria-label={`Departments for ${phase.name}`}>
+                          {departments.map((department) => {
+                            const checked = (phase.departmentIds || []).includes(department.id)
+
+                            return (
+                              <label className={checked ? 'department-chip selected' : 'department-chip'} key={department.id}>
+                                <input
+                                  checked={checked}
+                                  onChange={() => togglePhaseDepartment(stageIndex, phaseIndex, department.id)}
+                                  type="checkbox"
+                                />
+                                {department.name}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <button className="update-text-btn add-phase-btn" onClick={() => addPhase(stageIndex)} type="button">Add phase</button>
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="modal-actions">
+              <button className="ghost" disabled={Boolean(busyAction)} onClick={() => setStructureEditor(null)} type="button">Cancel</button>
+              <button className="primary" disabled={Boolean(busyAction)} onClick={saveStructure} type="button">
+                {busyAction.startsWith('flow-structure-save') ? 'Saving...' : 'Save structure'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   )
 }

@@ -4,11 +4,12 @@ import StageRail from './StageRail'
 
 type CustomerCardProps = {
   customer: Customer
+  onAddTag: (customerId: string) => void
   onOpen: (customerId: string) => void
   onOpenCompany: (customerId: string) => void
 }
 
-function CustomerCard({ customer, onOpen, onOpenCompany }: CustomerCardProps) {
+function CustomerCard({ customer, onAddTag, onOpen, onOpenCompany }: CustomerCardProps) {
   const currentStop = flowStops[customer.currentPhase]
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
 
@@ -21,8 +22,15 @@ function CustomerCard({ customer, onOpen, onOpenCompany }: CustomerCardProps) {
           </button>
           <div className="tag-row">
             {customer.tags.map((tag) => (
-              <span className="tag-chip" key={tag}>{tag}</span>
+              <span
+                className="tag-chip"
+                key={`${tag.id || tag.name}-${tag.color || ''}`}
+                style={tag.color ? { background: tag.color, color: '#fff' } : undefined}
+              >
+                {tag.name}
+              </span>
             ))}
+            <button className="tag-add-btn" onClick={() => onAddTag(customer.id)} type="button">+ Tag</button>
           </div>
         </div>
         <div className="badges">
