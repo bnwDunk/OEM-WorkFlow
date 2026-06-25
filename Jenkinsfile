@@ -40,6 +40,8 @@ pipeline {
     ENV_FILE = '.env.production'
     BACKEND_DIR = 'OEM-backend'
     BACKEND_CONTEXT = './OEM-backend'
+    FRONTEND_CONTEXT = '.'
+    FRONTEND_WORKFLOW_FILE = './src/data/oemWorkflow.ts'
   }
 
   stages {
