@@ -32,12 +32,17 @@ pipeline {
       defaultValue: 'git-oem-token',
       description: 'Jenkins credential ID that can read both frontend and backend repositories.'
     )
+    string(
+      name: 'ENV_FILE_PATH',
+      defaultValue: '/home/oem-flow/OEM/.env.production',
+      description: 'Absolute or workspace-relative path to the production env file.'
+    )
   }
 
   environment {
     COMPOSE_PROJECT_NAME = 'oem'
     COMPOSE_FILE_PATH = 'docker-compose.yml'
-    ENV_FILE = '.env.production'
+    ENV_FILE = "${params.ENV_FILE_PATH}"
     BACKEND_DIR = 'OEM-backend'
     BACKEND_CONTEXT = './OEM-backend'
     FRONTEND_CONTEXT = '.'
