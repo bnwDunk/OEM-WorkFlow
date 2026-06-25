@@ -10,6 +10,8 @@ export type AuthUser = {
 
 export type ManagedUser = AuthUser & {
   departmentId?: number | null
+  departments?: Pick<ManagedDepartment, 'id' | 'name'>[]
+  departmentIds?: number[]
   status: 'active' | 'inactive'
   lastLogin: string
 }
