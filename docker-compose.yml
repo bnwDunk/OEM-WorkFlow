@@ -7,7 +7,7 @@ services:
       MYSQL_DATABASE: ${DB_NAME:-oem_app}
     volumes:
       - oem_mysql_data:/var/lib/mysql
-      - ${BACKEND_CONTEXT:-../OEM-backend}/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ${BACKEND_CONTEXT:-../../OEM-backend}/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
@@ -16,7 +16,7 @@ services:
 
   backend:
     build:
-      context: ${BACKEND_CONTEXT:-../OEM-backend}
+      context: ${BACKEND_CONTEXT:-../../OEM-backend}
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -40,7 +40,7 @@ services:
 
   workflow-sync:
     build:
-      context: ${BACKEND_CONTEXT:-../OEM-backend}
+      context: ${BACKEND_CONTEXT:-../../OEM-backend}
       dockerfile: Dockerfile
     depends_on:
       mysql:
@@ -54,11 +54,11 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${DB_NAME:-oem_app}
     volumes:
-      - ./oem-workflow/src/data/oemWorkflow.ts:/OEM/oem-workflow/src/data/oemWorkflow.ts:ro
+      - ${FRONTEND_WORKFLOW_FILE:-./src/data/oemWorkflow.ts}:/OEM/oem-workflow/src/data/oemWorkflow.ts:ro
 
   frontend:
     build:
-      context: ./oem-workflow
+      context: ${FRONTEND_CONTEXT:-.}
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}

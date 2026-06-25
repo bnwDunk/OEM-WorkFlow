@@ -22,7 +22,8 @@ OEM-backend/
   .dockerignore
 ```
 
-The compose file expects `OEM` and `OEM-backend` to be sibling folders.
+The compose file expects to run from the frontend repository root. Jenkins clones
+backend into `./OEM-backend` before building.
 
 ## First Deploy
 
