@@ -7,6 +7,7 @@ import CreateCustomerModal from '../components/oem/CreateCustomerModal'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
 import DeptWorkView from '../components/oem/DeptWorkView'
 import OemTopNav from '../components/oem/OemTopNav'
+import ProfileModal from '../components/oem/ProfileModal'
 import OverviewView from '../components/oem/OverviewView'
 import ResetModal from '../components/oem/ResetModal'
 import TagModal from '../components/oem/TagModal'
@@ -23,6 +24,7 @@ type FlowPageProps = {
   accessToken: string
   currentUser: AuthUser
   onLogout: () => void
+  onUserChange: (user: AuthUser) => void
 }
 
 type ActiveView = 'overview' | 'detail' | 'dept' | 'config' | 'admin'
@@ -31,6 +33,7 @@ type ModalState =
   | { type: 'create-customer' }
   | { type: 'reset'; customerId: string; phase: number }
   | { type: 'tag'; customerId: string }
+  | { type: 'profile' }
   | null
 
 type OverviewCustomerResponse = Omit<Customer, 'branch' | 'singleResets'> & {
@@ -54,7 +57,7 @@ function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
   }
 }
 
-function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
+function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPageProps) {
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<ActiveView>('overview')
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -236,6 +239,42 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
     navigate('/login', { replace: true })
   }
 
+  async function handleSaveProfile(payload: { email: string; name: string }) {
+    const response = await apiRequest<{
+      user: {
+        id: number
+        name: string
+        email: string
+        role: AuthUser['role']
+        department?: { name?: string } | null
+        departments?: { id?: number; name?: string }[]
+      }
+    }>('/auth/me', {
+      method: 'PATCH',
+      token: accessToken,
+      body: JSON.stringify(payload),
+    })
+
+    const departments = response.user.departments
+      ?.map((department) => ({
+        id: Number(department.id || 0),
+        name: String(department.name || '').trim(),
+      }))
+      .filter((department) => department.id && department.name) || []
+
+    onUserChange({
+      id: response.user.id,
+      name: response.user.name,
+      email: response.user.email,
+      role: response.user.role,
+      department: response.user.department?.name || departments[0]?.name || currentUser.department,
+      departments: departments.length ? departments : currentUser.departments,
+      departmentIds: departments.length ? departments.map((department) => department.id) : currentUser.departmentIds,
+    })
+    setProfileOpen(false)
+    setModal(null)
+  }
+
   function canManageViewedBranch(branchIndex: number) {
     return userDepartments.includes(flowStops[viewedPhase]?.branches[branchIndex]?.dept)
   }
@@ -411,6 +450,10 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
           setProfileOpen((open) => !open)
           setBellOpen(false)
         }}
+        onOpenProfile={() => {
+          setProfileOpen(false)
+          setModal({ type: 'profile' })
+        }}
         profileOpen={profileOpen}
       />
 
@@ -489,6 +532,14 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
           onClose={() => setModal(null)}
           onReset={handleReset}
           phase={modal.phase}
+        />
+      )}
+
+      {modal?.type === 'profile' && (
+        <ProfileModal
+          currentUser={currentUser}
+          onClose={() => setModal(null)}
+          onSave={handleSaveProfile}
         />
       )}
     </main>

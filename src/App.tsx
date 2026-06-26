@@ -95,6 +95,11 @@ function AppRoutes() {
     setAccessToken(null)
   }
 
+  function handleUserChange(user: AuthUser) {
+    localStorage.setItem('oem-user', JSON.stringify(user))
+    setCurrentUser(user)
+  }
+
   useEffect(() => {
     function handleSessionExpired() {
       setCurrentUser(null)
@@ -150,7 +155,12 @@ function AppRoutes() {
         path="/flow"
         element={
           isLoggedIn ? (
-            <FlowPage accessToken={accessToken || ''} currentUser={user} onLogout={handleLogout} />
+            <FlowPage
+              accessToken={accessToken || ''}
+              currentUser={user}
+              onLogout={handleLogout}
+              onUserChange={handleUserChange}
+            />
           ) : (
             <Navigate to="/login" replace />
           )

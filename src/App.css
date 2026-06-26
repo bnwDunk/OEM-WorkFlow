@@ -280,6 +280,18 @@
   background: var(--page-bg);
 }
 
+.profile-summary-btn {
+  width: 100%;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+}
+
+.profile-summary-btn:hover,
+.profile-summary-btn:focus-visible {
+  background: #dde9ef;
+}
+
 .profile-summary span,
 .profile-summary em {
   color: var(--ink-muted);
@@ -1101,6 +1113,26 @@ button:disabled {
   display: block;
 }
 
+.admin-user-name-btn {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  text-align: left;
+}
+
+.admin-user-name-btn:hover,
+.admin-user-name-btn:focus-visible {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .admin-table td span {
   color: var(--ink-muted);
   font-size: 12px;
@@ -1539,6 +1571,59 @@ button:disabled {
   background: #c8f2df;
 }
 
+.profile-edit-modal,
+.user-detail-modal {
+  width: min(460px, 100%);
+}
+
+.profile-readonly-grid,
+.user-detail-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-readonly-grid div,
+.user-detail-grid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--page-bg);
+}
+
+.profile-readonly-grid span,
+.user-detail-grid span {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.profile-readonly-grid strong,
+.user-detail-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.user-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-detail-head p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .flow-structure-overlay {
   backdrop-filter: blur(3px);
 }
@@ -1779,7 +1864,13 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .profile-readonly-grid,
+  .user-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
   .department-detail-head,
+  .user-detail-head,
   .department-member-row {
     align-items: flex-start;
     flex-direction: column;

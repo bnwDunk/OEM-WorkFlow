@@ -14,6 +14,7 @@ type OemTopNavProps = {
   onToggleBell: () => void
   onToggleProfile: () => void
   onLogout: () => void
+  onOpenProfile: () => void
 }
 
 function OemTopNav({
@@ -26,6 +27,7 @@ function OemTopNav({
   onChangeDept,
   onChangeView,
   onLogout,
+  onOpenProfile,
   onToggleBell,
   onToggleProfile,
   profileOpen,
@@ -74,11 +76,11 @@ function OemTopNav({
         {profileOpen && (
           <div className="dropdown-panel profile-menu">
             <h5>Signed in</h5>
-            <div className="profile-summary">
+            <button className="profile-summary profile-summary-btn" onClick={onOpenProfile} type="button">
               <strong>{currentUser.name}</strong>
               <span>{currentUser.email}</span>
               <em>{currentUser.role}</em>
-            </div>
+            </button>
             <h5>แผนก</h5>
             {departments.map((department) => (
               <button
