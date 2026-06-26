@@ -735,6 +735,14 @@ button:disabled {
   border-radius: 12px;
 }
 
+.branch-card-readonly {
+  background: #f8fafc;
+}
+
+.branch-card-readonly .checklist {
+  opacity: 0.72;
+}
+
 .branch-head {
   display: flex;
   align-items: center;
