@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+export const SESSION_EXPIRED_EVENT = 'oem-session-expired'
 
 if (!API_BASE_URL) {
   throw new Error('VITE_API_BASE_URL is required. Please set it in the frontend .env file.')
@@ -58,6 +59,10 @@ function clearStoredSession() {
   localStorage.removeItem('oem-refresh-token')
 }
 
+function notifySessionExpired() {
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+}
+
 async function sendRequest(path: string, options: ApiOptions = {}): Promise<Response> {
   const headers = new Headers(options.headers)
   headers.set('Content-Type', 'application/json')
@@ -84,6 +89,7 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
       response = await sendRequest(path, { ...options, token: newToken })
     } else {
       clearStoredSession()
+      notifySessionExpired()
       throw new Error('Session expired. Please log in again.')
     }
   }

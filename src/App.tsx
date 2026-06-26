@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import type { AuthUser } from './data/adminDashboard'
 import FlowPage from './page/FlowPage'
 import LoginPage from './page/LoginPage'
+import { SESSION_EXPIRED_EVENT } from './lib/api'
 import './App.css'
 
 const fallbackUser: AuthUser = {
@@ -52,6 +53,7 @@ function readStoredUser() {
 }
 
 function AppRoutes() {
+  const navigate = useNavigate()
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
   const [accessToken, setAccessToken] = useState<string | null>(() => readStoredToken())
 
@@ -72,6 +74,17 @@ function AppRoutes() {
     setCurrentUser(null)
     setAccessToken(null)
   }
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      setCurrentUser(null)
+      setAccessToken(null)
+      navigate('/login', { replace: true })
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
+  }, [navigate])
 
   const isLoggedIn = Boolean(currentUser && accessToken)
   const user = currentUser || fallbackUser
