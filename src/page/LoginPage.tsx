@@ -35,7 +35,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
-    const email = String(data.get('email') || '').trim().toLowerCase()
+    const identifier = String(data.get('identifier') || '').trim()
     const password = String(data.get('password') || '')
 
     try {
@@ -43,7 +43,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
       setLoading(true)
       const response = await apiRequest<LoginResponse>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       })
 
       onLogin(
@@ -96,12 +96,12 @@ function LoginPage({ onLogin }: LoginPageProps) {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
-            Email
+            Username or email
             <input
-              autoComplete="email"
+              autoComplete="username"
               defaultValue="admin@oem.local"
-              name="email"
-              type="email"
+              name="identifier"
+              type="text"
             />
           </label>
           <label>
