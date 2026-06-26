@@ -5,9 +5,11 @@ type OemTopNavProps = {
   activeView: string
   currentUser: AuthUser
   currentDept: string
+  departments: string[]
   notifications: (NotificationItem & { customerName: string })[]
   bellOpen: boolean
   profileOpen: boolean
+  onChangeDept: (dept: string) => void
   onChangeView: (view: 'overview' | 'dept' | 'config' | 'admin') => void
   onToggleBell: () => void
   onToggleProfile: () => void
@@ -19,7 +21,9 @@ function OemTopNav({
   bellOpen,
   currentUser,
   currentDept,
+  departments,
   notifications,
+  onChangeDept,
   onChangeView,
   onLogout,
   onToggleBell,
@@ -76,7 +80,16 @@ function OemTopNav({
               <em>{currentUser.role}</em>
             </div>
             <h5>แผนก</h5>
-            <div className="dropdown-item selected">{currentDept}</div>
+            {departments.map((department) => (
+              <button
+                className={department === currentDept ? 'dropdown-item selected' : 'dropdown-item'}
+                key={department}
+                onClick={() => onChangeDept(department)}
+                type="button"
+              >
+                {department}
+              </button>
+            ))}
             <button className="dropdown-item logout-item" onClick={onLogout} type="button">
               Logout
             </button>

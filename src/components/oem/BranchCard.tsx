@@ -6,7 +6,6 @@ type BranchCardProps = {
   canManage: boolean
   isActive: boolean
   onCancel: () => void
-  onDone: () => void
   onSave: () => void
   onToggle: (itemIndex: number) => void
 }
@@ -17,7 +16,6 @@ function BranchCard({
   canManage,
   isActive,
   onCancel,
-  onDone,
   onSave,
   onToggle,
 }: BranchCardProps) {
@@ -51,11 +49,10 @@ function BranchCard({
       {!branchState.done && isActive && canManage && (
         <>
           <div className="btn-row">
-            <button className="btn-mini save" onClick={onSave} type="button">Save</button>
+            <button className="btn-mini save" disabled={!canDone} onClick={onSave} type="button">Save</button>
             <button className="btn-mini cancel" disabled={!dirty} onClick={onCancel} type="button">Cancel</button>
-            <button className="btn-mini done" disabled={!canDone} onClick={onDone} type="button">Done</button>
           </div>
-          {!canDone && <p className="warn-text">ติ๊กให้ครบทุกข้อก่อนกด Done</p>}
+          {!canDone && <p className="warn-text">ติ๊กให้ครบทุกข้อก่อนกด Save</p>}
         </>
       )}
     </article>

@@ -16,9 +16,15 @@ type LoginResponse = {
     id: number
     name: string
     email: string
-    role: AuthUser['role']
+    role: string
     department: { name: string } | null
+    departments?: { id: number; name: string }[]
   }
+}
+
+function normalizeRole(role: unknown): AuthUser['role'] {
+  const value = String(role || 'user').trim().toLowerCase()
+  return value === 'admin' || value === 'manager' ? value : 'user'
 }
 
 function LoginPage({ onLogin }: LoginPageProps) {
@@ -45,8 +51,10 @@ function LoginPage({ onLogin }: LoginPageProps) {
           id: response.user.id,
           name: response.user.name,
           email: response.user.email,
-          role: response.user.role,
-          department: response.user.department?.name || 'Sales',
+          role: normalizeRole(response.user.role),
+          department: response.user.department?.name || response.user.departments?.[0]?.name || 'Sales',
+          departments: response.user.departments || [],
+          departmentIds: response.user.departments?.map((department) => department.id) || [],
         },
         response.access_token,
         response.refresh_token,

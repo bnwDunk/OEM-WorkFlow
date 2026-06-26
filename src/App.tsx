@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import type { AuthUser } from './data/adminDashboard'
 import FlowPage from './page/FlowPage'
 import LoginPage from './page/LoginPage'
-import { SESSION_EXPIRED_EVENT } from './lib/api'
+import { apiRequest, SESSION_EXPIRED_EVENT } from './lib/api'
 import './App.css'
 
 const fallbackUser: AuthUser = {
@@ -12,10 +12,17 @@ const fallbackUser: AuthUser = {
   email: 'user@oem.local',
   role: 'user',
   department: 'Sales',
+  departments: [{ id: 1, name: 'Sales' }],
+  departmentIds: [1],
 }
 
 function readStoredToken() {
   return localStorage.getItem('oem-access-token')
+}
+
+function normalizeRole(role: unknown): AuthUser['role'] {
+  const value = String(role || 'user').trim().toLowerCase()
+  return value === 'admin' || value === 'manager' ? value : 'user'
 }
 
 function normalizeUser(user: unknown): AuthUser | null {
@@ -27,17 +34,30 @@ function normalizeUser(user: unknown): AuthUser | null {
     email: string
     role: AuthUser['role']
     department?: string | { name?: string } | null
+    departments?: { id?: number; name?: string }[]
+    departmentIds?: number[]
   }
+  const departments = Array.isArray(value.departments)
+    ? value.departments
+        .map((department) => ({
+          id: Number(department.id || 0),
+          name: String(department.name || '').trim(),
+        }))
+        .filter((department) => department.id && department.name)
+    : []
+  const department =
+    typeof value.department === 'object' && value.department
+      ? value.department.name || 'Sales'
+      : value.department || departments[0]?.name || 'Sales'
 
   return {
     id: value.id,
     name: value.name,
     email: value.email,
-    role: value.role,
-    department:
-      typeof value.department === 'object' && value.department
-        ? value.department.name || 'Sales'
-        : value.department || 'Sales',
+    role: normalizeRole(value.role),
+    department,
+    departments: departments.length ? departments : [{ id: 0, name: department }],
+    departmentIds: departments.length ? departments.map((item) => item.id) : value.departmentIds || [],
   }
 }
 
@@ -85,6 +105,31 @@ function AppRoutes() {
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
   }, [navigate])
+
+  useEffect(() => {
+    if (!accessToken) return
+
+    let active = true
+
+    async function syncCurrentUser() {
+      try {
+        const response = await apiRequest<{ user: unknown }>('/auth/me', { token: accessToken })
+        const user = normalizeUser(response.user)
+        if (active && user) {
+          localStorage.setItem('oem-user', JSON.stringify(user))
+          setCurrentUser(user)
+        }
+      } catch {
+        // apiRequest will publish the session-expired event for invalid sessions.
+      }
+    }
+
+    void syncCurrentUser()
+
+    return () => {
+      active = false
+    }
+  }, [accessToken])
 
   const isLoggedIn = Boolean(currentUser && accessToken)
   const user = currentUser || fallbackUser

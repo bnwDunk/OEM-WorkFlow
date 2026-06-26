@@ -6,6 +6,8 @@ export type AuthUser = {
   email: string
   role: AppRole
   department: string
+  departments?: Pick<ManagedDepartment, 'id' | 'name'>[]
+  departmentIds?: number[]
 }
 
 export type ManagedUser = AuthUser & {

@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import AddDepartmentModal from '../components/oem/admin/AddDepartmentModal'
+import DepartmentDetailModal from '../components/oem/admin/DepartmentDetailModal'
+import type { DepartmentWorkItem } from '../components/oem/admin/DepartmentDetailModal'
+import AddUserModal from '../components/oem/admin/AddUserModal'
+import type { NewUserDraft } from '../components/oem/admin/AddUserModal'
+import FlowStructureEditorModal from '../components/oem/admin/FlowStructureEditorModal'
+import type {
+  FlowPhaseDraft,
+  FlowStageDraft,
+  FlowStructure,
+} from '../components/oem/admin/FlowStructureEditorModal'
 import { apiRequest } from '../lib/api'
 import type {
   AppRole,
@@ -9,34 +20,17 @@ import type {
 
 const roleOptions: AppRole[] = ['admin', 'manager', 'user']
 
-type NewUserDraft = {
-  departmentIds: number[]
-  email: string
-  name: string
-  password: string
-  role: AppRole
-}
-
 type AdminDashboardProps = {
   token: string
 }
 
 type FlowDraft = Pick<ManagedFlow, 'name' | 'status'>
-type FlowPhaseDraft = {
-  id?: number
-  label: string
-  name: string
-  departments?: Pick<ManagedDepartment, 'id' | 'name'>[]
-  departmentIds?: number[]
-}
-type FlowStageDraft = {
-  id?: number
-  name: string
-  phases: FlowPhaseDraft[]
-}
-type FlowStructure = {
-  flow: Pick<ManagedFlow, 'id' | 'name'>
-  stages: FlowStageDraft[]
+
+type DepartmentDetailState = {
+  department: ManagedDepartment
+  loading: boolean
+  members: ManagedUser[]
+  workItems: DepartmentWorkItem[]
 }
 
 function AdminDashboard({ token }: AdminDashboardProps) {
@@ -59,6 +53,9 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   const [actionMessage, setActionMessage] = useState('')
   const [actionError, setActionError] = useState('')
   const [busyAction, setBusyAction] = useState('')
+  const [createDepartmentOpen, setCreateDepartmentOpen] = useState(false)
+  const [departmentDetail, setDepartmentDetail] = useState<DepartmentDetailState | null>(null)
+  const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
 
   const stats = useMemo(
@@ -109,6 +106,30 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     }
   }
 
+  function resetNewUserForm() {
+    setNewUser({ departmentIds: [], email: '', name: '', password: 'password123', role: 'user' })
+  }
+
+  function closeCreateUserModal() {
+    if (busyAction === 'user-create') return
+    resetNewUserForm()
+    setCreateUserOpen(false)
+  }
+
+  function closeCreateDepartmentModal() {
+    if (busyAction === 'department-create') return
+    setNewDepartmentName('')
+    setCreateDepartmentOpen(false)
+  }
+
+  function getDepartmentMembers(department: ManagedDepartment) {
+    return users.filter((user) => {
+      const departmentIds = user.departmentIds || []
+
+      return departmentIds.includes(department.id) || user.departmentId === department.id || user.department === department.name
+    })
+  }
+
   useEffect(() => {
     loadAdminData()
   }, [token])
@@ -155,7 +176,8 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           role: newUser.role,
         }),
       })
-      setNewUser({ departmentIds: [], email: '', name: '', password: 'password123', role: 'user' })
+      resetNewUserForm()
+      setCreateUserOpen(false)
       await loadAdminData()
       setActionMessage('Created user.')
     } catch (createError) {
@@ -238,6 +260,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             : department,
         ),
       )
+      setDepartmentDetail((current) =>
+        current?.department.id === departmentId
+          ? { ...current, department: { ...current.department, status } }
+          : current,
+      )
       setActionMessage('Updated department.')
     } catch (updateError) {
       setActionError(updateError instanceof Error ? updateError.message : 'Failed to update department.')
@@ -260,12 +287,66 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         body: JSON.stringify({ name }),
       })
       setNewDepartmentName('')
+      setCreateDepartmentOpen(false)
       await loadAdminData()
       setActionMessage('Created department.')
     } catch (createError) {
       setActionError(createError instanceof Error ? createError.message : 'Failed to create department.')
     } finally {
       setBusyAction('')
+    }
+  }
+
+  async function openDepartmentDetail(department: ManagedDepartment) {
+    setDepartmentDetail({
+      department,
+      loading: true,
+      members: getDepartmentMembers(department),
+      workItems: [],
+    })
+
+    try {
+      setActionError('')
+      const structures = await Promise.all(
+        flows.map((flow) =>
+          apiRequest<FlowStructure>(`/admin/flows/${flow.id}/structure`, { token })
+            .catch(() => null),
+        ),
+      )
+      const workItems = structures.flatMap((structure) => {
+        if (!structure) return []
+
+        return structure.stages.flatMap((stage) =>
+          stage.phases
+            .filter((phase) => {
+              const departmentIds = phase.departmentIds || phase.departments?.map((item) => item.id) || []
+              return departmentIds.includes(department.id)
+            })
+            .map((phase) => ({
+              flowId: structure.flow.id,
+              flowName: structure.flow.name,
+              phaseLabel: phase.label,
+              phaseName: phase.name,
+              stageName: stage.name,
+            })),
+        )
+      })
+
+      setDepartmentDetail((current) =>
+        current?.department.id === department.id
+          ? {
+              ...current,
+              loading: false,
+              members: getDepartmentMembers(department),
+              workItems,
+            }
+          : current,
+      )
+    } catch (loadError) {
+      setActionError(loadError instanceof Error ? loadError.message : 'Failed to load department detail.')
+      setDepartmentDetail((current) =>
+        current?.department.id === department.id ? { ...current, loading: false } : current,
+      )
     }
   }
 
@@ -708,74 +789,23 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             <h2>Users</h2>
             <p>Create users, edit roles, and assign one or more departments.</p>
           </div>
+          <button className="update-text-btn" onClick={() => setCreateUserOpen(true)} type="button">
+            Add user
+          </button>
         </div>
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_140px_160px_auto] gap-2">
-            <input
-              aria-label="New user name"
-              onChange={(event) => setNewUser((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Name"
-              value={newUser.name}
-            />
-            <input
-              aria-label="New user email"
-              onChange={(event) => setNewUser((current) => ({ ...current, email: event.target.value }))}
-              placeholder="Email"
-              type="email"
-              value={newUser.email}
-            />
-            <select
-              aria-label="New user role"
-              onChange={(event) => setNewUser((current) => ({ ...current, role: event.target.value as AppRole }))}
-              value={newUser.role}
-            >
-              {roleOptions.map((role) => (
-                <option key={role} value={role}>{role}</option>
-              ))}
-            </select>
-            <input
-              aria-label="New user password"
-              onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))}
-              placeholder="Password"
-              type="text"
-              value={newUser.password}
-            />
-            <button className="update-text-btn" disabled={busyAction === 'user-create'} onClick={createUser} type="button">
-              Add user
-            </button>
-          </div>
-          <div className="grid grid-cols-[260px_minmax(0,1fr)] gap-2">
-            <select
-              aria-label="New user departments"
-              onChange={(event) => {
-                addNewUserDepartment(Number(event.target.value))
-                event.currentTarget.value = ''
-              }}
-              value=""
-            >
-              <option value="">Add department...</option>
-              {departments
-                .filter((department) => !newUser.departmentIds.includes(department.id))
-                .map((department) => (
-                  <option key={department.id} value={department.id}>{department.name}</option>
-                ))}
-            </select>
-            <div className="flex min-h-11 flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
-              {newUser.departmentIds.map((departmentId) => {
-                const department = departments.find((item) => item.id === departmentId)
-                if (!department) return null
-
-                return (
-                  <span className="inline-flex min-h-7 items-center overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 pl-3 text-xs font-extrabold text-emerald-700" key={department.id}>
-                    {department.name}
-                    <button className="ml-2 min-h-7 w-7 border-0 border-l border-emerald-200 bg-emerald-100 p-0 text-emerald-800" onClick={() => removeNewUserDepartment(department.id)} type="button">x</button>
-                  </span>
-                )
-              })}
-              {newUser.departmentIds.length === 0 && <span className="self-center text-xs font-extrabold text-slate-500">Optional: choose departments</span>}
-            </div>
-          </div>
-        </div>
+        {createUserOpen && (
+          <AddUserModal
+            busy={busyAction === 'user-create'}
+            departments={departments}
+            draft={newUser}
+            onAddDepartment={addNewUserDepartment}
+            onChange={(patch) => setNewUser((current) => ({ ...current, ...patch }))}
+            onClose={closeCreateUserModal}
+            onRemoveDepartment={removeNewUserDepartment}
+            onSubmit={() => void createUser()}
+            roleOptions={roleOptions}
+          />
+        )}
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
@@ -827,9 +857,9 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                           if (!department) return null
 
                           return (
-                            <span className="inline-flex min-h-7 items-center overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 pl-3 text-xs font-extrabold text-emerald-700" key={department.id}>
+                            <span className="admin-user-chip" key={department.id}>
                               {department.name}
-                              <button className="ml-2 min-h-7 w-7 border-0 border-l border-emerald-200 bg-emerald-100 p-0 text-emerald-800" onClick={() => removeUserDepartment(user, department.id)} type="button">x</button>
+                              <button onClick={() => removeUserDepartment(user, department.id)} type="button">x</button>
                             </span>
                           )
                         })}
@@ -858,30 +888,37 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         <div className="admin-section-head">
           <div>
             <h2>Departments</h2>
-            <p>Create departments and enable or disable department access.</p>
+            <p>Create departments, review members, and inspect responsible workflow phases.</p>
           </div>
-          <div className="admin-inline-form">
-            <input
-              aria-label="New department name"
-              onChange={(event) => setNewDepartmentName(event.target.value)}
-              placeholder="Department name"
-              value={newDepartmentName}
-            />
-            <button disabled={Boolean(busyAction) || !newDepartmentName.trim()} onClick={addDepartment} type="button">Add</button>
-          </div>
+          <button
+            className="admin-create-btn"
+            disabled={Boolean(busyAction)}
+            onClick={() => setCreateDepartmentOpen(true)}
+            type="button"
+          >
+            Add department
+          </button>
         </div>
         <div className="department-grid">
           {departments.map((department) => (
-            <article className="department-tile" key={department.id}>
+            <article
+              className="department-tile department-tile-clickable"
+              key={department.id}
+              onClick={() => openDepartmentDetail(department)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openDepartmentDetail(department)
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
               <div>
                 <strong>{department.name}</strong>
                 <span>{department.code}</span>
               </div>
               <dl>
-                <div>
-                  <dt>Manager</dt>
-                  <dd>{department.manager}</dd>
-                </div>
                 <div>
                   <dt>Members</dt>
                   <dd>{department.memberCount}</dd>
@@ -890,7 +927,10 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               <button
                 className={`status-toggle ${department.status}`}
                 disabled={Boolean(busyAction)}
-                onClick={() => toggleDepartment(department.id)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleDepartment(department.id)
+                }}
                 type="button"
               >
                 {department.status}
@@ -900,129 +940,44 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         </div>
       </section>
 
+      {createDepartmentOpen && (
+        <AddDepartmentModal
+          busy={busyAction === 'department-create'}
+          name={newDepartmentName}
+          onChangeName={setNewDepartmentName}
+          onClose={closeCreateDepartmentModal}
+          onSubmit={addDepartment}
+        />
+      )}
+
+      {departmentDetail && (
+        <DepartmentDetailModal
+          busy={Boolean(busyAction)}
+          department={departmentDetail.department}
+          loading={departmentDetail.loading}
+          members={departmentDetail.members}
+          onClose={() => setDepartmentDetail(null)}
+          onToggleStatus={toggleDepartment}
+          workItems={departmentDetail.workItems}
+        />
+      )}
+
       {structureEditor && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-          onMouseDown={(event) => event.target === event.currentTarget && setStructureEditor(null)}
-        >
-          <section className="grid max-h-[calc(100vh-24px)] w-[min(1480px,calc(100vw-32px))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
-            <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur">
-              <div>
-                <h3 className="m-0 text-xl font-extrabold text-slate-950">{structureEditor.flow.name}</h3>
-                <p className="mt-1 text-sm font-semibold text-slate-500">Edit stages, phases, and department ownership for this flow.</p>
-              </div>
-              <button className="min-h-11 rounded-lg border-0 bg-teal-700 px-5 text-sm font-extrabold text-white shadow-sm transition hover:bg-teal-800" onClick={addStage} type="button">Add stage</button>
-            </div>
-
-            <div className="grid gap-4 overflow-auto bg-slate-100/70 p-5">
-              {structureEditor.stages.map((stage, stageIndex) => (
-                <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" key={stage.id || `stage-${stageIndex}`}>
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-extrabold text-white">Stage {stageIndex + 1}</span>
-                    <label className="grid gap-1">
-                      <span className="sr-only">Stage name</span>
-                      <input
-                        aria-label={`Stage ${stageIndex + 1} name`}
-                        className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-4 text-base font-extrabold text-slate-950 outline-none transition focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-100"
-                        onChange={(event) => updateStage(stageIndex, { name: event.target.value })}
-                        value={stage.name}
-                      />
-                    </label>
-                    <button
-                      className="min-h-11 rounded-lg border border-red-100 bg-red-50 px-4 text-sm font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={structureEditor.stages.length <= 1}
-                      onClick={() => removeStage(stageIndex)}
-                      type="button"
-                    >
-                      Delete stage
-                    </button>
-                  </div>
-
-                  <div className="grid gap-3">
-                    {stage.phases.map((phase, phaseIndex) => (
-                      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.03)]" key={phase.id || `phase-${phaseIndex}`}>
-                        <div className="grid grid-cols-[104px_minmax(360px,1fr)_116px] items-end gap-3">
-                          <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            Phase
-                            <input
-                              aria-label={`Phase ${phaseIndex + 1} label`}
-                              className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-4 text-base font-extrabold text-slate-950 outline-none transition focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-100"
-                              onChange={(event) => updatePhase(stageIndex, phaseIndex, { label: event.target.value })}
-                              value={phase.label}
-                            />
-                          </label>
-                          <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            Name
-                            <input
-                              aria-label={`Phase ${phaseIndex + 1} name`}
-                              className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-4 text-base font-extrabold text-slate-950 outline-none transition focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-100"
-                              onChange={(event) => updatePhase(stageIndex, phaseIndex, { name: event.target.value })}
-                              value={phase.name}
-                            />
-                          </label>
-                          <button className="min-h-11 rounded-lg border border-red-100 bg-red-50 px-4 text-sm font-extrabold text-red-700 transition hover:bg-red-100" onClick={() => removePhase(stageIndex, phaseIndex)} type="button">
-                            Delete
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-[minmax(220px,320px)_minmax(0,1fr)] items-start gap-3" aria-label={`Departments for ${phase.name}`}>
-                          <label className="grid gap-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            Departments
-                            <select
-                              className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-extrabold text-slate-900 outline-none transition focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-100"
-                              onChange={(event) => {
-                                addPhaseDepartment(stageIndex, phaseIndex, Number(event.target.value))
-                                event.currentTarget.value = ''
-                              }}
-                              value=""
-                            >
-                              <option value="">Add department...</option>
-                              {departments
-                                .filter((department) => !(phase.departmentIds || []).includes(department.id))
-                                .map((department) => (
-                                  <option key={department.id} value={department.id}>{department.name}</option>
-                                ))}
-                            </select>
-                          </label>
-                          <div className="flex min-h-11 flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                            {(phase.departmentIds || []).map((departmentId) => {
-                              const department = departments.find((item) => item.id === departmentId)
-                              if (!department) return null
-
-                              return (
-                                <span className="inline-flex min-h-8 items-center overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 pl-3 text-xs font-extrabold text-emerald-700" key={department.id}>
-                                  {department.name}
-                                  <button
-                                    aria-label={`Remove ${department.name}`}
-                                    className="ml-2 min-h-8 w-8 border-0 border-l border-emerald-200 bg-emerald-100 p-0 text-sm leading-none text-emerald-800 transition hover:bg-emerald-200"
-                                    onClick={() => removePhaseDepartment(stageIndex, phaseIndex, department.id)}
-                                    type="button"
-                                  >
-                                    x
-                                  </button>
-                                </span>
-                              )
-                            })}
-                            {(phase.departmentIds || []).length === 0 && (
-                              <span className="self-center px-2 text-xs font-extrabold text-slate-500">Choose at least one department</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <button className="min-h-10 justify-self-start rounded-lg border border-teal-200 bg-teal-50 px-4 text-sm font-extrabold text-teal-800 transition hover:bg-teal-100" onClick={() => addPhase(stageIndex)} type="button">Add phase</button>
-                  </div>
-                </section>
-              ))}
-            </div>
-
-            <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
-              <button className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 font-extrabold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60" disabled={Boolean(busyAction)} onClick={() => setStructureEditor(null)} type="button">Cancel</button>
-              <button className="min-h-11 rounded-lg border-0 bg-teal-700 px-5 font-extrabold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60" disabled={Boolean(busyAction)} onClick={saveStructure} type="button">
-                {busyAction.startsWith('flow-structure-save') ? 'Saving...' : 'Save structure'}
-              </button>
-            </div>
-          </section>
-        </div>
+        <FlowStructureEditorModal
+          busyAction={busyAction}
+          departments={departments}
+          onAddPhase={addPhase}
+          onAddPhaseDepartment={addPhaseDepartment}
+          onAddStage={addStage}
+          onClose={() => setStructureEditor(null)}
+          onRemovePhase={removePhase}
+          onRemovePhaseDepartment={removePhaseDepartment}
+          onRemoveStage={removeStage}
+          onSave={saveStructure}
+          onUpdatePhase={updatePhase}
+          onUpdateStage={updateStage}
+          structure={structureEditor}
+        />
       )}
     </section>
   )

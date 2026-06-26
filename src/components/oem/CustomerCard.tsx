@@ -30,7 +30,9 @@ function CustomerCard({ customer, onAddTag, onOpen, onOpenCompany }: CustomerCar
                 {tag.name}
               </span>
             ))}
-            <button className="tag-add-btn" onClick={() => onAddTag(customer.id)} type="button">+ Tag</button>
+            <button className="tag-add-btn" onClick={() => onAddTag(customer.id)} type="button">
+              + Tag
+            </button>
           </div>
         </div>
         <div className="badges">
@@ -42,7 +44,8 @@ function CustomerCard({ customer, onAddTag, onOpen, onOpenCompany }: CustomerCar
       <button className="customer-body" onClick={() => onOpen(customer.id)} type="button">
         <StageRail currentPhase={customer.currentPhase} />
         <p>
-          Stage {currentStop.stageIndex + 1}/5 ({stages[currentStop.stageIndex].name}) · Phase {currentStop.label}: <strong>{currentStop.name}</strong>
+          Stage {currentStop.stageIndex + 1}/5 ({stages[currentStop.stageIndex].name}) - Phase {currentStop.label}:{' '}
+          <strong>{currentStop.name}</strong>
         </p>
       </button>
     </article>
