@@ -11,7 +11,6 @@ import OverviewView from '../components/oem/OverviewView'
 import ResetModal from '../components/oem/ResetModal'
 import TagModal from '../components/oem/TagModal'
 import {
-  departments,
   flowStops,
   seedBranchState,
 } from '../data/oemWorkflow'
@@ -65,7 +64,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   const [overviewError, setOverviewError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [viewedPhase, setViewedPhase] = useState(0)
-  const [currentDept, setCurrentDept] = useState(currentUser.department)
+  const currentDept = currentUser.department
   const [bellOpen, setBellOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
@@ -225,7 +224,12 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
     navigate('/login', { replace: true })
   }
 
+  function canManageViewedBranch(branchIndex: number) {
+    return flowStops[viewedPhase]?.branches[branchIndex]?.dept === currentDept
+  }
+
   function handleToggleBranchItem(branchIndex: number, itemIndex: number) {
+    if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
@@ -240,6 +244,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   }
 
   function handleSaveBranch(branchIndex: number) {
+    if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
@@ -250,6 +255,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   }
 
   function handleCancelBranch(branchIndex: number) {
+    if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
@@ -260,6 +266,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   }
 
   function handleDoneBranch(branchIndex: number) {
+    if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
@@ -361,12 +368,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
         bellOpen={bellOpen}
         currentUser={currentUser}
         currentDept={currentDept}
-        departments={departments}
         notifications={notifications}
-        onChangeDept={(dept) => {
-          setCurrentDept(dept)
-          setProfileOpen(false)
-        }}
         onChangeView={handleChangeView}
         onLogout={handleLogout}
         onToggleBell={() => {

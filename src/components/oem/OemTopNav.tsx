@@ -1,16 +1,14 @@
 import type { AuthUser } from '../../data/adminDashboard'
-import type { Department, NotificationItem } from '../../data/oemWorkflow'
+import type { NotificationItem } from '../../data/oemWorkflow'
 
 type OemTopNavProps = {
   activeView: string
   currentUser: AuthUser
   currentDept: string
-  departments: Department[]
   notifications: (NotificationItem & { customerName: string })[]
   bellOpen: boolean
   profileOpen: boolean
   onChangeView: (view: 'overview' | 'dept' | 'config' | 'admin') => void
-  onChangeDept: (dept: string) => void
   onToggleBell: () => void
   onToggleProfile: () => void
   onLogout: () => void
@@ -21,9 +19,7 @@ function OemTopNav({
   bellOpen,
   currentUser,
   currentDept,
-  departments,
   notifications,
-  onChangeDept,
   onChangeView,
   onLogout,
   onToggleBell,
@@ -79,17 +75,8 @@ function OemTopNav({
               <span>{currentUser.email}</span>
               <em>{currentUser.role}</em>
             </div>
-            <h5>ดูในนามแผนก</h5>
-            {departments.map((department) => (
-              <button
-                className={department.name === currentDept ? 'dropdown-item selected' : 'dropdown-item'}
-                key={department.name}
-                onClick={() => onChangeDept(department.name)}
-                type="button"
-              >
-                {department.name}
-              </button>
-            ))}
+            <h5>แผนก</h5>
+            <div className="dropdown-item selected">{currentDept}</div>
             <button className="dropdown-item logout-item" onClick={onLogout} type="button">
               Logout
             </button>

@@ -3,6 +3,7 @@ import type { BranchState, BranchTemplate } from '../../data/oemWorkflow'
 type BranchCardProps = {
   branch: BranchTemplate
   branchState: BranchState
+  canManage: boolean
   isActive: boolean
   onCancel: () => void
   onDone: () => void
@@ -13,18 +14,19 @@ type BranchCardProps = {
 function BranchCard({
   branch,
   branchState,
+  canManage,
   isActive,
   onCancel,
   onDone,
   onSave,
   onToggle,
 }: BranchCardProps) {
-  const locked = branchState.done || !isActive
+  const locked = branchState.done || !isActive || !canManage
   const dirty = JSON.stringify(branchState.live) !== JSON.stringify(branchState.saved)
   const canDone = branchState.live.every(Boolean)
 
   return (
-    <article className="branch-card">
+    <article className={`branch-card ${canManage ? '' : 'branch-card-readonly'}`}>
       <div className="branch-head">
         <h4>{branch.dept}</h4>
         <span className={`status-pill ${branchState.done ? 'done' : 'wait'}`}>
@@ -46,7 +48,7 @@ function BranchCard({
         ))}
       </div>
 
-      {!branchState.done && isActive && (
+      {!branchState.done && isActive && canManage && (
         <>
           <div className="btn-row">
             <button className="btn-mini save" onClick={onSave} type="button">Save</button>

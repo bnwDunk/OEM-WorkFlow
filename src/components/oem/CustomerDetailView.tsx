@@ -64,6 +64,7 @@ function CustomerDetailView({
           <BranchCard
             branch={branch}
             branchState={customer.branch[viewedPhase][branchIndex]}
+            canManage={branch.dept === currentDept}
             isActive={Boolean(isActive)}
             key={`${branch.dept}-${branchIndex}`}
             onCancel={() => onCancelBranch(branchIndex)}
