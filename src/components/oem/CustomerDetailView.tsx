@@ -1,4 +1,4 @@
-﻿import { flowStops } from '../../data/oemWorkflow'
+import { flowStops } from '../../data/oemWorkflow'
 import type { Customer } from '../../data/oemWorkflow'
 import ActivityPanel from './ActivityPanel'
 import BranchCard from './BranchCard'
@@ -7,6 +7,7 @@ import PhaseRail from './PhaseRail'
 
 type CustomerDetailViewProps = {
   currentDept: string
+  userDepartments: string[]
   customer: Customer
   viewedPhase: number
   onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
@@ -15,13 +16,13 @@ type CustomerDetailViewProps = {
   onCloseIssue: (issueIndex: number) => void
   onDoneBranch: (branchIndex: number) => void
   onOpenReset: () => void
-  onSaveBranch: (branchIndex: number) => void
   onToggleBranchItem: (branchIndex: number, itemIndex: number) => void
   onViewPhase: (phase: number) => void
 }
 
 function CustomerDetailView({
   currentDept,
+  userDepartments,
   customer,
   onAddIssue,
   onBack,
@@ -29,7 +30,6 @@ function CustomerDetailView({
   onCloseIssue,
   onDoneBranch,
   onOpenReset,
-  onSaveBranch,
   onToggleBranchItem,
   onViewPhase,
   viewedPhase,
@@ -41,14 +41,16 @@ function CustomerDetailView({
 
   return (
     <section className="page-pad detail-page">
-      <button className="back-link" onClick={onBack} type="button">เธเธฅเธฑเธ Overview</button>
+      <button className="back-link" onClick={onBack} type="button">
+        กลับไปหน้าภาพรวม
+      </button>
 
       <header className="detail-head">
         <span>Stage {stop.stageIndex + 1}/5: {stop.stageName} - Phase {stop.label}</span>
         <h1>{customer.name}</h1>
         <p>{stop.name}</p>
-        {isPast && <em className="view-note past">เธ”เธนเธเธฃเธฐเธงเธฑเธ•เธด Phase เธ—เธตเนเธ—เธณเนเธเนเธฅเนเธง</em>}
-        {isFuture && <em className="view-note future">เธขเธฑเธเนเธกเนเธ–เธถเธ Phase เธเธตเน เธ”เธนเธฅเนเธงเธเธซเธเนเธฒเนเธ”เน เนเธ•เนเนเธเนเนเธกเนเนเธ”เน</em>}
+        {isPast && <em className="view-note past">ดูประวัติ Phase ที่ทำไปแล้ว</em>}
+        {isFuture && <em className="view-note future">ยังไม่ถึง Phase นี้ ดูล่วงหน้าได้ แต่ยังแก้ไขไม่ได้</em>}
       </header>
 
       <PhaseRail customer={customer} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
@@ -64,12 +66,11 @@ function CustomerDetailView({
           <BranchCard
             branch={branch}
             branchState={customer.branch[viewedPhase][branchIndex]}
-            canManage={branch.dept === currentDept}
+            canManage={userDepartments.includes(branch.dept)}
             isActive={Boolean(isActive)}
             key={`${branch.dept}-${branchIndex}`}
             onCancel={() => onCancelBranch(branchIndex)}
-            onDone={() => onDoneBranch(branchIndex)}
-            onSave={() => onSaveBranch(branchIndex)}
+            onSave={() => onDoneBranch(branchIndex)}
             onToggle={(itemIndex) => onToggleBranchItem(branchIndex, itemIndex)}
           />
         ))}
@@ -79,6 +80,7 @@ function CustomerDetailView({
         <ActivityPanel notifications={customer.notifications} />
         <IssuePanel
           currentDept={currentDept}
+          userDepartments={userDepartments}
           issues={customer.issues}
           onAddIssue={onAddIssue}
           onCloseIssue={onCloseIssue}
@@ -89,4 +91,3 @@ function CustomerDetailView({
 }
 
 export default CustomerDetailView
-

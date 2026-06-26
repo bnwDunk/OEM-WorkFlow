@@ -16,7 +16,7 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow } from '../data/adminDashboard'
-import type { Customer, CustomerTag } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 
 type FlowPageProps = {
@@ -34,7 +34,9 @@ type ModalState =
   | null
 
 type OverviewCustomerResponse = Omit<Customer, 'branch' | 'singleResets'> & {
+  branch?: BranchState[][]
   databaseId?: number
+  singleResets?: Record<number, boolean>
 }
 
 type OverviewResponse = {
@@ -47,8 +49,8 @@ function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
   return {
     ...customer,
     currentPhase,
-    branch: seedBranchState(currentPhase),
-    singleResets: {},
+    branch: customer.branch || seedBranchState(currentPhase),
+    singleResets: customer.singleResets || {},
   }
 }
 
@@ -64,7 +66,11 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   const [overviewError, setOverviewError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [viewedPhase, setViewedPhase] = useState(0)
-  const currentDept = currentUser.department
+  const userDepartments = useMemo(() => {
+    const departments = currentUser.departments?.map((department) => department.name).filter(Boolean) || []
+    return departments.length ? departments : [currentUser.department]
+  }, [currentUser.department, currentUser.departments])
+  const [currentDept, setCurrentDept] = useState(userDepartments[0])
   const [bellOpen, setBellOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
@@ -87,6 +93,12 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
       ),
     [customers],
   )
+
+  useEffect(() => {
+    if (!userDepartments.includes(currentDept)) {
+      setCurrentDept(userDepartments[0])
+    }
+  }, [currentDept, userDepartments])
 
   const loadOverview = useCallback(async () => {
     try {
@@ -225,7 +237,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
   }
 
   function canManageViewedBranch(branchIndex: number) {
-    return flowStops[viewedPhase]?.branches[branchIndex]?.dept === currentDept
+    return userDepartments.includes(flowStops[viewedPhase]?.branches[branchIndex]?.dept)
   }
 
   function handleToggleBranchItem(branchIndex: number, itemIndex: number) {
@@ -243,17 +255,6 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
     })
   }
 
-  function handleSaveBranch(branchIndex: number) {
-    if (!canManageViewedBranch(branchIndex)) return
-    if (!selectedCustomer) return
-
-    updateCustomer(selectedCustomer.id, (customer) => {
-      const branch = customer.branch[viewedPhase][branchIndex]
-      branch.saved = [...branch.live]
-      return customer
-    })
-  }
-
   function handleCancelBranch(branchIndex: number) {
     if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
@@ -265,9 +266,28 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
     })
   }
 
-  function handleDoneBranch(branchIndex: number) {
+  async function handleDoneBranch(branchIndex: number) {
     if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer) return
+
+    const branch = selectedCustomer.branch[viewedPhase][branchIndex]
+    const willAdvance =
+      branch.live.every(Boolean) &&
+      selectedCustomer.branch[viewedPhase].every((item, index) => index === branchIndex || item.done)
+
+    try {
+      setOverviewError('')
+      if (selectedCustomer.databaseId) {
+        await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/phases/${viewedPhase}/branches/${branchIndex}/complete`, {
+          method: 'POST',
+          token: accessToken,
+          body: JSON.stringify({ live: branch.live }),
+        })
+      }
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to complete branch.')
+      return
+    }
 
     updateCustomer(selectedCustomer.id, (customer) => {
       const branch = customer.branch[viewedPhase][branchIndex]
@@ -289,6 +309,13 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
 
       return customer
     })
+
+    if (selectedCustomer.databaseId) {
+      await loadOverview()
+      if (willAdvance && viewedPhase < flowStops.length - 1) {
+        setViewedPhase(viewedPhase + 1)
+      }
+    }
   }
 
   function handleAddIssue(payload: { openedBy: string; targetDept: string; text: string }) {
@@ -311,7 +338,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
 
     updateCustomer(selectedCustomer.id, (customer) => {
       const issue = customer.issues[issueIndex]
-      if (!issue || ![issue.openedByDept, issue.targetDept].includes(currentDept)) return customer
+      if (!issue || ![issue.openedByDept, issue.targetDept].some((department) => userDepartments.includes(department))) return customer
 
       issue.closed = true
       addLog(customer, `Ticket ถึงฝ่าย ${issue.targetDept} ถูกปิดโดย ${currentDept}`)
@@ -368,7 +395,12 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
         bellOpen={bellOpen}
         currentUser={currentUser}
         currentDept={currentDept}
+        departments={userDepartments}
         notifications={notifications}
+        onChangeDept={(dept) => {
+          setCurrentDept(dept)
+          setProfileOpen(false)
+        }}
         onChangeView={handleChangeView}
         onLogout={handleLogout}
         onToggleBell={() => {
@@ -398,6 +430,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
       {activeView === 'detail' && selectedCustomer && (
         <CustomerDetailView
           currentDept={currentDept}
+          userDepartments={userDepartments}
           customer={selectedCustomer}
           onAddIssue={handleAddIssue}
           onBack={() => setActiveView('overview')}
@@ -405,7 +438,6 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
           onCloseIssue={handleCloseIssue}
           onDoneBranch={handleDoneBranch}
           onOpenReset={() => setModal({ type: 'reset', customerId: selectedCustomer.id, phase: viewedPhase })}
-          onSaveBranch={handleSaveBranch}
           onToggleBranchItem={handleToggleBranchItem}
           onViewPhase={setViewedPhase}
           viewedPhase={viewedPhase}
@@ -415,6 +447,7 @@ function FlowPage({ accessToken, currentUser, onLogout }: FlowPageProps) {
       {activeView === 'dept' && (
         <DeptWorkView
           currentDept={currentDept}
+          departments={userDepartments}
           customers={customers}
           onOpenCustomer={openCustomer}
         />

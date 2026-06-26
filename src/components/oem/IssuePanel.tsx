@@ -4,12 +4,13 @@ import type { IssueItem } from '../../data/oemWorkflow'
 
 type IssuePanelProps = {
   currentDept: string
+  userDepartments: string[]
   issues: IssueItem[]
   onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
   onCloseIssue: (issueIndex: number) => void
 }
 
-function IssuePanel({ currentDept, issues, onAddIssue, onCloseIssue }: IssuePanelProps) {
+function IssuePanel({ currentDept, userDepartments, issues, onAddIssue, onCloseIssue }: IssuePanelProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -31,7 +32,7 @@ function IssuePanel({ currentDept, issues, onAddIssue, onCloseIssue }: IssuePane
         <p className="empty-note">ไม่มี Ticket ข้ามฝ่ายตอนนี้</p>
       ) : (
         issues.map((issue, index) => {
-          const canClose = !issue.closed && [issue.openedByDept, issue.targetDept].includes(currentDept)
+          const canClose = !issue.closed && [issue.openedByDept, issue.targetDept].some((department) => userDepartments.includes(department))
 
           return (
             <article className={`issue-item ${issue.closed ? 'closed' : ''}`} key={`${issue.text}-${issue.time}`}>
@@ -60,6 +61,7 @@ function IssuePanel({ currentDept, issues, onAddIssue, onCloseIssue }: IssuePane
         <input name="text" placeholder="รายละเอียด..." />
         <button type="submit">ส่ง</button>
       </form>
+      <p className="empty-note">เปิดในนามแผนก {currentDept}</p>
     </section>
   )
 }

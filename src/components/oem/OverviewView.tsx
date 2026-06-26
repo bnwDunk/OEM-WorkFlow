@@ -26,8 +26,8 @@ function OverviewView({
     <section className="page-pad">
       <div className="page-heading">
         <div>
-          <h1>Overview</h1>
-          <p>ดูสถานะลูกค้าทุกเจ้า, phase ปัจจุบัน, notification และ ticket ค้างข้ามฝ่าย</p>
+          <h1>ภาพรวมงาน</h1>
+          <p>ดูสถานะลูกค้าทุกเจ้า, Phase ปัจจุบัน, การแจ้งเตือน และ Ticket ข้ามฝ่าย</p>
         </div>
         <div className="overview-actions">
           {onCreateCustomer && (
@@ -36,14 +36,14 @@ function OverviewView({
             </button>
           )}
           <button className="reset-btn" disabled={loading} onClick={onReload} type="button">
-            {loading ? 'Loading...' : 'Reload DB'}
+            {loading ? 'กำลังโหลด...' : 'โหลดข้อมูลใหม่'}
           </button>
         </div>
       </div>
 
       <div className="customer-list">
         {error && <p className="overview-state error">{error}</p>}
-        {!error && loading && customers.length === 0 && <p className="overview-state">Loading workflow data...</p>}
+        {!error && loading && customers.length === 0 && <p className="overview-state">กำลังโหลดข้อมูลงาน...</p>}
         {!error && !loading && customers.length === 0 && <p className="overview-state">ยังไม่มีข้อมูลลูกค้าในฐานข้อมูล</p>}
         {customers.map((customer) => (
           <CustomerCard

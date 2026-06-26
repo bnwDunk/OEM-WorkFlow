@@ -20,9 +20,15 @@ function normalizeStoredUser(user: unknown) {
 
   const value = user as {
     department?: string | { name?: string } | null
+    departments?: { name?: string }[]
   }
 
-  if (!value.department || typeof value.department === 'string') return user
+  if (!value.department || typeof value.department === 'string') {
+    return {
+      ...value,
+      department: value.department || value.departments?.[0]?.name || 'Sales',
+    }
+  }
 
   return {
     ...value,
