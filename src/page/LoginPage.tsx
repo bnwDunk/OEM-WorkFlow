@@ -99,7 +99,6 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Username or email
             <input
               autoComplete="username"
-              defaultValue="admin@oem.local"
               name="identifier"
               type="text"
             />
@@ -108,7 +107,6 @@ function LoginPage({ onLogin }: LoginPageProps) {
             Password
             <input
               autoComplete="current-password"
-              defaultValue="password123"
               name="password"
               type="password"
             />
