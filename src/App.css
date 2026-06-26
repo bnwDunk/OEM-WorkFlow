@@ -1143,126 +1143,6 @@ button:disabled {
   align-items: center;
 }
 
-.flow-structure-modal {
-  width: min(1320px, calc(100vw - 48px));
-  gap: 16px;
-}
-
-.structure-modal-head,
-.structure-stage-head,
-.structure-phase-row {
-  display: grid;
-  gap: 10px;
-}
-
-.structure-modal-head {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-}
-
-.structure-modal-head p {
-  margin: 4px 0 0;
-  color: var(--ink-muted);
-}
-
-.structure-stage-list {
-  display: grid;
-  gap: 12px;
-}
-
-.structure-stage {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--page-bg) 42%, var(--surface));
-}
-
-.structure-stage-head {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-}
-
-.structure-stage-head label,
-.phase-fields label {
-  display: grid;
-  gap: 5px;
-  color: var(--ink-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.structure-phase-list {
-  display: grid;
-  gap: 8px;
-}
-
-.structure-phase-row {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-}
-
-.phase-fields {
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
-}
-
-.structure-stage input,
-.structure-phase-row input {
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-}
-
-.add-phase-btn {
-  justify-self: start;
-}
-
-.department-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-  gap: 6px;
-}
-
-.department-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.department-chip input {
-  width: 13px;
-  height: 13px;
-  accent-color: var(--teal);
-}
-
-.department-chip.selected {
-  border-color: transparent;
-  background: var(--green-soft);
-  color: var(--green);
-}
-
 .department-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1303,7 +1183,7 @@ button:disabled {
 }
 
 .modal-box {
-  width: min(440px, 100%);
+  width: min(540px, 100%);
   max-height: 86svh;
   overflow: auto;
   display: grid;
@@ -1520,4 +1400,3 @@ button:disabled {
     width: min(310px, calc(100vw - 28px));
   }
 }
-
