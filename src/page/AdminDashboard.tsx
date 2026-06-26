@@ -5,6 +5,7 @@ import type { DepartmentWorkItem } from '../components/oem/admin/DepartmentDetai
 import AddUserModal from '../components/oem/admin/AddUserModal'
 import type { NewUserDraft } from '../components/oem/admin/AddUserModal'
 import FlowStructureEditorModal from '../components/oem/admin/FlowStructureEditorModal'
+import UserDetailModal from '../components/oem/admin/UserDetailModal'
 import type {
   FlowPhaseDraft,
   FlowStageDraft,
@@ -55,6 +56,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   const [busyAction, setBusyAction] = useState('')
   const [createDepartmentOpen, setCreateDepartmentOpen] = useState(false)
   const [departmentDetail, setDepartmentDetail] = useState<DepartmentDetailState | null>(null)
+  const [userDetail, setUserDetail] = useState<ManagedUser | null>(null)
   const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
 
@@ -820,7 +822,9 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td>
-                    <strong>{user.name}</strong>
+                    <button className="admin-user-name-btn" onClick={() => setUserDetail(user)} type="button">
+                      {user.name}
+                    </button>
                     <span>{user.email}</span>
                   </td>
                   <td>
@@ -959,6 +963,13 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           onClose={() => setDepartmentDetail(null)}
           onToggleStatus={toggleDepartment}
           workItems={departmentDetail.workItems}
+        />
+      )}
+
+      {userDetail && (
+        <UserDetailModal
+          onClose={() => setUserDetail(null)}
+          user={userDetail}
         />
       )}
 
