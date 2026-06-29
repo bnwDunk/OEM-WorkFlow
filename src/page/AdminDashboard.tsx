@@ -12,10 +12,13 @@ import type {
   FlowStructure,
 } from '../components/oem/admin/FlowStructureEditorModal'
 import { apiRequest } from '../lib/api'
+import { getCustomerStatusLabel } from '../data/oemWorkflow'
 import type {
   AppRole,
   ManagedDepartment,
+  ManagedCustomerProject,
   ManagedFlow,
+  ManagedTag,
   ManagedUser,
 } from '../data/adminDashboard'
 
@@ -26,6 +29,7 @@ type AdminDashboardProps = {
 }
 
 type FlowDraft = Pick<ManagedFlow, 'name' | 'status'>
+type TagDraft = Pick<ManagedTag, 'color' | 'name'>
 
 type DepartmentDetailState = {
   department: ManagedDepartment
@@ -36,9 +40,12 @@ type DepartmentDetailState = {
 
 function AdminDashboard({ token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
+  const [customers, setCustomers] = useState<ManagedCustomerProject[]>([])
   const [departments, setDepartments] = useState<ManagedDepartment[]>([])
   const [flows, setFlows] = useState<ManagedFlow[]>([])
+  const [tags, setTags] = useState<ManagedTag[]>([])
   const [flowDrafts, setFlowDrafts] = useState<Record<number, FlowDraft>>({})
+  const [tagDrafts, setTagDrafts] = useState<Record<number, TagDraft>>({})
   const [newDepartmentName, setNewDepartmentName] = useState('')
   const [newFlowName, setNewFlowName] = useState('')
   const [newUser, setNewUser] = useState<NewUserDraft>({
@@ -65,25 +72,31 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       activeUsers: users.filter((user) => user.status === 'active').length,
       admins: users.filter((user) => user.role === 'admin').length,
       activeDepartments: departments.filter((department) => department.status === 'active').length,
+      customerCount: customers.length,
       activeFlows: flows.filter((flow) => flow.status === 'active').length,
+      activeTags: tags.filter((tag) => tag.status === 'active').length,
       inactiveUsers: users.filter((user) => user.status === 'inactive').length,
     }),
-    [departments, flows, users],
+    [customers, departments, flows, tags, users],
   )
 
   async function loadAdminData() {
     try {
       setError('')
       setLoading(true)
-      const [usersResponse, departmentsResponse, flowsResponse] = await Promise.all([
+      const [usersResponse, departmentsResponse, flowsResponse, tagsResponse, customersResponse] = await Promise.all([
         apiRequest<{ users: ManagedUser[] }>('/admin/users', { token }),
         apiRequest<{ departments: ManagedDepartment[] }>('/admin/departments', { token }),
         apiRequest<{ flows: ManagedFlow[] }>('/admin/flows', { token }),
+        apiRequest<{ tags: ManagedTag[] }>('/admin/tags', { token }),
+        apiRequest<{ customers: ManagedCustomerProject[] }>('/admin/customers', { token }),
       ])
 
       setUsers(usersResponse.users)
+      setCustomers(customersResponse.customers)
       setDepartments(departmentsResponse.departments)
       setFlows(flowsResponse.flows)
+      setTags(tagsResponse.tags)
       setFlowDrafts(
         Object.fromEntries(
           flowsResponse.flows.map((flow) => [
@@ -95,13 +108,27 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           ]),
         ),
       )
+      setTagDrafts(
+        Object.fromEntries(
+          tagsResponse.tags.map((tag) => [
+            tag.id,
+            {
+              color: tag.color || '#0f766e',
+              name: tag.name,
+            },
+          ]),
+        ),
+      )
       setSourceFlowId(flowsResponse.flows[0]?.id || 0)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load admin data.')
       setUsers([])
+      setCustomers([])
       setDepartments([])
       setFlows([])
+      setTags([])
       setFlowDrafts({})
+      setTagDrafts({})
       setSourceFlowId(0)
     } finally {
       setLoading(false)
@@ -371,6 +398,16 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     }))
   }
 
+  function updateTagDraft(tagId: number, patch: Partial<TagDraft>) {
+    setTagDrafts((current) => ({
+      ...current,
+      [tagId]: {
+        ...current[tagId],
+        ...patch,
+      },
+    }))
+  }
+
   async function openStructureEditor(flow: ManagedFlow) {
     try {
       setActionError('')
@@ -635,6 +672,78 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     }
   }
 
+  async function saveTag(tagId: number) {
+    const draft = tagDrafts[tagId]
+    if (!draft?.name.trim()) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`tag-update-${tagId}`)
+      await apiRequest(`/admin/tags/${tagId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({
+          color: draft.color || '#0f766e',
+          name: draft.name.trim(),
+        }),
+      })
+      await loadAdminData()
+      setActionMessage('Updated tag.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update tag.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  async function deleteTag(tagId: number) {
+    const tag = tags.find((item) => item.id === tagId)
+    if (!window.confirm(`Delete tag ${tag?.name || ''}? It will be removed from every customer.`)) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`tag-delete-${tagId}`)
+      await apiRequest(`/admin/tags/${tagId}`, {
+        method: 'DELETE',
+        token,
+      })
+      setTags((current) => current.filter((item) => item.id !== tagId))
+      setTagDrafts((current) => {
+        const next = { ...current }
+        delete next[tagId]
+        return next
+      })
+      setActionMessage('Deleted tag.')
+    } catch (deleteError) {
+      setActionError(deleteError instanceof Error ? deleteError.message : 'Failed to delete tag.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  async function deleteCustomer(customerId: number) {
+    const customer = customers.find((item) => item.id === customerId)
+    if (!window.confirm(`Delete customer ${customer?.name || ''}? This will remove its workflow data and tags.`)) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`customer-delete-${customerId}`)
+      await apiRequest(`/admin/customers/${customerId}`, {
+        method: 'DELETE',
+        token,
+      })
+      setCustomers((current) => current.filter((item) => item.id !== customerId))
+      setActionMessage('Deleted customer.')
+    } catch (deleteError) {
+      setActionError(deleteError instanceof Error ? deleteError.message : 'Failed to delete customer.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   return (
     <section className="page-pad admin-page">
       <div className="page-heading">
@@ -663,8 +772,16 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           <strong>{stats.activeDepartments}</strong>
         </div>
         <div className="admin-stat">
+          <span>Customers</span>
+          <strong>{stats.customerCount}</strong>
+        </div>
+        <div className="admin-stat">
           <span>Active flows</span>
           <strong>{stats.activeFlows}</strong>
+        </div>
+        <div className="admin-stat">
+          <span>Tags</span>
+          <strong>{stats.activeTags}</strong>
         </div>
         <div className="admin-stat">
           <span>Inactive users</span>
@@ -774,6 +891,150 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                         </button>
                         <button className="danger-text-btn" disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
                           {busyAction === `flow-delete-${flow.id}` ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-head">
+          <div>
+            <h2>Customers</h2>
+            <p>Review customer projects and delete records that should no longer appear in the workflow.</p>
+          </div>
+        </div>
+
+        <div className="admin-table-wrap">
+          <table className="admin-table customer-admin-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Flow</th>
+                <th>Current phase</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && customers.length === 0 && (
+                <tr>
+                  <td colSpan={6}>No customers found in database.</td>
+                </tr>
+              )}
+              {customers.map((customer) => (
+                <tr key={customer.id}>
+                  <td>
+                    <strong>{customer.name}</strong>
+                    <span>{customer.slug}</span>
+                  </td>
+                  <td>{customer.flowName || '-'}</td>
+                  <td>{customer.currentPhaseName || '-'}</td>
+                  <td>
+                    <span className={`status-pill ${customer.status}`}>{getCustomerStatusLabel(customer.status)}</span>
+                  </td>
+                  <td>{customer.updatedAt}</td>
+                  <td>
+                    <button
+                      className="danger-text-btn"
+                      disabled={Boolean(busyAction)}
+                      onClick={() => deleteCustomer(customer.id)}
+                      type="button"
+                    >
+                      {busyAction === `customer-delete-${customer.id}` ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-head">
+          <div>
+            <h2>Tags</h2>
+            <p>Edit tag labels and colors, or remove tags from every customer.</p>
+          </div>
+        </div>
+
+        <div className="admin-table-wrap">
+          <table className="admin-table tag-admin-table">
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Name</th>
+                <th>Color</th>
+                <th>Used by</th>
+                <th>Updated</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && tags.length === 0 && (
+                <tr>
+                  <td colSpan={6}>No tags found.</td>
+                </tr>
+              )}
+              {tags.map((tag) => {
+                const draft = tagDrafts[tag.id] || {
+                  color: tag.color || '#0f766e',
+                  name: tag.name,
+                }
+                const color = draft.color || '#0f766e'
+                const hasChanges =
+                  draft.name !== tag.name ||
+                  color !== (tag.color || '#0f766e')
+
+                return (
+                  <tr key={tag.id}>
+                    <td>
+                      <span className="tag-admin-preview" style={{ background: color }}>
+                        {draft.name || tag.name}
+                      </span>
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`Name for ${tag.name}`}
+                        onChange={(event) => updateTagDraft(tag.id, { name: event.target.value })}
+                        value={draft.name}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`Color for ${tag.name}`}
+                        className="tag-admin-color-input"
+                        onChange={(event) => updateTagDraft(tag.id, { color: event.target.value })}
+                        type="color"
+                        value={color}
+                      />
+                    </td>
+                    <td>{tag.customerCount}</td>
+                    <td>{tag.updatedAt}</td>
+                    <td>
+                      <div className="flow-action-row">
+                        <button
+                          className="update-text-btn"
+                          disabled={Boolean(busyAction) || !hasChanges || !draft.name.trim()}
+                          onClick={() => saveTag(tag.id)}
+                          type="button"
+                        >
+                          {busyAction === `tag-update-${tag.id}` ? 'Updating...' : 'Update'}
+                        </button>
+                        <button
+                          className="danger-text-btn"
+                          disabled={Boolean(busyAction)}
+                          onClick={() => deleteTag(tag.id)}
+                          type="button"
+                        >
+                          {busyAction === `tag-delete-${tag.id}` ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
                     </td>

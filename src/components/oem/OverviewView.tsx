@@ -1,4 +1,4 @@
-import type { Customer } from '../../data/oemWorkflow'
+import type { Customer, CustomerTag } from '../../data/oemWorkflow'
 import CustomerCard from './CustomerCard'
 
 type OverviewViewProps = {
@@ -6,6 +6,7 @@ type OverviewViewProps = {
   error: string
   loading: boolean
   onAddTag: (customerId: string) => void
+  onEditTag: (customerId: string, tag: CustomerTag) => void
   onCreateCustomer?: () => void
   onOpenCompany: (customerId: string) => void
   onOpenCustomer: (customerId: string) => void
@@ -17,6 +18,7 @@ function OverviewView({
   error,
   loading,
   onAddTag,
+  onEditTag,
   onCreateCustomer,
   onOpenCompany,
   onOpenCustomer,
@@ -50,6 +52,7 @@ function OverviewView({
             customer={customer}
             key={customer.id}
             onAddTag={onAddTag}
+            onEditTag={onEditTag}
             onOpen={onOpenCustomer}
             onOpenCompany={onOpenCompany}
           />
