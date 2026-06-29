@@ -20,6 +20,15 @@ type CustomerDetailViewProps = {
   onViewPhase: (phase: number) => void
 }
 
+function normalizeDepartmentName(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function hasDepartment(departments: string[], department: string) {
+  const target = normalizeDepartmentName(department)
+  return departments.some((item) => normalizeDepartmentName(item) === target)
+}
+
 function CustomerDetailView({
   currentDept,
   userDepartments,
@@ -66,7 +75,7 @@ function CustomerDetailView({
           <BranchCard
             branch={branch}
             branchState={customer.branch[viewedPhase][branchIndex]}
-            canManage={userDepartments.includes(branch.dept)}
+            canManage={hasDepartment(userDepartments, branch.dept)}
             isActive={Boolean(isActive)}
             key={`${branch.dept}-${branchIndex}`}
             onCancel={() => onCancelBranch(branchIndex)}

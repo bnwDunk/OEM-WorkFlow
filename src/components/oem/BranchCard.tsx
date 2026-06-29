@@ -21,7 +21,12 @@ function BranchCard({
 }: BranchCardProps) {
   const locked = branchState.done || !isActive || !canManage
   const dirty = JSON.stringify(branchState.live) !== JSON.stringify(branchState.saved)
-  const canDone = branchState.live.every(Boolean)
+  const itemCount = Math.max(branch.items.length, branchState.live.length, branchState.saved.length)
+  const checklistItems = Array.from({ length: itemCount }, (_, itemIndex) => ({
+    checked: Boolean(branchState.live[itemIndex]),
+    label: branch.items[itemIndex] || `Checklist ${itemIndex + 1}`,
+  }))
+  const canDone = checklistItems.length > 0 && checklistItems.every((item) => item.checked)
 
   return (
     <article className={`branch-card ${canManage ? '' : 'branch-card-readonly'}`}>
@@ -33,15 +38,15 @@ function BranchCard({
       </div>
 
       <div className="checklist">
-        {branch.items.map((item, itemIndex) => (
-          <label className={branchState.live[itemIndex] ? 'checked' : ''} key={item}>
+        {checklistItems.map((item, itemIndex) => (
+          <label className={item.checked ? 'checked' : ''} key={`${item.label}-${itemIndex}`}>
             <input
-              checked={branchState.live[itemIndex]}
+              checked={item.checked}
               disabled={locked}
               onChange={() => onToggle(itemIndex)}
               type="checkbox"
             />
-            <span>{item}</span>
+            <span>{item.label}</span>
           </label>
         ))}
       </div>
