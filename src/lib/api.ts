@@ -15,6 +15,39 @@ type RefreshResponse = {
   user: unknown
 }
 
+const latin1MojibakePattern = /(?:Ã.|Â.|à¸|à¹|â€|â€™|â€œ|â€�|â€“|â€”|เน|เธ|โเธ|เเธ)/
+
+function repairMojibakeString(value: string) {
+  if (!latin1MojibakePattern.test(value)) return value
+
+  try {
+    const bytes = Uint8Array.from([...value].map((character) => character.charCodeAt(0) & 0xff))
+    const repaired = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+
+    return /[\u0E00-\u0E7F]/.test(repaired) ? repaired : value
+  } catch {
+    return value
+  }
+}
+
+function normalizeTextEncoding<T>(value: T): T {
+  if (typeof value === 'string') {
+    return repairMojibakeString(value) as T
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeTextEncoding(item)) as T
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeTextEncoding(item)]),
+    ) as T
+  }
+
+  return value
+}
+
 function normalizeStoredUser(user: unknown) {
   if (!user || typeof user !== 'object') return user
 
@@ -43,7 +76,8 @@ async function refreshAccessToken() {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Accept': 'application/json; charset=utf-8',
+      'Content-Type': 'application/json; charset=utf-8',
     },
     body: JSON.stringify({ refresh_token: refreshToken }),
   })
@@ -53,7 +87,7 @@ async function refreshAccessToken() {
   const body = await response.json() as RefreshResponse
   localStorage.setItem('oem-access-token', body.access_token)
   localStorage.setItem('oem-refresh-token', body.refresh_token)
-  localStorage.setItem('oem-user', JSON.stringify(normalizeStoredUser(body.user)))
+  localStorage.setItem('oem-user', JSON.stringify(normalizeStoredUser(normalizeTextEncoding(body.user))))
 
   return body.access_token
 }
@@ -71,7 +105,8 @@ function notifySessionExpired() {
 
 async function sendRequest(path: string, options: ApiOptions = {}): Promise<Response> {
   const headers = new Headers(options.headers)
-  headers.set('Content-Type', 'application/json')
+  headers.set('Accept', 'application/json; charset=utf-8')
+  headers.set('Content-Type', 'application/json; charset=utf-8')
 
   const token = options.token || localStorage.getItem('oem-access-token')
 
@@ -109,7 +144,9 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     return undefined as T
   }
 
-  return response.json() as Promise<T>
+  const body = await response.json() as T
+
+  return normalizeTextEncoding(body)
 }
 
 export { API_BASE_URL }
