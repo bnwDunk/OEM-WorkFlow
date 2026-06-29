@@ -5,8 +5,6 @@ type BranchCardProps = {
   branchState: BranchState
   canManage: boolean
   isActive: boolean
-  onCancel: () => void
-  onSave: () => void
   onToggle: (itemIndex: number) => void
 }
 
@@ -15,18 +13,14 @@ function BranchCard({
   branchState,
   canManage,
   isActive,
-  onCancel,
-  onSave,
   onToggle,
 }: BranchCardProps) {
   const locked = branchState.done || !isActive || !canManage
-  const dirty = JSON.stringify(branchState.live) !== JSON.stringify(branchState.saved)
   const itemCount = Math.max(branch.items.length, branchState.live.length, branchState.saved.length)
   const checklistItems = Array.from({ length: itemCount }, (_, itemIndex) => ({
     checked: Boolean(branchState.live[itemIndex]),
     label: branch.items[itemIndex] || `Checklist ${itemIndex + 1}`,
   }))
-  const canDone = checklistItems.length > 0 && checklistItems.every((item) => item.checked)
 
   return (
     <article className={`branch-card ${canManage ? '' : 'branch-card-readonly'}`}>
@@ -50,16 +44,6 @@ function BranchCard({
           </label>
         ))}
       </div>
-
-      {!branchState.done && isActive && canManage && (
-        <>
-          <div className="btn-row">
-            <button className="btn-mini save" disabled={!canDone} onClick={onSave} type="button">Save</button>
-            <button className="btn-mini cancel" disabled={!dirty} onClick={onCancel} type="button">Cancel</button>
-          </div>
-          {!canDone && <p className="warn-text">ติ๊กให้ครบทุกข้อก่อนกด Save</p>}
-        </>
-      )}
     </article>
   )
 }
