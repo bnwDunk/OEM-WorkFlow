@@ -51,7 +51,7 @@ function CustomerDetailView({
   return (
     <section className="page-pad detail-page">
       <button
-        className="mb-7 inline-flex min-h-10 items-center justify-center rounded-xl bg-black px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition duration-150 ease-out hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_14px_30px_rgba(15,23,42,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        className="mb-7 inline-flex min-h-10 items-center justify-center rounded-xl !bg-black px-5 text-sm font-bold !text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition duration-150 ease-out hover:-translate-y-0.5 hover:!bg-slate-800 hover:shadow-[0_14px_30px_rgba(15,23,42,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
         onClick={onBack}
         type="button"
       >
