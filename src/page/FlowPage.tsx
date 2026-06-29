@@ -57,6 +57,16 @@ function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
   }
 }
 
+function normalizeDepartmentName(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function hasDepartment(departments: string[], department: string | undefined) {
+  if (!department) return false
+  const target = normalizeDepartmentName(department)
+  return departments.some((item) => normalizeDepartmentName(item) === target)
+}
+
 function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPageProps) {
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<ActiveView>('overview')
@@ -98,7 +108,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   )
 
   useEffect(() => {
-    if (!userDepartments.includes(currentDept)) {
+    if (!hasDepartment(userDepartments, currentDept)) {
       setCurrentDept(userDepartments[0])
     }
   }, [currentDept, userDepartments])
@@ -276,7 +286,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }
 
   function canManageViewedBranch(branchIndex: number) {
-    return userDepartments.includes(flowStops[viewedPhase]?.branches[branchIndex]?.dept)
+    return hasDepartment(userDepartments, flowStops[viewedPhase]?.branches[branchIndex]?.dept)
   }
 
   function handleToggleBranchItem(branchIndex: number, itemIndex: number) {
@@ -377,7 +387,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
     updateCustomer(selectedCustomer.id, (customer) => {
       const issue = customer.issues[issueIndex]
-      if (!issue || ![issue.openedByDept, issue.targetDept].some((department) => userDepartments.includes(department))) return customer
+      if (!issue || ![issue.openedByDept, issue.targetDept].some((department) => hasDepartment(userDepartments, department))) return customer
 
       issue.closed = true
       addLog(customer, `Ticket ถึงฝ่าย ${issue.targetDept} ถูกปิดโดย ${currentDept}`)
@@ -385,8 +395,22 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     })
   }
 
-  function handleReset(mode: 'all' | 'single') {
+  async function handleReset(mode: 'all' | 'single') {
     if (!selectedCustomer || modal?.type !== 'reset') return
+
+    try {
+      setOverviewError('')
+      if (selectedCustomer.databaseId) {
+        await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/phases/${modal.phase}/reset`, {
+          method: 'POST',
+          token: accessToken,
+          body: JSON.stringify({ mode }),
+        })
+      }
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to reset phase.')
+      return
+    }
 
     updateCustomer(selectedCustomer.id, (customer) => {
       const endPhase = mode === 'all' ? flowStops.length - 1 : modal.phase
@@ -414,6 +438,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
     setViewedPhase(modal.phase)
     setModal(null)
+
+    if (selectedCustomer.databaseId) {
+      await loadOverview()
+    }
   }
 
   function handleSaveCompany(info: Customer['info']) {
@@ -530,7 +558,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {modal?.type === 'reset' && (
         <ResetModal
           onClose={() => setModal(null)}
-          onReset={handleReset}
+          onReset={(mode) => void handleReset(mode)}
           phase={modal.phase}
         />
       )}
