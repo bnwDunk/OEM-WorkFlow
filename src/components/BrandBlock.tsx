@@ -1,3 +1,5 @@
+import logo from '../../img/Logo-p.piya.solotion-01 1 (2).jpg'
+
 type BrandBlockProps = {
   title: string
 }
@@ -5,9 +7,9 @@ type BrandBlockProps = {
 function BrandBlock({ title }: BrandBlockProps) {
   return (
     <div className="brand-block">
-      <span className="brand-mark">O</span>
+      <img className='w-[75px] h-[75px]' src={logo} alt="Company Logo" />
       <div>
-        <p className="eyebrow">OEM Control</p>
+        <p className="eyebrow">P.Piya Solution</p>
         <h1>{title}</h1>
       </div>
     </div>
