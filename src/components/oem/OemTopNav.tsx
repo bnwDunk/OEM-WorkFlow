@@ -34,7 +34,7 @@ function OemTopNav({
 }: OemTopNavProps) {
   return (
     <header className="oem-topnav">
-      <div className="oem-brand">OEM Flow</div>
+      <div className="oem-brand">P.Piya Solution</div>
       <nav className="oem-tabs" aria-label="OEM sections">
         <button className={activeView === 'overview' ? 'active' : ''} onClick={() => onChangeView('overview')} type="button">
           Overview
