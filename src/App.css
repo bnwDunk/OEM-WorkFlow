@@ -558,6 +558,7 @@ button:disabled {
   position: relative;
   overflow: hidden;
   padding: 18px 20px;
+  cursor: pointer;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -574,6 +575,13 @@ button:disabled {
   border-color: #c4d0dc;
   box-shadow: 0 18px 42px rgba(31, 42, 55, 0.1);
   transform: translateY(-1px);
+}
+
+.customer-card:focus-visible {
+  border-color: #9bc7c2;
+  box-shadow: 0 18px 42px rgba(15, 110, 102, 0.12);
+  outline: 3px solid rgba(15, 110, 102, 0.16);
+  outline-offset: 3px;
 }
 
 .customer-head {
@@ -766,10 +774,6 @@ button:disabled {
   background: transparent;
   text-align: left;
   border-radius: 12px;
-}
-
-.customer-body:hover {
-  background: #f8fafc;
 }
 
 .customer-body p {
