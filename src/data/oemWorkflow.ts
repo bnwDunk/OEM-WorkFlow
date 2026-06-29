@@ -55,6 +55,7 @@ export type Customer = {
   id: string
   databaseId?: number
   name: string
+  status?: CustomerStatus
   currentPhase: number
   tags: CustomerTag[]
   info: {
@@ -67,6 +68,27 @@ export type Customer = {
   singleResets: Record<number, boolean>
   notifications: NotificationItem[]
   issues: IssueItem[]
+}
+
+export type CustomerStatus =
+  | 'brief_spec'
+  | 'sampling'
+  | 'sample_revision'
+  | 'follow_up_formula'
+  | 'quote_negotiation'
+  | 'success'
+
+export const customerStatusOptions: { label: string; value: CustomerStatus }[] = [
+  { label: 'รับโจทย์/สรุปสเปค', value: 'brief_spec' },
+  { label: 'ส่งตัวอย่าง (Sampling)', value: 'sampling' },
+  { label: 'ส่งตัวอย่าง (แก้ไข)', value: 'sample_revision' },
+  { label: 'ติดตามผล/ปรับสูตร', value: 'follow_up_formula' },
+  { label: 'เสนอราคา & เจรจา', value: 'quote_negotiation' },
+  { label: 'สำเร็จ (Success)', value: 'success' },
+]
+
+export function getCustomerStatusLabel(status: CustomerStatus | undefined) {
+  return customerStatusOptions.find((option) => option.value === status)?.label || 'รับโจทย์/สรุปสเปค'
 }
 
 export const stages: StageTemplate[] = [
@@ -228,7 +250,7 @@ export const departments: Department[] = [
   { name: 'Production', members: ['เอก', 'โบ'] },
 ]
 
-export const tagOptions = ['น้ำเชื่อมใส', 'Zero Sugar', 'อาหารเสริม', 'แบ่งบรรจุ', 'น้ำหวานแต่งกลิ่น']
+export const tagOptions: string[] = []
 
 export const flowStops = stages.flatMap((stage, stageIndex) =>
   stage.stops.map((stop, stopIndex) => ({
@@ -268,7 +290,7 @@ export function createInitialCustomers(): Customer[] {
       id: 'siam-foods',
       name: 'บริษัท สยามฟู้ดส์ จำกัด',
       currentPhase: 2,
-      tags: [{ name: 'น้ำหวานแต่งกลิ่น' }],
+      tags: [],
       info: {
         costSyrup: '21.00',
         costPackage: '4.00',
@@ -296,7 +318,7 @@ export function createInitialCustomers(): Customer[] {
       id: 'green-plus',
       name: 'Green Plus Lab',
       currentPhase: 8,
-      tags: [{ name: 'Zero Sugar' }, { name: 'อาหารเสริม' }],
+      tags: [],
       info: {
         costSyrup: '18.50',
         costPackage: '6.20',

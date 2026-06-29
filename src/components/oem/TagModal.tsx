@@ -1,21 +1,29 @@
 import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Customer, CustomerTag } from '../../data/oemWorkflow'
 
 const palette = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#be123c', '#15803d', '#ca8a04', '#475569']
 
 type TagModalProps = {
   customer: Customer
+  initialTag?: CustomerTag | null
   loading: boolean
   tags: CustomerTag[]
   onClose: () => void
+  onDelete?: (tag: CustomerTag) => void
   onSave: (payload: { color: string; name: string; tagId?: number }) => void
 }
 
-function TagModal({ customer, loading, tags, onClose, onSave }: TagModalProps) {
-  const [selectedTagId, setSelectedTagId] = useState<number | ''>('')
-  const [name, setName] = useState('')
-  const [color, setColor] = useState(palette[0])
+function TagModal({ customer, initialTag = null, loading, tags, onClose, onDelete, onSave }: TagModalProps) {
+  const [selectedTagId, setSelectedTagId] = useState<number | ''>(initialTag?.id || '')
+  const [name, setName] = useState(initialTag?.name || '')
+  const [color, setColor] = useState(initialTag?.color || palette[0])
+
+  useEffect(() => {
+    setSelectedTagId(initialTag?.id || '')
+    setName(initialTag?.name || '')
+    setColor(initialTag?.color || palette[0])
+  }, [initialTag])
 
   function chooseExisting(tag: CustomerTag) {
     setSelectedTagId(tag.id || '')
@@ -37,9 +45,9 @@ function TagModal({ customer, loading, tags, onClose, onSave }: TagModalProps) {
   return (
     <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <form className="modal-box tag-modal" onSubmit={handleSubmit}>
-        <h3>เพิ่ม tag ให้ {customer.name}</h3>
+        <h3>{initialTag ? 'แก้ไข tag ของ' : 'เพิ่ม tag ให้'} {customer.name}</h3>
 
-        {tags.length > 0 && (
+        {!initialTag && tags.length > 0 && (
           <div className="tag-suggestion-list">
             {tags.map((tag) => (
               <button
@@ -91,9 +99,14 @@ function TagModal({ customer, loading, tags, onClose, onSave }: TagModalProps) {
         </div>
 
         <div className="modal-actions">
+          {initialTag && onDelete && (
+            <button className="danger-text-btn" disabled={loading} onClick={() => onDelete(initialTag)} type="button">
+              ลบ tag
+            </button>
+          )}
           <button className="ghost" disabled={loading} onClick={onClose} type="button">ยกเลิก</button>
           <button className="primary" disabled={loading || !name.trim()} type="submit">
-            {loading ? 'กำลังบันทึก...' : 'เพิ่ม tag'}
+            {loading ? 'กำลังบันทึก...' : initialTag ? 'บันทึก tag' : 'เพิ่ม tag'}
           </button>
         </div>
       </form>

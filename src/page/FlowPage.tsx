@@ -17,7 +17,7 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerStatus, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 
 type FlowPageProps = {
@@ -32,7 +32,7 @@ type ModalState =
   | { type: 'company'; customerId: string }
   | { type: 'create-customer' }
   | { type: 'reset'; customerId: string; phase: number }
-  | { type: 'tag'; customerId: string }
+  | { type: 'tag'; customerId: string; tag?: CustomerTag }
   | { type: 'profile' }
   | null
 
@@ -74,6 +74,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [availableFlows, setAvailableFlows] = useState<ManagedFlow[]>([])
   const [availableTags, setAvailableTags] = useState<CustomerTag[]>([])
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false)
+  const [customerSaving, setCustomerSaving] = useState(false)
   const [tagLoading, setTagLoading] = useState(false)
   const [overviewLoading, setOverviewLoading] = useState(false)
   const [overviewError, setOverviewError] = useState('')
@@ -199,21 +200,54 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     setModal({ type: 'tag', customerId })
   }
 
+  function openEditTagModal(customerId: string, tag: CustomerTag) {
+    void loadTags()
+    setModal({ type: 'tag', customerId, tag })
+  }
+
   async function handleSaveTag(payload: { color: string; name: string; tagId?: number }) {
     if (!tagCustomer?.databaseId) return
 
     try {
       setOverviewError('')
       setTagLoading(true)
-      await apiRequest(`/workflow/customers/${tagCustomer.databaseId}/tags`, {
-        method: 'POST',
-        token: accessToken,
-        body: JSON.stringify(payload),
-      })
+      if (modal?.type === 'tag' && modal.tag?.id) {
+        await apiRequest(`/workflow/tags/${modal.tag.id}`, {
+          method: 'PATCH',
+          token: accessToken,
+          body: JSON.stringify(payload),
+        })
+      } else {
+        await apiRequest(`/workflow/customers/${tagCustomer.databaseId}/tags`, {
+          method: 'POST',
+          token: accessToken,
+          body: JSON.stringify(payload),
+        })
+      }
       setModal(null)
       await Promise.all([loadOverview(), loadTags()])
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to save tag.')
+    } finally {
+      setTagLoading(false)
+    }
+  }
+
+  async function handleDeleteCustomerTag(tag: CustomerTag) {
+    if (!tagCustomer?.databaseId || !tag.id) return
+    if (!window.confirm(`ลบ tag ${tag.name} ออกจาก ${tagCustomer.name}?`)) return
+
+    try {
+      setOverviewError('')
+      setTagLoading(true)
+      await apiRequest(`/workflow/customers/${tagCustomer.databaseId}/tags/${tag.id}`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setModal(null)
+      await Promise.all([loadOverview(), loadTags()])
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to delete tag.')
     } finally {
       setTagLoading(false)
     }
@@ -444,15 +478,46 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }
 
-  function handleSaveCompany(info: Customer['info']) {
+  async function handleSaveCompany(payload: { info: Customer['info']; name: string; status: CustomerStatus }) {
     if (!modalCustomer) return
 
-    updateCustomer(modalCustomer.id, (customer) => {
-      customer.info = info
-      addLog(customer, `แก้ไขข้อมูลบริษัทโดย ${currentDept}`)
-      return customer
-    })
-    setModal(null)
+    if (!payload.name) {
+      setOverviewError('Customer name is required.')
+      return
+    }
+
+    try {
+      setOverviewError('')
+      setCustomerSaving(true)
+      if (modalCustomer.databaseId) {
+        await apiRequest(`/admin/customers/${modalCustomer.databaseId}`, {
+          method: 'PATCH',
+          token: accessToken,
+          body: JSON.stringify({
+            costPackage: payload.info.costPackage || null,
+            costSyrup: payload.info.costSyrup || null,
+            name: payload.name,
+            price: payload.info.price || null,
+            status: payload.status,
+            volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
+          }),
+        })
+        await loadOverview()
+      } else {
+        updateCustomer(modalCustomer.id, (customer) => {
+          customer.info = payload.info
+          customer.name = payload.name
+          customer.status = payload.status
+          addLog(customer, `แก้ไขข้อมูลบริษัทโดย ${currentDept}`)
+          return customer
+        })
+      }
+      setModal(null)
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to save customer.')
+    } finally {
+      setCustomerSaving(false)
+    }
   }
 
   return (
@@ -491,6 +556,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           error={overviewError}
           loading={overviewLoading}
           onAddTag={openTagModal}
+          onEditTag={openEditTagModal}
           onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
           onOpenCompany={(customerId) => setModal({ type: 'company', customerId })}
           onOpenCustomer={openCustomer}
@@ -531,6 +597,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {modal?.type === 'company' && modalCustomer && (
         <CompanyModal
           customer={modalCustomer}
+          loading={customerSaving}
           onClose={() => setModal(null)}
           onSave={handleSaveCompany}
         />
@@ -548,8 +615,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {modal?.type === 'tag' && tagCustomer && (
         <TagModal
           customer={tagCustomer}
+          initialTag={modal.tag || null}
           loading={tagLoading}
           onClose={() => setModal(null)}
+          onDelete={handleDeleteCustomerTag}
           onSave={handleSaveTag}
           tags={availableTags}
         />

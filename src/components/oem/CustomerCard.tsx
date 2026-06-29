@@ -1,15 +1,16 @@
-import { flowStops, stages } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
+import type { Customer, CustomerTag } from '../../data/oemWorkflow'
 import StageRail from './StageRail'
 
 type CustomerCardProps = {
   customer: Customer
   onAddTag: (customerId: string) => void
+  onEditTag: (customerId: string, tag: CustomerTag) => void
   onOpen: (customerId: string) => void
   onOpenCompany: (customerId: string) => void
 }
 
-function CustomerCard({ customer, onAddTag, onOpen, onOpenCompany }: CustomerCardProps) {
+function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany }: CustomerCardProps) {
   const currentStop = flowStops[customer.currentPhase]
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
 
@@ -20,15 +21,22 @@ function CustomerCard({ customer, onAddTag, onOpen, onOpenCompany }: CustomerCar
           <button className="customer-name" onClick={() => onOpenCompany(customer.id)} type="button">
             {customer.name}
           </button>
+          <div className={`customer-status-badge ${customer.status || 'brief_spec'}`}>
+            <span>Status</span>
+            <strong>{getCustomerStatusLabel(customer.status)}</strong>
+          </div>
           <div className="tag-row">
             {customer.tags.map((tag) => (
-              <span
+              <button
                 className="tag-chip"
                 key={`${tag.id || tag.name}-${tag.color || ''}`}
+                onClick={() => onEditTag(customer.id, tag)}
                 style={tag.color ? { background: tag.color, color: '#fff' } : undefined}
+                title="Edit tag"
+                type="button"
               >
                 {tag.name}
-              </span>
+              </button>
             ))}
             <button className="tag-add-btn" onClick={() => onAddTag(customer.id)} type="button">
               + Tag

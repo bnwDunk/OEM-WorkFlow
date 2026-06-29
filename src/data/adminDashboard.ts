@@ -1,3 +1,5 @@
+import type { CustomerStatus } from './oemWorkflow'
+
 export type AppRole = 'admin' | 'manager' | 'user'
 
 export type AuthUser = {
@@ -43,11 +45,20 @@ export type ManagedCustomerProject = {
   id: number
   slug: string
   name: string
-  status: 'active' | 'completed' | 'paused' | 'cancelled'
+  status: CustomerStatus
   flowId: number | null
   flowName: string | null
   currentPhaseId: number | null
   currentPhaseName: string | null
+  updatedAt: string
+}
+
+export type ManagedTag = {
+  id: number
+  name: string
+  color: string | null
+  status: 'active' | 'inactive'
+  customerCount: number
   updatedAt: string
 }
 
