@@ -684,81 +684,36 @@ button:disabled {
   color: var(--coral);
 }
 
-.customer-status-badge {
-  position: relative;
-  min-height: 30px;
-  width: fit-content;
-  max-width: 100%;
-  margin-top: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px 5px 28px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  line-height: 1.15;
-}
-
-.customer-status-badge::before {
-  content: "";
-  position: absolute;
-  left: 12px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.customer-status-badge span {
-  color: color-mix(in srgb, currentColor 70%, #64748b);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.customer-status-badge strong {
-  color: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-}
-
-.customer-status-badge.brief_spec,
 .status-pill.brief_spec {
   background: #eef2ff;
   border-color: #c7d2fe;
   color: #3730a3 !important;
 }
 
-.customer-status-badge.sampling,
 .status-pill.sampling {
   background: #e0f2fe;
   border-color: #bae6fd;
   color: #0369a1 !important;
 }
 
-.customer-status-badge.sample_revision,
 .status-pill.sample_revision {
   background: #fff7ed;
   border-color: #fed7aa;
   color: #c2410c !important;
 }
 
-.customer-status-badge.follow_up_formula,
 .status-pill.follow_up_formula {
   background: #fef9c3;
   border-color: #fde68a;
   color: #a16207 !important;
 }
 
-.customer-status-badge.quote_negotiation,
 .status-pill.quote_negotiation {
   background: #f3e8ff;
   border-color: #e9d5ff;
   color: #7e22ce !important;
 }
 
-.customer-status-badge.success,
 .status-pill.success {
   background: var(--green-soft);
   border-color: #bbf7d0;
@@ -786,41 +741,20 @@ button:disabled {
   color: var(--ink);
 }
 
-.stage-rail,
 .phase-rail {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
 }
 
-.stage-chip {
-  min-width: 66px;
-  min-height: 50px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.stage-chip span {
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.stage-chip.done,
 .phase-chip.done {
   background: var(--teal);
 }
 
-.stage-chip.current,
 .phase-chip.current {
   background: var(--amber);
 }
 
-.stage-chip.locked,
 .phase-chip.locked {
   border: 1.5px dashed var(--line);
   background: var(--surface);

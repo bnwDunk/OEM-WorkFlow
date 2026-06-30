@@ -5,6 +5,7 @@ import CompanyModal from '../components/oem/CompanyModal'
 import ConfigView from '../components/oem/ConfigView'
 import CreateCustomerModal from '../components/oem/CreateCustomerModal'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
+import CustomerInfoModal from '../components/oem/CustomerInfoModal'
 import DeptWorkView from '../components/oem/DeptWorkView'
 import OemTopNav from '../components/oem/OemTopNav'
 import ProfileModal from '../components/oem/ProfileModal'
@@ -30,6 +31,7 @@ type FlowPageProps = {
 type ActiveView = 'overview' | 'detail' | 'dept' | 'config' | 'admin'
 type ModalState =
   | { type: 'company'; customerId: string }
+  | { type: 'customer-info'; customerId: string }
   | { type: 'create-customer' }
   | { type: 'reset'; customerId: string; phase: number }
   | { type: 'tag'; customerId: string; tag?: CustomerTag }
@@ -91,6 +93,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null
   const modalCustomer = modal?.type === 'company'
+    ? customers.find((customer) => customer.id === modal.customerId) || null
+    : null
+  const infoCustomer = modal?.type === 'customer-info'
     ? customers.find((customer) => customer.id === modal.customerId) || null
     : null
   const tagCustomer = modal?.type === 'tag'
@@ -560,6 +565,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
           onOpenCompany={(customerId) => setModal({ type: 'company', customerId })}
           onOpenCustomer={openCustomer}
+          onOpenInfo={(customerId) => setModal({ type: 'customer-info', customerId })}
           onReload={loadOverview}
         />
       )}
@@ -600,6 +606,13 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           loading={customerSaving}
           onClose={() => setModal(null)}
           onSave={handleSaveCompany}
+        />
+      )}
+
+      {modal?.type === 'customer-info' && infoCustomer && (
+        <CustomerInfoModal
+          customer={infoCustomer}
+          onClose={() => setModal(null)}
         />
       )}
 
