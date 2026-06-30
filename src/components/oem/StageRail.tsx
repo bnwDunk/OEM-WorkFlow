@@ -4,24 +4,38 @@ type StageRailProps = {
   currentPhase: number
 }
 
-function getStageStatus(currentPhase: number, start: number, end: number) {
+type StageStatus = 'done' | 'current' | 'locked'
+
+function getStageStatus(currentPhase: number, start: number, end: number): StageStatus {
   if (currentPhase > end) return 'done'
   if (currentPhase >= start && currentPhase <= end) return 'current'
   return 'locked'
 }
 
+const stageStatusStyles = {
+  done: 'border-teal-200 bg-teal-50 text-teal-800 shadow-teal-100/80',
+  current: 'border-amber-300 bg-amber-500 text-white shadow-amber-200/80',
+  locked: 'border-dashed border-slate-200 bg-white text-slate-500 shadow-slate-100/70',
+}
+
 function StageRail({ currentPhase }: StageRailProps) {
   return (
-    <div className="stage-rail">
+    <div className="flex flex-wrap gap-2.5">
       {stages.map((stage, index) => {
         const range = stageRanges[index]
         const status = getStageStatus(currentPhase, range.start, range.end)
         const within = Math.min(Math.max(currentPhase - range.start + 1, 0), stage.stops.length)
 
         return (
-          <div className={`stage-chip ${status}`} key={stage.name} title={stage.name}>
-            S{index + 1}
-            <span>{status === 'locked' ? '' : `${within}/${stage.stops.length}`}</span>
+          <div
+            className={`grid min-h-[52px] w-[66px] shrink-0 place-items-center rounded-xl border text-center text-xs font-black leading-none shadow-sm transition duration-150 ${stageStatusStyles[status]}`}
+            key={stage.name}
+            title={stage.name}
+          >
+            <span>S{index + 1}</span>
+            <span className={`text-[10px] font-extrabold ${status === 'locked' ? 'opacity-0' : 'opacity-90'}`}>
+              {status === 'locked' ? '0/0' : `${within}/${stage.stops.length}`}
+            </span>
           </div>
         )
       })}

@@ -12,6 +12,7 @@ type OverviewViewProps = {
   onCreateCustomer?: () => void
   onOpenCompany: (customerId: string) => void
   onOpenCustomer: (customerId: string) => void
+  onOpenInfo: (customerId: string) => void
   onReload: () => void
 }
 
@@ -24,6 +25,7 @@ function OverviewView({
   onCreateCustomer,
   onOpenCompany,
   onOpenCustomer,
+  onOpenInfo,
   onReload,
 }: OverviewViewProps) {
   const [query, setQuery] = useState('')
@@ -137,6 +139,7 @@ function OverviewView({
             onEditTag={onEditTag}
             onOpen={onOpenCustomer}
             onOpenCompany={onOpenCompany}
+            onOpenInfo={onOpenInfo}
           />
         ))}
       </div>
