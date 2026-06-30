@@ -22,11 +22,9 @@ function OverviewView({
   loading,
   onAddTag,
   onEditTag,
-  onCreateCustomer,
   onOpenCompany,
   onOpenCustomer,
   onOpenInfo,
-  onReload,
 }: OverviewViewProps) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | 'all'>('all')
