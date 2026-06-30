@@ -45,6 +45,16 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
     openCustomerDetail()
   }
 
+  const openCustomerInfo = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onOpenInfo(customer.id)
+  }
+
+  const openCustomerEditor = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onOpenCompany(customer.id)
+  }
+
   return (
     <article
       aria-label={`Open ${customer.name} detail`}
@@ -59,7 +69,7 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
           <button
             aria-label={`View ${customer.name} information`}
             className="customer-name"
-            onClick={() => onOpenInfo(customer.id)}
+            onClick={openCustomerInfo}
             title="View customer information"
             type="button"
           >
@@ -83,7 +93,10 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
               <button
                 className="tag-chip"
                 key={`${tag.id || tag.name}-${tag.color || ''}`}
-                onClick={() => onEditTag(customer.id, tag)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onEditTag(customer.id, tag)
+                }}
                 style={tag.color ? { background: tag.color, color: '#fff' } : undefined}
                 title="Edit tag"
                 type="button"
@@ -91,7 +104,14 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
                 {tag.name}
               </button>
             ))}
-            <button className="tag-add-btn" onClick={() => onAddTag(customer.id)} type="button">
+            <button
+              className="tag-add-btn"
+              onClick={(event) => {
+                event.stopPropagation()
+                onAddTag(customer.id)
+              }}
+              type="button"
+            >
               + Tag
             </button>
           </div>
@@ -100,7 +120,7 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
           <button
             aria-label={`Edit ${customer.name}`}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-transparent text-[#0f6e66] transition duration-150 ease-out hover:-translate-y-0.5 hover:bg-[#eef8f6] hover:shadow-[0_14px_26px_rgba(15,110,102,0.14)] hover:ring-1 hover:ring-[#9bc7c2] focus-visible:-translate-y-0.5 focus-visible:bg-[#eef8f6] focus-visible:shadow-[0_14px_26px_rgba(15,110,102,0.14)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#9bc7c2]"
-            onClick={() => onOpenCompany(customer.id)}
+            onClick={openCustomerEditor}
             title="Edit customer"
             type="button"
           >
