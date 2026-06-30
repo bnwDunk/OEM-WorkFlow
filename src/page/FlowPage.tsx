@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminDashboard from './AdminDashboard'
-import CompanyModal from '../components/oem/CompanyModal'
 import ConfigView from '../components/oem/ConfigView'
 import CreateCustomerModal from '../components/oem/CreateCustomerModal'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
+import CustomerEditView from '../components/oem/CustomerEditView'
 import CustomerInfoModal from '../components/oem/CustomerInfoModal'
 import DeptWorkView from '../components/oem/DeptWorkView'
 import OemTopNav from '../components/oem/OemTopNav'
@@ -18,8 +18,9 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerStatus, CustomerTag } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
+import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
 
 type FlowPageProps = {
   accessToken: string
@@ -28,9 +29,8 @@ type FlowPageProps = {
   onUserChange: (user: AuthUser) => void
 }
 
-type ActiveView = 'overview' | 'detail' | 'dept' | 'config' | 'admin'
+type ActiveView = 'overview' | 'detail' | 'edit-customer' | 'dept' | 'config' | 'admin'
 type ModalState =
-  | { type: 'company'; customerId: string }
   | { type: 'customer-info'; customerId: string }
   | { type: 'create-customer' }
   | { type: 'reset'; customerId: string; phase: number }
@@ -92,9 +92,6 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [modal, setModal] = useState<ModalState>(null)
 
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null
-  const modalCustomer = modal?.type === 'company'
-    ? customers.find((customer) => customer.id === modal.customerId) || null
-    : null
   const infoCustomer = modal?.type === 'customer-info'
     ? customers.find((customer) => customer.id === modal.customerId) || null
     : null
@@ -275,6 +272,16 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     setSelectedCustomerId(customerId)
     setViewedPhase(customer.currentPhase)
     setActiveView('detail')
+  }
+
+  function openCustomerEditor(customerId: string) {
+    const customer = customers.find((item) => item.id === customerId)
+    if (!customer) return
+
+    setSelectedCustomerId(customerId)
+    setViewedPhase(customer.currentPhase)
+    setModal(null)
+    setActiveView('edit-customer')
   }
 
   function handleChangeView(view: 'overview' | 'dept' | 'config' | 'admin') {
@@ -483,8 +490,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }
 
-  async function handleSaveCompany(payload: { info: Customer['info']; name: string; status: CustomerStatus }) {
-    if (!modalCustomer) return
+  async function handleSaveCustomerEdit(payload: CustomerEditPayload) {
+    if (!selectedCustomer) return
 
     if (!payload.name) {
       setOverviewError('Customer name is required.')
@@ -494,8 +501,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     try {
       setOverviewError('')
       setCustomerSaving(true)
-      if (modalCustomer.databaseId) {
-        await apiRequest(`/admin/customers/${modalCustomer.databaseId}`, {
+      if (selectedCustomer.databaseId) {
+        await apiRequest(`/admin/customers/${selectedCustomer.databaseId}`, {
           method: 'PATCH',
           token: accessToken,
           body: JSON.stringify({
@@ -509,7 +516,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         })
         await loadOverview()
       } else {
-        updateCustomer(modalCustomer.id, (customer) => {
+        updateCustomer(selectedCustomer.id, (customer) => {
           customer.info = payload.info
           customer.name = payload.name
           customer.status = payload.status
@@ -517,7 +524,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           return customer
         })
       }
-      setModal(null)
+      setActiveView('overview')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to save customer.')
     } finally {
@@ -563,7 +570,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onAddTag={openTagModal}
           onEditTag={openEditTagModal}
           onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
-          onOpenCompany={(customerId) => setModal({ type: 'company', customerId })}
+          onOpenCompany={openCustomerEditor}
           onOpenCustomer={openCustomer}
           onOpenInfo={(customerId) => setModal({ type: 'customer-info', customerId })}
           onReload={loadOverview}
@@ -587,6 +594,16 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         />
       )}
 
+      {activeView === 'edit-customer' && selectedCustomer && (
+        <CustomerEditView
+          customer={selectedCustomer}
+          loading={customerSaving}
+          onBack={() => setActiveView('overview')}
+          onSave={handleSaveCustomerEdit}
+          salespersonName={currentUser.name}
+        />
+      )}
+
       {activeView === 'dept' && (
         <DeptWorkView
           currentDept={currentDept}
@@ -599,15 +616,6 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {activeView === 'config' && <ConfigView />}
 
       {activeView === 'admin' && currentUser.role === 'admin' && <AdminDashboard token={accessToken} />}
-
-      {modal?.type === 'company' && modalCustomer && (
-        <CompanyModal
-          customer={modalCustomer}
-          loading={customerSaving}
-          onClose={() => setModal(null)}
-          onSave={handleSaveCompany}
-        />
-      )}
 
       {modal?.type === 'customer-info' && infoCustomer && (
         <CustomerInfoModal
