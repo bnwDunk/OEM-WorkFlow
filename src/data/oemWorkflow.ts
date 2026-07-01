@@ -55,6 +55,7 @@ export type Customer = {
   id: string
   databaseId?: number
   name: string
+  salesperson?: string
   status?: CustomerStatus
   currentPhase: number
   tags: CustomerTag[]
