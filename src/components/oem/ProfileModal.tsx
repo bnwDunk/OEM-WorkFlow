@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getRoleDisplayName } from '../../data/adminDashboard'
 import type { AuthUser } from '../../data/adminDashboard'
 
 type ProfileModalProps = {
@@ -65,7 +66,7 @@ function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
         <div className="profile-readonly-grid">
           <div>
             <span>Role</span>
-            <strong>{currentUser.role}</strong>
+            <strong>{getRoleDisplayName(currentUser.role)}</strong>
           </div>
           <div>
             <span>Departments</span>

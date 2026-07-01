@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getRoleDisplayName } from '../../data/adminDashboard'
 
 export type SalespersonOption = {
   department?: string
@@ -92,7 +93,7 @@ function SalespersonCombobox({
             {sortedOptions.map((option) => {
               const isCurrentLogin = normalizeName(option.name) === normalizedCurrentUserName
               const selected = normalizeName(option.name) === normalizedValue
-              const meta = [option.department, option.role, option.email].filter(Boolean).join(' · ')
+              const meta = [option.department, getRoleDisplayName(option.role), option.email].filter(Boolean).join(' · ')
 
               return (
                 <button

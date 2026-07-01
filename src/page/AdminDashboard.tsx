@@ -13,6 +13,7 @@ import type {
 } from '../components/oem/admin/FlowStructureEditorModal'
 import { apiRequest } from '../lib/api'
 import { getCustomerStatusLabel } from '../data/oemWorkflow'
+import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
   AppRole,
   ManagedDepartment,
@@ -1095,7 +1096,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                       value={user.role}
                     >
                       {roleOptions.map((role) => (
-                        <option key={role} value={role}>{role}</option>
+                        <option key={role} value={role}>{getRoleDisplayName(role)}</option>
                       ))}
                     </select>
                   </td>

@@ -1,3 +1,4 @@
+import { getRoleDisplayName } from '../../../data/adminDashboard'
 import type { ManagedDepartment, ManagedUser } from '../../../data/adminDashboard'
 
 export type DepartmentWorkItem = {
@@ -58,7 +59,7 @@ function DepartmentDetailModal({
                   <strong>{member.name}</strong>
                   <span>{member.email}</span>
                 </div>
-                <span className={`department-status-pill ${member.status}`}>{member.role}</span>
+                <span className={`department-status-pill ${member.status}`}>{getRoleDisplayName(member.role)}</span>
               </div>
             ))}
             {members.length === 0 && <p className="department-empty">No users in this department yet.</p>}
