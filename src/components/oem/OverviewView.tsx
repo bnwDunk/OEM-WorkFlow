@@ -67,7 +67,7 @@ function OverviewView({
         <div className="overview-actions">
           {onCreateCustomer && (
             <button className="primary-action-btn" onClick={onCreateCustomer} type="button">
-              สร้างลูกค้า
+              New
             </button>
           )}
         </div>

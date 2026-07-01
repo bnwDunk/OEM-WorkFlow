@@ -6,6 +6,7 @@ import CreateCustomerModal from '../components/oem/CreateCustomerModal'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
 import CustomerEditView from '../components/oem/CustomerEditView'
 import CustomerInfoModal from '../components/oem/CustomerInfoModal'
+import CustomerListView from '../components/oem/CustomerListView'
 import DeptWorkView from '../components/oem/DeptWorkView'
 import OemTopNav from '../components/oem/OemTopNav'
 import ProfileModal from '../components/oem/ProfileModal'
@@ -30,7 +31,7 @@ type FlowPageProps = {
   onUserChange: (user: AuthUser) => void
 }
 
-type ActiveView = 'overview' | 'detail' | 'edit-customer' | 'dept' | 'config' | 'admin'
+type ActiveView = 'overview' | 'customers' | 'detail' | 'edit-customer' | 'dept' | 'config' | 'admin'
 type ModalState =
   | { type: 'customer-info'; customerId: string }
   | { type: 'create-customer' }
@@ -70,8 +71,9 @@ function hasDepartment(departments: string[], department: string | undefined) {
   return departments.some((item) => normalizeDepartmentName(item) === target)
 }
 
-const flowViewPaths: Record<'overview' | 'dept' | 'config' | 'admin', string> = {
+const flowViewPaths: Record<'overview' | 'customers' | 'dept' | 'config' | 'admin', string> = {
   overview: '/flow',
+  customers: '/flow/customers',
   dept: '/flow/dept',
   config: '/flow/config',
   admin: '/flow/admin',
@@ -107,13 +109,15 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     ? 'edit-customer'
     : location.pathname.startsWith('/flow/customers/')
       ? 'detail'
-      : location.pathname === '/flow/dept'
-        ? 'dept'
-        : location.pathname === '/flow/config'
-          ? 'config'
-          : location.pathname === '/flow/admin'
-            ? 'admin'
-            : 'overview'
+      : location.pathname === '/flow/customers'
+        ? 'customers'
+        : location.pathname === '/flow/dept'
+          ? 'dept'
+          : location.pathname === '/flow/config'
+            ? 'config'
+            : location.pathname === '/flow/admin'
+              ? 'admin'
+              : 'overview'
   const selectedCustomer = customers.find((customer) => customer.id === (routeCustomerId || selectedCustomerId)) || null
   const infoCustomer = modal?.type === 'customer-info'
     ? customers.find((customer) => customer.id === modal.customerId) || null
@@ -387,7 +391,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     navigate(`/flow/customers/${encodeURIComponent(customerId)}/edit`)
   }
 
-  function handleChangeView(view: 'overview' | 'dept' | 'config' | 'admin') {
+  function handleChangeView(view: 'overview' | 'customers' | 'dept' | 'config' | 'admin') {
     navigate(flowViewPaths[view])
     setBellOpen(false)
     setProfileOpen(false)
@@ -714,9 +718,19 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         />
       )}
 
+      {activeView === 'customers' && (
+        <CustomerListView
+          customers={customers}
+          loading={overviewLoading}
+          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
+          onOpenCustomer={openCustomer}
+        />
+      )}
+
       {activeView === 'detail' && selectedCustomer && (
         <CustomerDetailView
           currentDept={currentDept}
+          currentUserName={currentUser.name}
           userDepartments={userDepartments}
           customer={selectedCustomer}
           onAddIssue={handleAddIssue}

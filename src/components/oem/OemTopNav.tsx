@@ -11,7 +11,7 @@ type OemTopNavProps = {
   bellOpen: boolean
   profileOpen: boolean
   onChangeDept: (dept: string) => void
-  onChangeView: (view: 'overview' | 'dept' | 'config' | 'admin') => void
+  onChangeView: (view: 'overview' | 'customers' | 'dept' | 'config' | 'admin') => void
   onToggleBell: () => void
   onToggleProfile: () => void
   onLogout: () => void
@@ -39,6 +39,9 @@ function OemTopNav({
       <nav className="oem-tabs" aria-label="OEM sections">
         <button className={activeView === 'overview' ? 'active' : ''} onClick={() => onChangeView('overview')} type="button">
           Overview
+        </button>
+        <button className={activeView === 'customers' ? 'active' : ''} onClick={() => onChangeView('customers')} type="button">
+          Customer
         </button>
         <button className={activeView === 'dept' ? 'active' : ''} onClick={() => onChangeView('dept')} type="button">
           แผนกของฉัน
