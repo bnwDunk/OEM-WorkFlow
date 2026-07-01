@@ -53,10 +53,6 @@ function SalespersonCombobox({
       })
   }, [normalizedCurrentUserName, options])
 
-  const suggestedOptions = sortedOptions
-    .filter((option) => !normalizedValue || normalizeName(option.name).includes(normalizedValue))
-    .slice(0, 10)
-
   return (
     <div className="relative">
       <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition focus-within:border-teal-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-teal-100">
@@ -90,10 +86,10 @@ function SalespersonCombobox({
       {open && (
         <div className="absolute left-0 right-0 top-full z-30 overflow-hidden rounded-b-2xl rounded-t-none border border-t-0 border-slate-200 bg-white p-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-slate-950/5">
           <div className="max-h-64 overflow-y-auto pr-1" role="listbox">
-            {suggestedOptions.length === 0 && (
+            {sortedOptions.length === 0 && (
               <div className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-400">ไม่พบรายชื่อผู้ใช้</div>
             )}
-            {suggestedOptions.map((option) => {
+            {sortedOptions.map((option) => {
               const isCurrentLogin = normalizeName(option.name) === normalizedCurrentUserName
               const selected = normalizeName(option.name) === normalizedValue
               const meta = [option.department, option.role, option.email].filter(Boolean).join(' · ')

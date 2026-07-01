@@ -54,6 +54,7 @@ export type CustomerTag = {
 export type Customer = {
   id: string
   databaseId?: number
+  dueDate?: string
   name: string
   salesperson?: string
   status?: CustomerStatus

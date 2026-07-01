@@ -46,7 +46,7 @@ function CustomerEditView({
   onBack,
   onSave,
 }: CustomerEditViewProps) {
-  const [dueDate, setDueDate] = useState('')
+  const [dueDate, setDueDate] = useState(customer.dueDate || '')
   const [name, setName] = useState(customer.name)
   const [salesperson, setSalesperson] = useState(customer.salesperson || salespersonName)
   const [duplicateCustomer, setDuplicateCustomer] = useState<CustomerNameOption | undefined>()
@@ -54,8 +54,8 @@ function CustomerEditView({
   useEffect(() => {
     setName(customer.name)
     setSalesperson(customer.salesperson || salespersonName)
-    setDueDate('')
-  }, [customer.id, customer.name, customer.salesperson, salespersonName])
+    setDueDate(customer.dueDate || '')
+  }, [customer.dueDate, customer.id, customer.name, customer.salesperson, salespersonName])
 
   const typedName = name.trim()
   const canSubmit = Boolean(typedName) && !duplicateCustomer && !loading

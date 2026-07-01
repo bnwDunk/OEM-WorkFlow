@@ -545,20 +545,28 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           body: JSON.stringify({
             costPackage: payload.info.costPackage || null,
             costSyrup: payload.info.costSyrup || null,
+            dueDate: payload.dueDate || null,
             name: payload.name,
             price: payload.info.price || null,
             salesperson: payload.salesperson || null,
             status: payload.status,
+            tagsText: payload.tagsText,
             volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
           }),
         })
         await loadOverview()
       } else {
         updateCustomer(selectedCustomer.id, (customer) => {
+          customer.dueDate = payload.dueDate
           customer.info = payload.info
           customer.name = payload.name
           customer.salesperson = payload.salesperson
           customer.status = payload.status
+          customer.tags = payload.tagsText
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+            .map((tag) => ({ name: tag }))
           addLog(customer, `แก้ไขข้อมูลบริษัทโดย ${currentDept}`)
           return customer
         })
