@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AdminDashboard from './AdminDashboard'
 import ConfigView from '../components/oem/ConfigView'
 import CreateCustomerModal from '../components/oem/CreateCustomerModal'
@@ -70,15 +70,23 @@ function hasDepartment(departments: string[], department: string | undefined) {
   return departments.some((item) => normalizeDepartmentName(item) === target)
 }
 
+const flowViewPaths: Record<'overview' | 'dept' | 'config' | 'admin', string> = {
+  overview: '/flow',
+  dept: '/flow/dept',
+  config: '/flow/config',
+  admin: '/flow/admin',
+}
+
 function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPageProps) {
   const navigate = useNavigate()
-  const [activeView, setActiveView] = useState<ActiveView>('overview')
+  const location = useLocation()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [availableFlows, setAvailableFlows] = useState<ManagedFlow[]>([])
   const [availableTags, setAvailableTags] = useState<CustomerTag[]>([])
   const [availableUsers, setAvailableUsers] = useState<ManagedUser[]>([])
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false)
   const [customerSaving, setCustomerSaving] = useState(false)
+  const [customerDeleting, setCustomerDeleting] = useState(false)
   const [tagLoading, setTagLoading] = useState(false)
   const [overviewLoading, setOverviewLoading] = useState(false)
   const [overviewError, setOverviewError] = useState('')
@@ -93,7 +101,20 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
 
-  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null
+  const routeCustomerMatch = location.pathname.match(/^\/flow\/customers\/([^/]+)(?:\/edit)?$/)
+  const routeCustomerId = routeCustomerMatch ? decodeURIComponent(routeCustomerMatch[1]) : null
+  const activeView: ActiveView = location.pathname.startsWith('/flow/customers/') && location.pathname.endsWith('/edit')
+    ? 'edit-customer'
+    : location.pathname.startsWith('/flow/customers/')
+      ? 'detail'
+      : location.pathname === '/flow/dept'
+        ? 'dept'
+        : location.pathname === '/flow/config'
+          ? 'config'
+          : location.pathname === '/flow/admin'
+            ? 'admin'
+            : 'overview'
+  const selectedCustomer = customers.find((customer) => customer.id === (routeCustomerId || selectedCustomerId)) || null
   const infoCustomer = modal?.type === 'customer-info'
     ? customers.find((customer) => customer.id === modal.customerId) || null
     : null
@@ -211,6 +232,27 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     loadUsers()
   }, [loadUsers])
 
+  useEffect(() => {
+    if (activeView === 'admin' && currentUser.role !== 'admin') {
+      navigate('/flow', { replace: true })
+    }
+  }, [activeView, currentUser.role, navigate])
+
+  useEffect(() => {
+    if (!routeCustomerId) return
+
+    const routeCustomer = customers.find((customer) => customer.id === routeCustomerId)
+    if (!routeCustomer) {
+      if (!overviewLoading && customers.length > 0) {
+        navigate('/flow', { replace: true })
+      }
+      return
+    }
+
+    setSelectedCustomerId(routeCustomer.id)
+    setViewedPhase(routeCustomer.currentPhase)
+  }, [customers, navigate, overviewLoading, routeCustomerId])
+
   async function handleCreateCustomer(payload: { flowId: number; name: string }) {
     try {
       setOverviewError('')
@@ -292,6 +334,30 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }
 
+  async function handleRemoveCustomerEditTag(tag: CustomerTag) {
+    if (!selectedCustomer || !tag.id) return
+
+    if (!selectedCustomer.databaseId) {
+      updateCustomer(selectedCustomer.id, (customer) => {
+        customer.tags = customer.tags.filter((item) => item.id !== tag.id && item.name !== tag.name)
+        return customer
+      })
+      return
+    }
+
+    try {
+      setOverviewError('')
+      await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/tags/${tag.id}`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      await Promise.all([loadOverview(), loadTags()])
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to delete tag.')
+      throw error
+    }
+  }
+
   function updateCustomer(customerId: string, updater: (customer: Customer) => Customer) {
     setCustomers((current) =>
       current.map((customer) => (customer.id === customerId ? updater(structuredClone(customer)) : customer)),
@@ -308,7 +374,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
     setSelectedCustomerId(customerId)
     setViewedPhase(customer.currentPhase)
-    setActiveView('detail')
+    navigate(`/flow/customers/${encodeURIComponent(customerId)}`)
   }
 
   function openCustomerEditor(customerId: string) {
@@ -318,11 +384,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     setSelectedCustomerId(customerId)
     setViewedPhase(customer.currentPhase)
     setModal(null)
-    setActiveView('edit-customer')
+    navigate(`/flow/customers/${encodeURIComponent(customerId)}/edit`)
   }
 
   function handleChangeView(view: 'overview' | 'dept' | 'config' | 'admin') {
-    setActiveView(view)
+    navigate(flowViewPaths[view])
     setBellOpen(false)
     setProfileOpen(false)
   }
@@ -571,11 +637,35 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           return customer
         })
       }
-      setActiveView('overview')
+      navigate('/flow')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to save customer.')
     } finally {
       setCustomerSaving(false)
+    }
+  }
+
+  async function handleDeleteInfoCustomer() {
+    if (!infoCustomer?.databaseId) return
+    if (!window.confirm(`Delete customer ${infoCustomer.name}? This will remove its workflow data and tags.`)) return
+
+    try {
+      setOverviewError('')
+      setCustomerDeleting(true)
+      await apiRequest(`/admin/customers/${infoCustomer.databaseId}`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setModal(null)
+      if (selectedCustomerId === infoCustomer.id) {
+        setSelectedCustomerId(null)
+        navigate('/flow')
+      }
+      await loadOverview()
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to delete customer.')
+    } finally {
+      setCustomerDeleting(false)
     }
   }
 
@@ -630,7 +720,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           userDepartments={userDepartments}
           customer={selectedCustomer}
           onAddIssue={handleAddIssue}
-          onBack={() => setActiveView('overview')}
+          onBack={() => navigate('/flow')}
           onCancelBranch={handleCancelBranch}
           onCloseIssue={handleCloseIssue}
           onDoneBranch={handleDoneBranch}
@@ -646,7 +736,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customer={selectedCustomer}
           customers={customers}
           loading={customerSaving}
-          onBack={() => setActiveView('overview')}
+          onBack={() => navigate('/flow')}
+          onRemoveTag={handleRemoveCustomerEditTag}
           onSave={handleSaveCustomerEdit}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
@@ -668,8 +759,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {modal?.type === 'customer-info' && infoCustomer && (
         <CustomerInfoModal
+          canDelete={Boolean(infoCustomer.databaseId)}
           customer={infoCustomer}
+          deleting={customerDeleting}
           onClose={() => setModal(null)}
+          onDelete={() => void handleDeleteInfoCustomer()}
+          onEdit={() => openCustomerEditor(infoCustomer.id)}
         />
       )}
 

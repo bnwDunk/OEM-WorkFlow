@@ -3,8 +3,12 @@ import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflo
 import type { Customer } from '../../data/oemWorkflow'
 
 type CustomerInfoModalProps = {
+  canDelete?: boolean
   customer: Customer
+  deleting?: boolean
   onClose: () => void
+  onDelete: () => void
+  onEdit: () => void
 }
 
 function getDaysLeft(dueDate: string) {
@@ -18,7 +22,7 @@ function getDaysLeft(dueDate: string) {
   return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
 }
 
-function CustomerInfoModal({ customer, onClose }: CustomerInfoModalProps) {
+function CustomerInfoModal({ canDelete = true, customer, deleting = false, onClose, onDelete, onEdit }: CustomerInfoModalProps) {
   const currentStop = flowStops[customer.currentPhase]
   const stage = stages[currentStop.stageIndex]
   const status = customer.status || 'brief_spec'
@@ -56,14 +60,33 @@ function CustomerInfoModal({ customer, onClose }: CustomerInfoModalProps) {
               <strong className="min-w-0 [overflow-wrap:anywhere]">{getCustomerStatusLabel(status)}</strong>
             </div>
           </div>
-          <button
-            aria-label="Close customer information"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl !border !border-slate-200 !bg-white !p-0 !text-slate-500 transition hover:!border-slate-300 hover:!bg-slate-50 hover:!text-slate-900 focus-visible:!outline-none"
-            onClick={onClose}
-            type="button"
-          >
-            <FaTimes aria-hidden="true" className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              className="min-h-10 rounded-xl !border !border-slate-200 !bg-white px-4 text-sm font-black !text-slate-700 shadow-sm transition hover:!bg-slate-50 focus-visible:!outline-none"
+              disabled={deleting}
+              onClick={onEdit}
+              type="button"
+            >
+              Edit
+            </button>
+            <button
+              className="min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:!outline-none"
+              disabled={deleting || !canDelete}
+              onClick={onDelete}
+              type="button"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+            <button
+              aria-label="Close customer information"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl !border !border-slate-200 !bg-white !p-0 !text-slate-500 transition hover:!border-slate-300 hover:!bg-slate-50 hover:!text-slate-900 focus-visible:!outline-none"
+              disabled={deleting}
+              onClick={onClose}
+              type="button"
+            >
+              <FaTimes aria-hidden="true" className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-5 px-6 py-5">

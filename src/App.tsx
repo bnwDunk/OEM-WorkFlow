@@ -152,7 +152,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/flow"
+        path="/flow/*"
         element={
           isLoggedIn ? (
             <FlowPage

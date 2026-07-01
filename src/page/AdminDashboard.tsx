@@ -25,6 +25,38 @@ import type {
 
 const roleOptions: AppRole[] = ['admin', 'manager', 'user']
 
+const cardClass = 'rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]'
+const cardHeadClass = 'flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-5'
+const tableWrapClass = 'overflow-x-auto px-6 pb-6'
+const tableClass = 'w-full border-separate border-spacing-0 text-left'
+const thClass = 'border-b border-slate-200 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500 first:pl-0 last:pr-0'
+const tdClass = 'border-b border-slate-100 px-5 py-4 align-middle text-sm font-semibold text-slate-700 first:pl-0 last:pr-0'
+const inputClass = 'h-12 w-full rounded-xl !border !border-slate-200 !bg-white px-4 text-base font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:!border-teal-600 focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none disabled:cursor-not-allowed disabled:opacity-60'
+const selectClass = 'h-12 rounded-xl !border !border-slate-200 !bg-white px-4 text-base font-semibold text-slate-900 shadow-sm outline-none transition focus:!border-teal-600 focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none disabled:cursor-not-allowed disabled:opacity-60'
+const primaryButtonClass = 'min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none'
+const dangerButtonClass = 'min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
+const softButtonClass = 'min-h-10 rounded-xl !border !border-teal-100 !bg-teal-50 px-4 text-sm font-black !text-teal-800 transition hover:!bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50'
+
+function getStatusBadgeClass(status: string) {
+  if (status === 'active' || status === 'brief_spec') return 'inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800'
+  if (status === 'inactive') return 'inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500'
+  if (status === 'draft') return 'inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700'
+  return 'inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700'
+}
+
+function formatAdminDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value || '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
 type AdminDashboardProps = {
   token: string
 }
@@ -746,59 +778,52 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   }
 
   return (
-    <section className="page-pad admin-page">
-      <div className="page-heading">
+    <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
+      <div className="mx-auto mb-6 flex max-w-7xl flex-wrap items-end justify-between gap-4">
         <div>
-          <h1>Admin Dashboard</h1>
-          <p>Manage user access, department ownership, and account status for the OEM workflow.</p>
+          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-teal-700">OEM Admin</p>
+          <h1 className="m-0 text-3xl font-black text-slate-950">Admin Dashboard</h1>
+          <p className="m-0 mt-2 text-sm font-semibold text-slate-500">
+            Manage user access, department ownership, and account status for the OEM workflow.
+          </p>
         </div>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
-      {actionError && <p className="form-error">{actionError}</p>}
-      {actionMessage && <p className="admin-success">{actionMessage}</p>}
-      {loading && <p className="empty-note">Loading admin data...</p>}
+      <div className="mx-auto grid max-w-7xl gap-6">
+      {error && <p className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p>}
+      {actionError && <p className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{actionError}</p>}
+      {actionMessage && <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{actionMessage}</p>}
+      {loading && <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading admin data...</p>}
 
-      <div className="admin-stat-grid" aria-label="Admin summary">
-        <div className="admin-stat">
-          <span>Active users</span>
-          <strong>{stats.activeUsers}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Admins</span>
-          <strong>{stats.admins}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Departments</span>
-          <strong>{stats.activeDepartments}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Customers</span>
-          <strong>{stats.customerCount}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Active flows</span>
-          <strong>{stats.activeFlows}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Tags</span>
-          <strong>{stats.activeTags}</strong>
-        </div>
-        <div className="admin-stat">
-          <span>Inactive users</span>
-          <strong>{stats.inactiveUsers}</strong>
-        </div>
-      </div>
-
-      <section className="admin-section">
-        <div className="admin-section-head">
-          <div>
-            <h2>Flow Management</h2>
-            <p>Create a new workflow from an existing flow, then edit, disable, or delete templates.</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" aria-label="Admin summary">
+        {[
+          ['Active users', stats.activeUsers],
+          ['Admins', stats.admins],
+          ['Departments', stats.activeDepartments],
+          ['Customers', stats.customerCount],
+          ['Active flows', stats.activeFlows],
+          ['Tags', stats.activeTags],
+          ['Inactive users', stats.inactiveUsers],
+        ].map(([label, value]) => (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" key={label}>
+            <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
+            <strong className="mt-2 block text-3xl font-black text-slate-950">{value}</strong>
           </div>
-          <div className="admin-inline-form flow-create-form">
+        ))}
+      </div>
+
+      <section className={cardClass}>
+        <div className={cardHeadClass}>
+          <div>
+            <h2 className="m-0 text-xl font-black text-slate-950">Flow Management</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+              Create a new workflow from an existing flow, then edit, disable, or delete templates.
+            </p>
+          </div>
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_auto]">
             <select
               aria-label="Source flow"
+              className={selectClass}
               onChange={(event) => setSourceFlowId(Number(event.target.value))}
               disabled={flows.length === 0}
               value={sourceFlowId}
@@ -810,32 +835,33 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             </select>
             <input
               aria-label="New flow name"
+              className={inputClass}
               onChange={(event) => setNewFlowName(event.target.value)}
               placeholder="New flow name"
               value={newFlowName}
             />
-            <button disabled={Boolean(busyAction) || !newFlowName.trim()} onClick={createFlowFromSource} type="button">
+            <button className={primaryButtonClass} disabled={Boolean(busyAction) || !newFlowName.trim()} onClick={createFlowFromSource} type="button">
               {busyAction === 'flow-create' ? 'Creating...' : 'Create flow'}
             </button>
           </div>
         </div>
 
-        <div className="admin-table-wrap">
-          <table className="admin-table flow-table">
+        <div className={tableWrapClass}>
+          <table className={`${tableClass} min-w-[980px]`}>
             <thead>
               <tr>
-                <th>Flow</th>
-                <th>Based on</th>
-                <th>Structure</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Action</th>
+                <th className={thClass}>Flow</th>
+                <th className={thClass}>Based on</th>
+                <th className={thClass}>Structure</th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Updated</th>
+                <th className={thClass}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && flows.length === 0 && (
                 <tr>
-                  <td colSpan={6}>No flows found in database.</td>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No flows found in database.</td>
                 </tr>
               )}
               {flows.map((flow) => {
@@ -848,19 +874,20 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                   draft.status !== flow.status
 
                 return (
-                  <tr key={flow.id}>
-                    <td>
+                  <tr className="group" key={flow.id}>
+                    <td className={tdClass}>
                       <input
                         aria-label={`Name for ${flow.name}`}
+                        className={inputClass}
                         onChange={(event) => updateFlowDraft(flow.id, { name: event.target.value })}
                         value={draft.name}
                       />
-                      <span>{flow.code}</span>
+                      <span className="mt-1 block text-xs font-black uppercase tracking-wide text-slate-400">{flow.code}</span>
                     </td>
-                    <td>{getSourceFlowLabel(flow)}</td>
-                    <td>
+                    <td className={tdClass}>{getSourceFlowLabel(flow)}</td>
+                    <td className={tdClass}>
                       <button
-                        className="update-text-btn"
+                        className={softButtonClass}
                         disabled={Boolean(busyAction)}
                         onClick={() => openStructureEditor(flow)}
                         type="button"
@@ -868,9 +895,10 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                         {flow.stageCount} stages / {flow.phaseCount} phases
                       </button>
                     </td>
-                    <td>
+                    <td className={tdClass}>
                       <select
                         aria-label={`Status for ${flow.name}`}
+                        className={selectClass}
                         onChange={(event) => updateFlowDraft(flow.id, { status: event.target.value as ManagedFlow['status'] })}
                         value={draft.status}
                       >
@@ -879,18 +907,18 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                         <option value="inactive">inactive</option>
                       </select>
                     </td>
-                    <td>{flow.updatedAt}</td>
-                    <td>
-                      <div className="flow-action-row">
+                    <td className={`${tdClass} text-slate-500`}>{formatAdminDate(flow.updatedAt)}</td>
+                    <td className={tdClass}>
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
-                          className="update-text-btn"
+                          className={primaryButtonClass}
                           disabled={Boolean(busyAction) || !hasChanges}
                           onClick={() => saveFlowDetails(flow.id)}
                           type="button"
                         >
                           {busyAction === `flow-update-${flow.id}` ? 'Updating...' : 'Update'}
                         </button>
-                        <button className="danger-text-btn" disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
+                        <button className={dangerButtonClass} disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
                           {busyAction === `flow-delete-${flow.id}` ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
@@ -903,47 +931,49 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-head">
+      <section className={cardClass}>
+        <div className={cardHeadClass}>
           <div>
-            <h2>Customers</h2>
-            <p>Review customer projects and delete records that should no longer appear in the workflow.</p>
+            <h2 className="m-0 text-xl font-black text-slate-950">Customers</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+              Review customer projects and delete records that should no longer appear in the workflow.
+            </p>
           </div>
         </div>
 
-        <div className="admin-table-wrap">
-          <table className="admin-table customer-admin-table">
+        <div className={tableWrapClass}>
+          <table className={`${tableClass} min-w-[900px]`}>
             <thead>
               <tr>
-                <th>Customer</th>
-                <th>Flow</th>
-                <th>Current phase</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Action</th>
+                <th className={thClass}>Customer</th>
+                <th className={thClass}>Flow</th>
+                <th className={thClass}>Current phase</th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Updated</th>
+                <th className={thClass}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && customers.length === 0 && (
                 <tr>
-                  <td colSpan={6}>No customers found in database.</td>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No customers found in database.</td>
                 </tr>
               )}
               {customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td>
-                    <strong>{customer.name}</strong>
-                    <span>{customer.slug}</span>
+                <tr className="group" key={customer.id}>
+                  <td className={tdClass}>
+                    <strong className="block text-base font-black text-slate-950">{customer.name}</strong>
+                    <span className="text-xs font-bold text-slate-400">{customer.slug}</span>
                   </td>
-                  <td>{customer.flowName || '-'}</td>
-                  <td>{customer.currentPhaseName || '-'}</td>
-                  <td>
-                    <span className={`status-pill ${customer.status}`}>{getCustomerStatusLabel(customer.status)}</span>
+                  <td className={tdClass}>{customer.flowName || '-'}</td>
+                  <td className={tdClass}>{customer.currentPhaseName || '-'}</td>
+                  <td className={tdClass}>
+                    <span className={getStatusBadgeClass(customer.status)}>{getCustomerStatusLabel(customer.status)}</span>
                   </td>
-                  <td>{customer.updatedAt}</td>
-                  <td>
+                  <td className={`${tdClass} text-slate-500`}>{formatAdminDate(customer.updatedAt)}</td>
+                  <td className={tdClass}>
                     <button
-                      className="danger-text-btn"
+                      className={dangerButtonClass}
                       disabled={Boolean(busyAction)}
                       onClick={() => deleteCustomer(customer.id)}
                       type="button"
@@ -958,30 +988,37 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-head">
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div>
-            <h2>Tags</h2>
-            <p>Edit tag labels and colors, or remove tags from every customer.</p>
+            <h2 className="m-0 text-xl font-black text-slate-950">Tags</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+              Edit tag labels and colors, or remove tags from every customer.
+            </p>
           </div>
+          <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-teal-700">
+            {tags.length} tags
+          </span>
         </div>
 
-        <div className="admin-table-wrap">
-          <table className="admin-table tag-admin-table">
+        <div className="overflow-x-auto px-6 pb-6">
+          <table className="w-full min-w-[920px] border-separate border-spacing-0 text-left">
             <thead>
               <tr>
-                <th>Preview</th>
-                <th>Name</th>
-                <th>Color</th>
-                <th>Used by</th>
-                <th>Updated</th>
-                <th>Action</th>
+                <th className="border-b border-slate-200 py-4 pr-5 text-xs font-black uppercase tracking-wide text-slate-500">Preview</th>
+                <th className="border-b border-slate-200 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500">Name</th>
+                <th className="border-b border-slate-200 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500">Color</th>
+                <th className="border-b border-slate-200 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500">Used by</th>
+                <th className="border-b border-slate-200 px-5 py-4 text-xs font-black uppercase tracking-wide text-slate-500">Updated</th>
+                <th className="border-b border-slate-200 py-4 pl-5 text-xs font-black uppercase tracking-wide text-slate-500">Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && tags.length === 0 && (
                 <tr>
-                  <td colSpan={6}>No tags found.</td>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>
+                    No tags found.
+                  </td>
                 </tr>
               )}
               {tags.map((tag) => {
@@ -995,34 +1032,50 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                   color !== (tag.color || '#0f766e')
 
                 return (
-                  <tr key={tag.id}>
-                    <td>
-                      <span className="tag-admin-preview" style={{ background: color }}>
+                  <tr className="group" key={tag.id}>
+                    <td className="border-b border-slate-100 py-4 pr-5 align-middle">
+                      <span
+                        className="inline-flex max-w-[220px] items-center rounded-full px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:shadow-md"
+                        style={{ background: color }}
+                      >
+                        <span className="truncate">
                         {draft.name || tag.name}
+                        </span>
                       </span>
                     </td>
-                    <td>
+                    <td className="border-b border-slate-100 px-5 py-4 align-middle">
                       <input
                         aria-label={`Name for ${tag.name}`}
+                        className="h-12 w-full rounded-xl !border !border-slate-200 !bg-white px-4 text-base font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:!border-teal-600 focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
                         onChange={(event) => updateTagDraft(tag.id, { name: event.target.value })}
                         value={draft.name}
                       />
                     </td>
-                    <td>
-                      <input
-                        aria-label={`Color for ${tag.name}`}
-                        className="tag-admin-color-input"
-                        onChange={(event) => updateTagDraft(tag.id, { color: event.target.value })}
-                        type="color"
-                        value={color}
-                      />
+                    <td className="border-b border-slate-100 px-5 py-4 align-middle">
+                      <label className="inline-flex h-12 items-center gap-3 rounded-xl !border !border-slate-200 bg-white px-3 shadow-sm transition focus-within:!border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+                        <span className="h-7 w-7 rounded-lg shadow-inner ring-1 ring-black/10" style={{ background: color }} />
+                        <span className="font-mono text-xs font-bold uppercase text-slate-500">{color}</span>
+                        <input
+                          aria-label={`Color for ${tag.name}`}
+                          className="h-7 w-7 cursor-pointer opacity-0"
+                          onChange={(event) => updateTagDraft(tag.id, { color: event.target.value })}
+                          type="color"
+                          value={color}
+                        />
+                      </label>
                     </td>
-                    <td>{tag.customerCount}</td>
-                    <td>{tag.updatedAt}</td>
-                    <td>
-                      <div className="flow-action-row">
+                    <td className="border-b border-slate-100 px-5 py-4 align-middle">
+                      <span className="inline-flex min-w-10 justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">
+                        {tag.customerCount}
+                      </span>
+                    </td>
+                    <td className="border-b border-slate-100 px-5 py-4 align-middle text-sm font-semibold text-slate-500">
+                      {formatAdminDate(tag.updatedAt)}
+                    </td>
+                    <td className="border-b border-slate-100 py-4 pl-5 align-middle">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
-                          className="update-text-btn"
+                          className="min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
                           disabled={Boolean(busyAction) || !hasChanges || !draft.name.trim()}
                           onClick={() => saveTag(tag.id)}
                           type="button"
@@ -1030,7 +1083,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                           {busyAction === `tag-update-${tag.id}` ? 'Updating...' : 'Update'}
                         </button>
                         <button
-                          className="danger-text-btn"
+                          className="min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={Boolean(busyAction)}
                           onClick={() => deleteTag(tag.id)}
                           type="button"
@@ -1047,13 +1100,13 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-head">
+      <section className={cardClass}>
+        <div className={cardHeadClass}>
           <div>
-            <h2>Users</h2>
-            <p>Create users, edit roles, and assign one or more departments.</p>
+            <h2 className="m-0 text-xl font-black text-slate-950">Users</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">Create users, edit roles, and assign one or more departments.</p>
           </div>
-          <button className="update-text-btn" onClick={() => setCreateUserOpen(true)} type="button">
+          <button className={primaryButtonClass} onClick={() => setCreateUserOpen(true)} type="button">
             Add user
           </button>
         </div>
@@ -1070,28 +1123,33 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             roleOptions={roleOptions}
           />
         )}
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+        <div className={tableWrapClass}>
+          <table className={`${tableClass} min-w-[980px]`}>
             <thead>
               <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Departments</th>
-                <th>Action</th>
+                <th className={thClass}>User</th>
+                <th className={thClass}>Role</th>
+                <th className={thClass}>Departments</th>
+                <th className={thClass}>Action</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <button className="admin-user-name-btn" onClick={() => setUserDetail(user)} type="button">
+                <tr className="group" key={user.id}>
+                  <td className={tdClass}>
+                    <button
+                      className="block !border-0 !bg-transparent p-0 text-left text-base font-black !text-slate-950 shadow-none transition hover:!text-teal-700 focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                      onClick={() => setUserDetail(user)}
+                      type="button"
+                    >
                       {user.name}
                     </button>
-                    <span>{user.email}</span>
+                    <span className="text-xs font-bold text-slate-500">{user.email}</span>
                   </td>
-                  <td>
+                  <td className={tdClass}>
                     <select
                       aria-label={`Role for ${user.name}`}
+                      className={selectClass}
                       onChange={(event) => updateUser(user.id, { role: event.target.value as AppRole })}
                       value={user.role}
                     >
@@ -1100,10 +1158,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                       ))}
                     </select>
                   </td>
-                  <td>
+                  <td className={tdClass}>
                     <div className="grid min-w-[360px] gap-2">
                       <select
                         aria-label={`Departments for ${user.name}`}
+                        className={selectClass}
                         onChange={(event) => {
                           addUserDepartment(user, Number(event.target.value))
                           event.currentTarget.value = ''
@@ -1117,15 +1176,23 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                             <option key={department.id} value={department.id}>{department.name}</option>
                           ))}
                       </select>
-                      <div className="flex min-h-10 flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <div className="flex min-h-11 flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
                         {(user.departmentIds || []).map((departmentId) => {
                           const department = departments.find((item) => item.id === departmentId)
                           if (!department) return null
 
                           return (
-                            <span className="admin-user-chip" key={department.id}>
+                            <span className="inline-flex items-center overflow-hidden rounded-full border border-teal-100 bg-teal-50 text-xs font-black text-teal-800" key={department.id}>
+                              <span className="px-3 py-1.5">
                               {department.name}
-                              <button onClick={() => removeUserDepartment(user, department.id)} type="button">x</button>
+                              </span>
+                              <button
+                                className="mr-1 grid h-5 w-5 place-items-center rounded-full !border-0 !bg-transparent text-sm font-black leading-none !text-teal-700 opacity-70 transition hover:!bg-teal-100 hover:opacity-100"
+                                onClick={() => removeUserDepartment(user, department.id)}
+                                type="button"
+                              >
+                                x
+                              </button>
                             </span>
                           )
                         })}
@@ -1133,9 +1200,9 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td className={tdClass}>
                     <button
-                      className="danger-text-btn"
+                      className={dangerButtonClass}
                       onClick={() => deleteUser(user.id)}
                       disabled={Boolean(busyAction)}
                       type="button"
@@ -1150,14 +1217,14 @@ function AdminDashboard({ token }: AdminDashboardProps) {
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-head">
+      <section className={cardClass}>
+        <div className={cardHeadClass}>
           <div>
-            <h2>Departments</h2>
-            <p>Create departments, review members, and inspect responsible workflow phases.</p>
+            <h2 className="m-0 text-xl font-black text-slate-950">Departments</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">Create departments, review members, and inspect responsible workflow phases.</p>
           </div>
           <button
-            className="admin-create-btn"
+            className={primaryButtonClass}
             disabled={Boolean(busyAction)}
             onClick={() => setCreateDepartmentOpen(true)}
             type="button"
@@ -1165,10 +1232,10 @@ function AdminDashboard({ token }: AdminDashboardProps) {
             Add department
           </button>
         </div>
-        <div className="department-grid">
+        <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
           {departments.map((department) => (
             <article
-              className="department-tile department-tile-clickable"
+              className="grid cursor-pointer gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
               key={department.id}
               onClick={() => openDepartmentDetail(department)}
               onKeyDown={(event) => {
@@ -1181,17 +1248,17 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               tabIndex={0}
             >
               <div>
-                <strong>{department.name}</strong>
-                <span>{department.code}</span>
+                <strong className="block text-lg font-black text-slate-950">{department.name}</strong>
+                <span className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">{department.code}</span>
               </div>
-              <dl>
+              <dl className="m-0 grid grid-cols-2 gap-3">
                 <div>
-                  <dt>Members</dt>
-                  <dd>{department.memberCount}</dd>
+                  <dt className="text-xs font-black uppercase tracking-wide text-slate-500">Members</dt>
+                  <dd className="m-0 mt-1 text-2xl font-black text-slate-950">{department.memberCount}</dd>
                 </div>
               </dl>
               <button
-                className={`status-toggle ${department.status}`}
+                className={department.status === 'active' ? primaryButtonClass : 'min-h-10 rounded-xl !border-0 !bg-slate-200 px-4 text-sm font-black !text-slate-600 transition hover:!bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50'}
                 disabled={Boolean(busyAction)}
                 onClick={(event) => {
                   event.stopPropagation()
@@ -1252,6 +1319,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           structure={structureEditor}
         />
       )}
+      </div>
     </section>
   )
 }
