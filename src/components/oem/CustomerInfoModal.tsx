@@ -7,25 +7,43 @@ type CustomerInfoModalProps = {
   onClose: () => void
 }
 
+function getDaysLeft(dueDate: string) {
+  if (!dueDate) return ''
+
+  const due = new Date(`${dueDate}T00:00:00`)
+  if (Number.isNaN(due.getTime())) return ''
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
+}
+
 function CustomerInfoModal({ customer, onClose }: CustomerInfoModalProps) {
   const currentStop = flowStops[customer.currentPhase]
   const stage = stages[currentStop.stageIndex]
   const status = customer.status || 'brief_spec'
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
   const latestNotification = customer.notifications[0]
+  const daysLeft = getDaysLeft(customer.dueDate || '')
 
   const infoItems = [
+    { label: 'Due Date', value: customer.dueDate || '-' },
+    { label: 'Days Left', value: daysLeft || '-' },
     { label: 'Cost (Syrup)', value: customer.info.costSyrup },
     { label: 'Cost (Package)', value: customer.info.costPackage },
     { label: 'Price', value: customer.info.price },
     { label: 'Volume', value: customer.info.volume },
+    { label: 'Salesperson', value: customer.salesperson || '-' },
   ]
 
   return (
-    <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
       <section
         aria-label={`${customer.name} information`}
-        className="w-[min(680px,calc(100vw-32px))] rounded-2xl bg-white p-0 shadow-2xl ring-1 ring-slate-200"
+        className="max-h-[calc(100svh-32px)] w-[min(760px,calc(100vw-32px))] overflow-auto rounded-2xl bg-white p-0 shadow-2xl ring-1 ring-slate-200"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div className="min-w-0">
@@ -40,7 +58,7 @@ function CustomerInfoModal({ customer, onClose }: CustomerInfoModalProps) {
           </div>
           <button
             aria-label="Close customer information"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl !border !border-slate-200 !bg-white !p-0 !text-slate-500 transition hover:!border-slate-300 hover:!bg-slate-50 hover:!text-slate-900 focus-visible:!outline-none"
             onClick={onClose}
             type="button"
           >

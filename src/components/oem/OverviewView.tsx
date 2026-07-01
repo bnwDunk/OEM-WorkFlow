@@ -22,6 +22,7 @@ function OverviewView({
   loading,
   onAddTag,
   onEditTag,
+  onCreateCustomer,
   onOpenCompany,
   onOpenCustomer,
   onOpenInfo,
@@ -63,16 +64,13 @@ function OverviewView({
           <h1>ภาพรวมงาน</h1>
           <p>ดูสถานะลูกค้าทุกเจ้า, Phase ปัจจุบัน, การแจ้งเตือน และ Ticket ข้ามฝ่าย</p>
         </div>
-        {/* <div className="overview-actions">
+        <div className="overview-actions">
           {onCreateCustomer && (
             <button className="primary-action-btn" onClick={onCreateCustomer} type="button">
               สร้างลูกค้า
             </button>
           )}
-          <button className="reset-btn" disabled={loading} onClick={onReload} type="button">
-            {loading ? 'กำลังโหลด...' : 'โหลดข้อมูลใหม่'}
-          </button>
-        </div> */}
+        </div>
       </div>
 
       <div className="overview-dashboard">

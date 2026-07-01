@@ -17,10 +17,11 @@ import {
   seedBranchState,
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
-import type { ManagedFlow } from '../data/adminDashboard'
+import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
 import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
+import type { SalespersonOption } from '../components/oem/SalespersonCombobox'
 
 type FlowPageProps = {
   accessToken: string
@@ -75,6 +76,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [customers, setCustomers] = useState<Customer[]>([])
   const [availableFlows, setAvailableFlows] = useState<ManagedFlow[]>([])
   const [availableTags, setAvailableTags] = useState<CustomerTag[]>([])
+  const [availableUsers, setAvailableUsers] = useState<ManagedUser[]>([])
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false)
   const [customerSaving, setCustomerSaving] = useState(false)
   const [tagLoading, setTagLoading] = useState(false)
@@ -109,6 +111,26 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       ),
     [customers],
   )
+
+  const salespersonOptions = useMemo<SalespersonOption[]>(() => {
+    const currentUserOption: SalespersonOption = {
+      department: currentUser.department,
+      email: currentUser.email,
+      id: currentUser.id,
+      name: currentUser.name,
+      role: currentUser.role,
+      status: 'active',
+    }
+    const merged = [currentUserOption, ...availableUsers]
+    const seen = new Set<string>()
+
+    return merged.filter((user) => {
+      const key = user.name.trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [availableUsers, currentUser.department, currentUser.email, currentUser.id, currentUser.name, currentUser.role])
 
   useEffect(() => {
     if (!hasDepartment(userDepartments, currentDept)) {
@@ -162,6 +184,17 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }, [accessToken])
 
+  const loadUsers = useCallback(async () => {
+    try {
+      const response = await apiRequest<{ users: ManagedUser[] }>('/admin/users', {
+        token: accessToken,
+      })
+      setAvailableUsers(response.users.filter((user) => user.status !== 'inactive'))
+    } catch {
+      setAvailableUsers([])
+    }
+  }, [accessToken])
+
   useEffect(() => {
     loadOverview()
   }, [loadOverview])
@@ -173,6 +206,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   useEffect(() => {
     loadTags()
   }, [loadTags])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
 
   async function handleCreateCustomer(payload: { flowId: number; name: string }) {
     try {
@@ -508,18 +545,28 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           body: JSON.stringify({
             costPackage: payload.info.costPackage || null,
             costSyrup: payload.info.costSyrup || null,
+            dueDate: payload.dueDate || null,
             name: payload.name,
             price: payload.info.price || null,
+            salesperson: payload.salesperson || null,
             status: payload.status,
+            tagsText: payload.tagsText,
             volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
           }),
         })
         await loadOverview()
       } else {
         updateCustomer(selectedCustomer.id, (customer) => {
+          customer.dueDate = payload.dueDate
           customer.info = payload.info
           customer.name = payload.name
+          customer.salesperson = payload.salesperson
           customer.status = payload.status
+          customer.tags = payload.tagsText
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+            .map((tag) => ({ name: tag }))
           addLog(customer, `แก้ไขข้อมูลบริษัทโดย ${currentDept}`)
           return customer
         })
@@ -597,10 +644,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {activeView === 'edit-customer' && selectedCustomer && (
         <CustomerEditView
           customer={selectedCustomer}
+          customers={customers}
           loading={customerSaving}
           onBack={() => setActiveView('overview')}
           onSave={handleSaveCustomerEdit}
           salespersonName={currentUser.name}
+          salespersonOptions={salespersonOptions}
         />
       )}
 
@@ -626,6 +675,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {modal?.type === 'create-customer' && (
         <CreateCustomerModal
+          customers={customers}
           flows={availableFlows}
           loading={createCustomerLoading}
           onClose={() => setModal(null)}
