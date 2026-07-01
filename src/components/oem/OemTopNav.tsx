@@ -1,3 +1,4 @@
+import { getRoleDisplayName } from '../../data/adminDashboard'
 import type { AuthUser } from '../../data/adminDashboard'
 import type { NotificationItem } from '../../data/oemWorkflow'
 
@@ -79,7 +80,7 @@ function OemTopNav({
             <button className="profile-summary profile-summary-btn" onClick={onOpenProfile} type="button">
               <strong>{currentUser.name}</strong>
               <span>{currentUser.email}</span>
-              <em>{currentUser.role}</em>
+              <em>{getRoleDisplayName(currentUser.role)}</em>
             </button>
             <h5>แผนก</h5>
             {departments.map((department) => (

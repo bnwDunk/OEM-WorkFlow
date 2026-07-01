@@ -1,3 +1,4 @@
+import { getRoleDisplayName } from '../../../data/adminDashboard'
 import type { AppRole, ManagedDepartment } from '../../../data/adminDashboard'
 
 export type NewUserDraft = {
@@ -69,7 +70,7 @@ function AddUserModal({
             value={draft.role}
           >
             {roleOptions.map((role) => (
-              <option key={role} value={role}>{role}</option>
+              <option key={role} value={role}>{getRoleDisplayName(role)}</option>
             ))}
           </select>
         </label>

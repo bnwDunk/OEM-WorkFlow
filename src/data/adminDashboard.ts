@@ -2,6 +2,10 @@ import type { CustomerStatus } from './oemWorkflow'
 
 export type AppRole = 'admin' | 'manager' | 'user'
 
+export function getRoleDisplayName(role: AppRole | string | undefined) {
+  return role === 'admin' ? 'WebAdmin' : String(role || 'user')
+}
+
 export type AuthUser = {
   id: number
   name: string

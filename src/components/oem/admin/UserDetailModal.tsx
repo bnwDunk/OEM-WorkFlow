@@ -1,3 +1,4 @@
+import { getRoleDisplayName } from '../../../data/adminDashboard'
 import type { ManagedUser } from '../../../data/adminDashboard'
 
 type UserDetailModalProps = {
@@ -34,7 +35,7 @@ function UserDetailModal({ onClose, user }: UserDetailModalProps) {
           </div>
           <div>
             <span>Role</span>
-            <strong>{user.role}</strong>
+            <strong>{getRoleDisplayName(user.role)}</strong>
           </div>
           <div>
             <span>Departments</span>
