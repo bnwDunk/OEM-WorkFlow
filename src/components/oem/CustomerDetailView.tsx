@@ -9,6 +9,7 @@ import PhaseRail from './PhaseRail'
 
 type CustomerDetailViewProps = {
   currentDept: string
+  currentUserName: string
   userDepartments: string[]
   customer: Customer
   viewedPhase: number
@@ -33,6 +34,7 @@ function hasDepartment(departments: string[], department: string) {
 
 function CustomerDetailView({
   currentDept,
+  currentUserName,
   userDepartments,
   customer,
   onAddIssue,
@@ -63,64 +65,73 @@ function CustomerDetailView({
     .filter((action) => !action.done && isActive && action.canManage)
 
   return (
-    <section className="page-pad detail-page">
-      <button
-        className="mb-7 inline-flex min-h-10 items-center justify-center rounded-xl !bg-black px-5 text-sm font-bold !text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition duration-150 ease-out hover:-translate-y-0.5 hover:!bg-slate-800 hover:shadow-[0_14px_30px_rgba(15,23,42,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-        onClick={onBack}
-        type="button"
-      >
-        Back
-      </button>
-
-      <header className="detail-head">
-        <span>Stage {stop.stageIndex + 1}/5: {stop.stageName} - Phase {stop.label}</span>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="!m-0">{customer.name}</h1>
-          {branchActions.map((action) => (
-            <div
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/80 p-1 shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80"
-              key={`${action.dept}-${action.branchIndex}`}
-            >
-              {branchActions.length > 1 && (
-                <span className="pl-2 text-xs font-extrabold text-slate-500">{action.dept}</span>
-              )}
-              <button
-                aria-label={`Save ${action.dept} checklist`}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-[#0f6e66] !p-0 !text-white shadow-[0_10px_22px_rgba(15,110,102,0.16)] transition duration-150 ease-out hover:-translate-y-0.5 hover:!bg-[#0b5d57] hover:shadow-[0_14px_28px_rgba(15,110,102,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9bc7c2] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none disabled:hover:translate-y-0"
-                disabled={!action.dirty}
-                onClick={() => onDoneBranch(action.branchIndex)}
-                title="Save"
-                type="button"
-              >
-                <IoCloudUpload aria-hidden="true" className="h-5 w-5" />
-              </button>
-              <button
-                aria-label={`Cancel ${action.dept} checklist changes`}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-rose-50 !p-0 !text-rose-600 shadow-[0_10px_22px_rgba(225,29,72,0.12)] transition duration-150 ease-out hover:-translate-y-0.5 hover:!bg-rose-100 hover:shadow-[0_14px_28px_rgba(225,29,72,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-300 disabled:shadow-none disabled:hover:translate-y-0"
-                disabled={!action.dirty}
-                onClick={() => onCancelBranch(action.branchIndex)}
-                title="Cancel"
-                type="button"
-              >
-                <MdCancel aria-hidden="true" className="h-5 w-5" />
-              </button>
-            </div>
-          ))}
-        </div>
-        <p>{stop.name}</p>
-        {isPast && <em className="view-note past">ดูประวัติ Phase ที่ทำไปแล้ว</em>}
-        {isFuture && <em className="view-note future">ยังไม่ถึง Phase นี้ ดูล่วงหน้าได้ แต่ยังแก้ไขไม่ได้</em>}
-      </header>
-
-      <PhaseRail customer={customer} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
-
-      {isPast && (
-        <button className="stage-reset-btn" onClick={onOpenReset} type="button">
-          Reset to Draft
+    <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6">
+        <button
+          className="inline-flex min-h-10 w-fit items-center justify-center rounded-xl !border-0 !bg-slate-950 px-5 text-sm font-black !text-white shadow-sm transition hover:!bg-slate-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
+          onClick={onBack}
+          type="button"
+        >
+          Back
         </button>
-      )}
 
-      <div className="branch-grid" style={{ gridTemplateColumns: `repeat(${stop.branches.length}, minmax(0, 1fr))` }}>
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6">
+          <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-teal-800">
+            Stage {stop.stageIndex + 1}/5: {stop.stageName} - Phase {stop.label}
+          </span>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="m-0 text-3xl font-black text-slate-950">{customer.name}</h1>
+            {branchActions.map((action) => (
+              <div
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 p-1 shadow-sm ring-1 ring-slate-200"
+                key={`${action.dept}-${action.branchIndex}`}
+              >
+                {branchActions.length > 1 && (
+                  <span className="pl-2 text-xs font-extrabold text-slate-500">{action.dept}</span>
+                )}
+                <button
+                  aria-label={`Save ${action.dept} checklist`}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
+                  disabled={!action.dirty}
+                  onClick={() => onDoneBranch(action.branchIndex)}
+                  title="Save"
+                  type="button"
+                >
+                  <IoCloudUpload aria-hidden="true" className="h-5 w-5" />
+                </button>
+                <button
+                  aria-label={`Cancel ${action.dept} checklist changes`}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-rose-50 !p-0 !text-rose-600 shadow-sm transition hover:!bg-rose-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-300 disabled:shadow-none"
+                  disabled={!action.dirty}
+                  onClick={() => onCancelBranch(action.branchIndex)}
+                  title="Cancel"
+                  type="button"
+                >
+                  <MdCancel aria-hidden="true" className="h-5 w-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="m-0 mt-2 text-base font-semibold text-slate-600">{stop.name}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {isPast && <em className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black not-italic text-amber-700">ดูประวัติ Phase ที่ทำไปแล้ว</em>}
+            {isFuture && <em className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black not-italic text-slate-500">ยังไม่ถึง Phase นี้ ดูล่วงหน้าได้ แต่ยังแก้ไขไม่ได้</em>}
+          </div>
+        </header>
+
+        <PhaseRail customer={customer} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
+
+        {isPast && (
+          <button
+            className="min-h-11 w-fit rounded-xl !border !border-amber-200 !bg-amber-50 px-5 text-sm font-black !text-amber-800 transition hover:!bg-amber-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
+            onClick={onOpenReset}
+            type="button"
+          >
+            Reset to Draft
+          </button>
+        )}
+
+      <div className="grid gap-4 lg:grid-cols-[repeat(var(--branch-count),minmax(0,1fr))]" style={{ '--branch-count': stop.branches.length } as React.CSSProperties}>
         {stop.branches.map((branch, branchIndex) => (
           <BranchCard
             branch={branch}
@@ -133,15 +144,17 @@ function CustomerDetailView({
         ))}
       </div>
 
-      <div className="panels">
+      <div className="grid gap-4 xl:grid-cols-2">
         <ActivityPanel notifications={customer.notifications} />
         <IssuePanel
           currentDept={currentDept}
+          currentUserName={currentUserName}
           userDepartments={userDepartments}
           issues={customer.issues}
           onAddIssue={onAddIssue}
           onCloseIssue={onCloseIssue}
         />
+      </div>
       </div>
     </section>
   )
