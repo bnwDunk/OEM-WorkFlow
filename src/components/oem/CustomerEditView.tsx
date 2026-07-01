@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { customerStatusOptions } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatus, CustomerTag } from '../../data/oemWorkflow'
 import CustomerNameCombobox from './CustomerNameCombobox'
 import type { CustomerNameOption } from './CustomerNameCombobox'
 import SalespersonCombobox from './SalespersonCombobox'
@@ -23,6 +23,7 @@ type CustomerEditViewProps = {
   salespersonName: string
   salespersonOptions?: SalespersonOption[]
   onBack: () => void
+  onRemoveTag?: (tag: CustomerTag) => Promise<void>
   onSave: (payload: CustomerEditPayload) => void
 }
 
@@ -44,21 +45,68 @@ function CustomerEditView({
   salespersonName,
   salespersonOptions = [],
   onBack,
+  onRemoveTag,
   onSave,
 }: CustomerEditViewProps) {
   const [dueDate, setDueDate] = useState(customer.dueDate || '')
   const [name, setName] = useState(customer.name)
   const [salesperson, setSalesperson] = useState(customer.salesperson || salespersonName)
+  const [tags, setTags] = useState<CustomerTag[]>(customer.tags)
+  const [tagDraft, setTagDraft] = useState('')
+  const [removingTagKey, setRemovingTagKey] = useState('')
   const [duplicateCustomer, setDuplicateCustomer] = useState<CustomerNameOption | undefined>()
 
   useEffect(() => {
     setName(customer.name)
     setSalesperson(customer.salesperson || salespersonName)
     setDueDate(customer.dueDate || '')
-  }, [customer.dueDate, customer.id, customer.name, customer.salesperson, salespersonName])
+    setTags(customer.tags)
+    setTagDraft('')
+    setRemovingTagKey('')
+  }, [customer.dueDate, customer.id, customer.name, customer.salesperson, customer.tags, salespersonName])
 
   const typedName = name.trim()
   const canSubmit = Boolean(typedName) && !duplicateCustomer && !loading
+
+  function addTagFromDraft() {
+    const nextTagName = tagDraft.trim().replace(/^,+|,+$/g, '').trim()
+    if (!nextTagName) return
+
+    setTags((currentTags) => {
+      const alreadyExists = currentTags.some((tag) => tag.name.trim().toLowerCase() === nextTagName.toLowerCase())
+      if (alreadyExists) return currentTags
+      return [...currentTags, { name: nextTagName }]
+    })
+    setTagDraft('')
+  }
+
+  async function removeTag(tagToRemove: CustomerTag) {
+    const tagKey = `${tagToRemove.id || tagToRemove.name}-${tagToRemove.color || ''}`
+    setRemovingTagKey(tagKey)
+
+    try {
+      if (tagToRemove.id && onRemoveTag) {
+        await onRemoveTag(tagToRemove)
+      }
+
+      setTags((currentTags) =>
+        currentTags.filter((tag) => {
+          if (tagToRemove.id && tag.id) return tag.id !== tagToRemove.id
+          return tag.name !== tagToRemove.name
+        }),
+      )
+    } catch {
+      return
+    } finally {
+      setRemovingTagKey('')
+    }
+  }
+
+  function handleTagKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter' && event.key !== ',') return
+    event.preventDefault()
+    addTagFromDraft()
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -77,7 +125,7 @@ function CustomerEditView({
       name: name.trim(),
       salesperson,
       status: String(data.get('status') || 'brief_spec') as CustomerStatus,
-      tagsText: String(data.get('tagsText') || ''),
+      tagsText: tags.map((tag) => tag.name.trim()).filter(Boolean).join(', '),
     })
   }
 
@@ -196,14 +244,46 @@ function CustomerEditView({
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-black text-slate-700">
+            <div className="grid gap-2 text-sm font-black text-slate-700">
               <span>Tags</span>
-              <input
-                className="h-12 min-w-0 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 text-base font-bold text-slate-950 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
-                defaultValue={customer.tags.map((tag) => tag.name).join(', ')}
-                name="tagsText"
-              />
-            </label>
+              <div className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-3 py-2 transition focus-within:!border-teal-600 focus-within:!bg-white focus-within:ring-4 focus-within:ring-teal-100">
+                <div className="flex min-h-8 flex-wrap items-center gap-2">
+                  {tags.map((tag) => (
+                    (() => {
+                      const tagKey = `${tag.id || tag.name}-${tag.color || ''}`
+                      const removing = removingTagKey === tagKey
+
+                      return (
+                        <span
+                          className="inline-flex max-w-full items-center overflow-hidden rounded-full border border-teal-100 bg-teal-50 text-xs font-black text-teal-800 shadow-sm"
+                          key={tagKey}
+                          style={tag.color ? { background: tag.color, borderColor: tag.color, color: '#fff' } : undefined}
+                        >
+                          <span className="truncate px-3 py-1.5">{tag.name}</span>
+                          <button
+                            aria-label={`Remove ${tag.name}`}
+                            className={`mr-1 grid h-5 w-5 place-items-center rounded-full !border-0 !bg-transparent text-sm font-black leading-none opacity-70 transition disabled:cursor-wait disabled:opacity-50 focus-visible:!outline-none focus-visible:ring-2 focus-visible:ring-teal-200 ${tag.color ? '!text-white' : '!text-teal-700'}`}
+                            disabled={removing}
+                            onClick={() => void removeTag(tag)}
+                            type="button"
+                          >
+                            {removing ? '...' : 'x'}
+                          </button>
+                        </span>
+                      )
+                    })()
+                  ))}
+                  <input
+                    className="min-h-8 min-w-[140px] flex-1 !border-0 !bg-transparent px-1 text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400 focus:ring-0 focus-visible:!outline-none"
+                    onBlur={addTagFromDraft}
+                    onChange={(event) => setTagDraft(event.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    placeholder={tags.length ? 'Add tag' : 'เพิ่ม tag'}
+                    value={tagDraft}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <label className="mt-5 grid max-w-md gap-2 text-sm font-black text-slate-700">
