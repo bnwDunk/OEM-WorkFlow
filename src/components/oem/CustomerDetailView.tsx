@@ -67,59 +67,65 @@ function CustomerDetailView({
     .filter((action) => !action.done && isActive && action.canManage)
 
   return (
-    <section className="min-h-[calc(100svh-52px)] bg-slate-50 px-5 py-6 sm:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6">
+    <section className="min-h-[calc(100svh-52px)] bg-slate-50 px-4 py-4 sm:px-6">
+      <div className="mx-auto grid max-w-7xl gap-4">
         <button
-          className="inline-flex min-h-11 w-fit items-center justify-center rounded-2xl !border-0 !bg-slate-950 px-5 text-sm font-black !text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:!bg-slate-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
+          className="inline-flex min-h-10 w-fit items-center justify-center rounded-xl !border-0 !bg-slate-950 px-4 text-sm font-black !text-white shadow-[0_10px_20px_rgba(15,23,42,0.16)] transition hover:-translate-y-0.5 hover:!bg-slate-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
           onClick={onBack}
           type="button"
         >
           Back
         </button>
 
-        <header className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-slate-100 bg-white px-5 py-5 sm:px-7">
+        <header className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.06)]">
+          <div className="border-b border-slate-100 bg-white px-4 py-4 sm:px-5">
             <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase text-teal-800">
               Stage {stop.stageIndex + 1}/5 - Phase {stop.label}
             </span>
-            <div className="mt-4">
+            <div className="mt-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="m-0 min-w-0 text-3xl font-black leading-tight text-slate-950">{customer.name}</h1>
+                {branchActions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {branchActions.map((action) => (
+                      <div
+                        className="inline-flex items-center gap-1.5"
+                        key={`${action.dept}-${action.branchIndex}`}
+                      >
+                        {branchActions.length > 1 && (
+                          <span className="mr-1 text-xs font-extrabold text-slate-500">{action.dept}</span>
+                        )}
+                        <button
+                          aria-label={`Save ${action.dept} checklist`}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                          onClick={() => onDoneBranch(action.branchIndex)}
+                          title="Save"
+                          type="button"
+                        >
+                          <IoCloudUpload aria-hidden="true" className="h-5 w-5" />
+                        </button>
+                        <button
+                          aria-label={`Cancel ${action.dept} checklist changes`}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border !border-rose-100 !bg-white !p-0 !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100"
+                          onClick={() => onCancelBranch(action.branchIndex)}
+                          title="Cancel"
+                          type="button"
+                        >
+                          <MdCancel aria-hidden="true" className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div>
-                <h1 className="m-0 text-4xl font-black leading-tight text-slate-950">{customer.name}</h1>
-                <p className="m-0 mt-2 text-lg font-black text-slate-700">{stop.name}</p>
+                <p className="m-0 mt-1.5 text-base font-black text-slate-700">{stop.name}</p>
                 <p className="m-0 mt-1 text-sm font-bold text-slate-500">{stop.stageName}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-7">
-            {branchActions.map((action) => (
-              <div
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 p-1 shadow-sm ring-1 ring-slate-200"
-                key={`${action.dept}-${action.branchIndex}`}
-              >
-                {branchActions.length > 1 && (
-                  <span className="pl-3 text-xs font-extrabold text-slate-600">{action.dept}</span>
-                )}
-                <button
-                  aria-label={`Save ${action.dept} checklist`}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                  onClick={() => onDoneBranch(action.branchIndex)}
-                  title="Save"
-                  type="button"
-                >
-                  <IoCloudUpload aria-hidden="true" className="h-5 w-5" />
-                </button>
-                <button
-                  aria-label={`Cancel ${action.dept} checklist changes`}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl !border-0 !bg-white !p-0 !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100"
-                  onClick={() => onCancelBranch(action.branchIndex)}
-                  title="Cancel"
-                  type="button"
-                >
-                  <MdCancel aria-hidden="true" className="h-5 w-5" />
-                </button>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 sm:px-5">
             {branchActions.length === 0 && (
               <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-500">No editable branch in this phase</span>
             )}
@@ -136,7 +142,7 @@ function CustomerDetailView({
 
         {isPast && (
           <button
-            className="min-h-11 w-fit rounded-xl !border !border-amber-200 !bg-amber-50 px-5 text-sm font-black !text-amber-800 transition hover:!bg-amber-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
+            className="min-h-10 w-fit rounded-xl !border !border-amber-200 !bg-amber-50 px-4 text-sm font-black !text-amber-800 transition hover:!bg-amber-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-amber-100"
             onClick={onOpenReset}
             type="button"
           >
