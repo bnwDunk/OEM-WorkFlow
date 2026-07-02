@@ -48,51 +48,61 @@ function CustomerDetailView({
   viewedPhase,
 }: CustomerDetailViewProps) {
   const stop = flowStops[viewedPhase]
+  const branchStates = customer.branch[viewedPhase]
   const isPast = viewedPhase < customer.currentPhase && !customer.singleResets[viewedPhase]
   const isFuture = viewedPhase > customer.currentPhase
   const isActive = viewedPhase === customer.currentPhase || customer.singleResets[viewedPhase]
+  const openIssuePhaseSet = new Set(
+    customer.issues
+      .filter((issue) => !issue.closed)
+      .map((issue) => typeof issue.phase === 'number' ? issue.phase : customer.currentPhase),
+  )
   const branchActions = stop.branches
-    .map((branch, branchIndex) => {
-      const branchState = customer.branch[viewedPhase][branchIndex]
-      return {
-        branchIndex,
-        canManage: hasDepartment(userDepartments, branch.dept),
-        dept: branch.dept,
-        dirty: JSON.stringify(branchState.live) !== JSON.stringify(branchState.saved),
-        done: branchState.done,
-      }
-    })
+    .map((branch, branchIndex) => ({
+      branchIndex,
+      canManage: hasDepartment(userDepartments, branch.dept),
+      dept: branch.dept,
+      done: branchStates[branchIndex].done,
+    }))
     .filter((action) => !action.done && isActive && action.canManage)
 
   return (
-    <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
+    <section className="min-h-[calc(100svh-52px)] bg-slate-50 px-5 py-6 sm:px-8">
       <div className="mx-auto grid max-w-7xl gap-6">
         <button
-          className="inline-flex min-h-10 w-fit items-center justify-center rounded-xl !border-0 !bg-slate-950 px-5 text-sm font-black !text-white shadow-sm transition hover:!bg-slate-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
+          className="inline-flex min-h-11 w-fit items-center justify-center rounded-2xl !border-0 !bg-slate-950 px-5 text-sm font-black !text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:!bg-slate-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-slate-200"
           onClick={onBack}
           type="button"
         >
           Back
         </button>
 
-        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6">
-          <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-teal-800">
-            Stage {stop.stageIndex + 1}/5: {stop.stageName} - Phase {stop.label}
-          </span>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h1 className="m-0 text-3xl font-black text-slate-950">{customer.name}</h1>
+        <header className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
+          <div className="border-b border-slate-100 bg-white px-5 py-5 sm:px-7">
+            <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase text-teal-800">
+              Stage {stop.stageIndex + 1}/5 - Phase {stop.label}
+            </span>
+            <div className="mt-4">
+              <div>
+                <h1 className="m-0 text-4xl font-black leading-tight text-slate-950">{customer.name}</h1>
+                <p className="m-0 mt-2 text-lg font-black text-slate-700">{stop.name}</p>
+                <p className="m-0 mt-1 text-sm font-bold text-slate-500">{stop.stageName}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:px-7">
             {branchActions.map((action) => (
               <div
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 p-1 shadow-sm ring-1 ring-slate-200"
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 p-1 shadow-sm ring-1 ring-slate-200"
                 key={`${action.dept}-${action.branchIndex}`}
               >
                 {branchActions.length > 1 && (
-                  <span className="pl-2 text-xs font-extrabold text-slate-500">{action.dept}</span>
+                  <span className="pl-3 text-xs font-extrabold text-slate-600">{action.dept}</span>
                 )}
                 <button
                   aria-label={`Save ${action.dept} checklist`}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
-                  disabled={!action.dirty}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                   onClick={() => onDoneBranch(action.branchIndex)}
                   title="Save"
                   type="button"
@@ -101,8 +111,7 @@ function CustomerDetailView({
                 </button>
                 <button
                   aria-label={`Cancel ${action.dept} checklist changes`}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-rose-50 !p-0 !text-rose-600 shadow-sm transition hover:!bg-rose-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-300 disabled:shadow-none"
-                  disabled={!action.dirty}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl !border-0 !bg-white !p-0 !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100"
                   onClick={() => onCancelBranch(action.branchIndex)}
                   title="Cancel"
                   type="button"
@@ -111,15 +120,19 @@ function CustomerDetailView({
                 </button>
               </div>
             ))}
-          </div>
-          <p className="m-0 mt-2 text-base font-semibold text-slate-600">{stop.name}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {isPast && <em className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black not-italic text-amber-700">ดูประวัติ Phase ที่ทำไปแล้ว</em>}
-            {isFuture && <em className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black not-italic text-slate-500">ยังไม่ถึง Phase นี้ ดูล่วงหน้าได้ แต่ยังแก้ไขไม่ได้</em>}
+            {branchActions.length === 0 && (
+              <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-500">No editable branch in this phase</span>
+            )}
+            {isPast && (
+              <em className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black not-italic text-amber-700">Viewing completed phase</em>
+            )}
+            {isFuture && (
+              <em className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black not-italic text-slate-500">Future phase</em>
+            )}
           </div>
         </header>
 
-        <PhaseRail customer={customer} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
+        <PhaseRail customer={customer} issuePhaseSet={openIssuePhaseSet} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
 
         {isPast && (
           <button
@@ -131,30 +144,30 @@ function CustomerDetailView({
           </button>
         )}
 
-      <div className="grid gap-4 lg:grid-cols-[repeat(var(--branch-count),minmax(0,1fr))]" style={{ '--branch-count': stop.branches.length } as React.CSSProperties}>
-        {stop.branches.map((branch, branchIndex) => (
-          <BranchCard
-            branch={branch}
-            branchState={customer.branch[viewedPhase][branchIndex]}
-            canManage={hasDepartment(userDepartments, branch.dept)}
-            isActive={Boolean(isActive)}
-            key={`${branch.dept}-${branchIndex}`}
-            onToggle={(itemIndex) => onToggleBranchItem(branchIndex, itemIndex)}
-          />
-        ))}
-      </div>
+        <div className="grid gap-4 lg:grid-cols-[repeat(var(--branch-count),minmax(0,1fr))]" style={{ '--branch-count': stop.branches.length } as React.CSSProperties}>
+          {stop.branches.map((branch, branchIndex) => (
+            <BranchCard
+              branch={branch}
+              branchState={branchStates[branchIndex]}
+              canManage={hasDepartment(userDepartments, branch.dept)}
+              isActive={Boolean(isActive)}
+              key={`${branch.dept}-${branchIndex}`}
+              onToggle={(itemIndex) => onToggleBranchItem(branchIndex, itemIndex)}
+            />
+          ))}
+        </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ActivityPanel notifications={customer.notifications} />
-        <IssuePanel
-          currentDept={currentDept}
-          currentUserName={currentUserName}
-          userDepartments={userDepartments}
-          issues={customer.issues}
-          onAddIssue={onAddIssue}
-          onCloseIssue={onCloseIssue}
-        />
-      </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <ActivityPanel notifications={customer.notifications} />
+          <IssuePanel
+            currentDept={currentDept}
+            currentUserName={currentUserName}
+            userDepartments={userDepartments}
+            issues={customer.issues}
+            onAddIssue={onAddIssue}
+            onCloseIssue={onCloseIssue}
+          />
+        </div>
       </div>
     </section>
   )

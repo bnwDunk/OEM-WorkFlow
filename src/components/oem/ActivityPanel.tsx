@@ -21,8 +21,8 @@ function ActivityPanel({ notifications }: ActivityPanelProps) {
         </div>
       ) : (
         <div className="grid gap-3">
-          {notifications.map((item) => (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" key={`${item.text}-${item.time}`}>
+          {notifications.map((item, index) => (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" key={`${item.text}-${item.time}-${index}`}>
               <p className="m-0 text-sm font-semibold text-slate-800">{item.text}</p>
               <time className="mt-2 block text-xs font-bold text-slate-400">{item.time}</time>
             </div>

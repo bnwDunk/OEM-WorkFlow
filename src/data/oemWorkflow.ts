@@ -42,6 +42,7 @@ export type IssueItem = {
   targetDept: string
   text: string
   closed: boolean
+  phase?: number
   time: string
 }
 
