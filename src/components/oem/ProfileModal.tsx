@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { getRoleDisplayName } from '../../data/adminDashboard'
 import type { AuthUser } from '../../data/adminDashboard'
 
@@ -20,6 +21,7 @@ function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
 
     if (!nextName || !nextEmail) {
       setError('Name and email are required.')
+      toast.error('Name and email are required.')
       return
     }
 
@@ -27,8 +29,11 @@ function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
       setError('')
       setSaving(true)
       await onSave({ email: nextEmail, name: nextName })
+      toast.success('Updated profile.')
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to update profile.')
+      const message = saveError instanceof Error ? saveError.message : 'Unable to update profile.'
+      setError(message)
+      toast.error(message)
     } finally {
       setSaving(false)
     }

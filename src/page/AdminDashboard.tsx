@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import AddDepartmentModal from '../components/oem/admin/AddDepartmentModal'
 import DepartmentDetailModal from '../components/oem/admin/DepartmentDetailModal'
 import type { DepartmentWorkItem } from '../components/oem/admin/DepartmentDetailModal'
@@ -12,6 +13,8 @@ import type {
   FlowStructure,
 } from '../components/oem/admin/FlowStructureEditorModal'
 import { apiRequest } from '../lib/api'
+import { confirmToast } from '../lib/confirmToast'
+import { formatDate } from '../lib/dateFormat'
 import { getCustomerStatusLabel } from '../data/oemWorkflow'
 import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
@@ -45,16 +48,7 @@ function getStatusBadgeClass(status: string) {
 }
 
 function formatAdminDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value || '-'
-
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
+  return formatDate(value)
 }
 
 type AdminDashboardProps = {
@@ -196,6 +190,18 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     loadAdminData()
   }, [token])
 
+  useEffect(() => {
+    if (error) toast.error(error)
+  }, [error])
+
+  useEffect(() => {
+    if (actionError) toast.error(actionError)
+  }, [actionError])
+
+  useEffect(() => {
+    if (actionMessage) toast.success(actionMessage)
+  }, [actionMessage])
+
   async function updateUser(userId: number, patch: Partial<ManagedUser>) {
     try {
       setActionError('')
@@ -251,7 +257,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
 
   async function deleteUser(userId: number) {
     const user = users.find((item) => item.id === userId)
-    if (!window.confirm(`Delete ${user?.name || 'this user'}?`)) return
+    if (!(await confirmToast({
+      confirmLabel: 'Delete',
+      message: `Delete ${user?.name || 'this user'}?`,
+      title: 'Delete user',
+    }))) return
 
     try {
       setActionError('')
@@ -732,7 +742,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
 
   async function deleteTag(tagId: number) {
     const tag = tags.find((item) => item.id === tagId)
-    if (!window.confirm(`Delete tag ${tag?.name || ''}? It will be removed from every customer.`)) return
+    if (!(await confirmToast({
+      confirmLabel: 'Delete',
+      message: `Delete tag ${tag?.name || ''}? It will be removed from every customer.`,
+      title: 'Delete tag',
+    }))) return
 
     try {
       setActionError('')
@@ -758,7 +772,11 @@ function AdminDashboard({ token }: AdminDashboardProps) {
 
   async function deleteCustomer(customerId: number) {
     const customer = customers.find((item) => item.id === customerId)
-    if (!window.confirm(`Delete customer ${customer?.name || ''}? This will remove its workflow data and tags.`)) return
+    if (!(await confirmToast({
+      confirmLabel: 'Delete',
+      message: `Delete customer ${customer?.name || ''}? This will remove its workflow data and tags.`,
+      title: 'Delete customer',
+    }))) return
 
     try {
       setActionError('')

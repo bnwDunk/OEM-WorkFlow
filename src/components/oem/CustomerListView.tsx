@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { flowStops, getCustomerStatusLabel } from '../../data/oemWorkflow'
 import type { Customer } from '../../data/oemWorkflow'
+import { formatDate } from '../../lib/dateFormat'
 
 type CustomerListViewProps = {
   customers: Customer[]
@@ -18,18 +19,6 @@ function getDaysLeft(dueDate: string | undefined) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
-}
-
-function formatThaiDate(value: string | undefined) {
-  if (!value) return '-'
-
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear() + 543
-  return `${day}/${month}/${year}`
 }
 
 function formatCurrency(value: string | undefined) {
@@ -159,7 +148,7 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{productText}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{getCustomerStatusLabel(customer.status)}</td>
-                      <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600">{formatThaiDate(customer.dueDate)}</td>
+                      <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600">{formatDate(customer.dueDate)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{getDaysLeft(customer.dueDate)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(customer.info.costSyrup)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(customer.info.costPackage)}</td>

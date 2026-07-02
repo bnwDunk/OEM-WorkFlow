@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import type { AuthUser } from './data/adminDashboard'
 import FlowPage from './page/FlowPage'
 import LoginPage from './page/LoginPage'
@@ -175,6 +176,19 @@ function App() {
   return (
     <BrowserRouter>
       <AppRoutes />
+      <Toaster
+        gutter={10}
+        position="top-right"
+        toastOptions={{
+          className: 'text-sm font-semibold',
+          duration: 4000,
+          style: {
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            boxShadow: '0 18px 50px rgba(15, 23, 42, 0.12)',
+          },
+        }}
+      />
     </BrowserRouter>
   )
 }
