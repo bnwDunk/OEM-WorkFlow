@@ -23,10 +23,10 @@ function getPhaseStatus(customer: Customer, phase: number, issuePhaseSet: Set<nu
 }
 
 const phaseStyles = {
-  current: 'border-teal-600 bg-teal-700 text-white shadow-[0_14px_28px_rgba(15,118,110,0.22)]',
-  done: 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_10px_22px_rgba(5,150,105,0.10)]',
-  issue: 'border-amber-300 bg-amber-50 text-amber-900 shadow-[0_10px_22px_rgba(217,119,6,0.13)]',
-  locked: 'border-slate-200 bg-white text-slate-400',
+  current: '!border-teal-700 !bg-teal-700 !text-white shadow-[0_10px_20px_rgba(15,118,110,0.22)]',
+  done: '!border-emerald-500 !bg-emerald-500 !text-white shadow-[0_10px_20px_rgba(5,150,105,0.18)]',
+  issue: '!border-amber-400 !bg-amber-400 !text-amber-950 shadow-[0_10px_20px_rgba(217,119,6,0.16)]',
+  locked: '!border-slate-200 !bg-white !text-slate-400',
 }
 
 const legendItems = [
@@ -52,13 +52,13 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
   }))
 
   return (
-    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)]" aria-label="OEM workflow phases">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.06)]" aria-label="OEM workflow phases">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="m-0 text-xs font-black uppercase text-slate-400">Workflow map</p>
-          <h3 className="m-0 mt-1 text-xl font-black text-slate-950">Phase status</h3>
+          <h3 className="m-0 mt-0.5 text-lg font-black text-slate-950">Phase status</h3>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {legendItems.map((item) => (
             <span className="inline-flex items-center gap-2 text-xs font-black text-slate-500" key={item.label}>
               <i className={`h-2.5 w-2.5 rounded-full ${item.className}`} />
@@ -68,12 +68,12 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid gap-3 xl:grid-cols-5">
         {stageGroups.map(({ stage, stops }, stageIndex) => (
-          <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4" key={stage.name}>
-            <div className="mb-3 flex items-center gap-2">
-              <strong className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-xs font-black text-white shadow-sm">S{stageIndex + 1}</strong>
-              <span className="min-w-0 text-sm font-black leading-tight text-slate-800">{stage.name}</span>
+          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3" key={stage.name}>
+            <div className="mb-2.5 flex items-center gap-2">
+              <strong className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-950 text-[11px] font-black text-white shadow-sm">S{stageIndex + 1}</strong>
+              <span className="min-w-0 text-sm font-black leading-snug text-slate-800">{stage.name}</span>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -83,7 +83,7 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
 
                 return (
                   <button
-                    className={`relative grid h-12 min-w-12 place-items-center rounded-2xl border px-3 text-base font-black transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${phaseStyles[status]} ${viewing ? 'ring-4 ring-teal-100 ring-offset-2 ring-offset-white' : ''}`}
+                    className={`relative grid h-10 min-w-10 place-items-center rounded-xl border px-3 text-sm font-black transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 ${phaseStyles[status]} ${viewing ? 'ring-4 ring-teal-100 ring-offset-2 ring-offset-white' : ''}`}
                     onClick={() => onViewPhase(stop.phase)}
                     title={`${stop.label} ${stop.name} - ${statusLabels[status]}`}
                     type="button"

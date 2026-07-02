@@ -254,8 +254,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
 
     setSelectedCustomerId(routeCustomer.id)
-    setViewedPhase(routeCustomer.currentPhase)
-  }, [customers, navigate, overviewLoading, routeCustomerId])
+    if (selectedCustomerId !== routeCustomer.id) {
+      setViewedPhase(routeCustomer.currentPhase)
+    }
+  }, [customers, navigate, overviewLoading, routeCustomerId, selectedCustomerId])
 
   async function handleCreateCustomer(payload: { flowId: number; name: string }) {
     try {
@@ -473,6 +475,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!selectedCustomer) return
 
     const branch = selectedCustomer.branch[viewedPhase][branchIndex]
+    const shouldReturnToCurrentPhase =
+      Boolean(selectedCustomer.singleResets[viewedPhase]) && viewedPhase !== selectedCustomer.currentPhase
     const willAdvance =
       selectedCustomer.branch[viewedPhase].every((item, index) => index === branchIndex || item.done)
     let completedOnServer = false
@@ -505,6 +509,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       const stopDone = customer.branch[viewedPhase].every((item) => item.done)
       if (customer.singleResets[viewedPhase] && stopDone) delete customer.singleResets[viewedPhase]
 
+      if (stopDone && shouldReturnToCurrentPhase) {
+        setViewedPhase(customer.currentPhase)
+      }
+
       if (stopDone && viewedPhase === customer.currentPhase && viewedPhase < flowStops.length - 1) {
         customer.currentPhase = viewedPhase + 1
         setViewedPhase(viewedPhase + 1)
@@ -516,14 +524,36 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
     if (selectedCustomer.databaseId && completedOnServer) {
       await loadOverview()
-      if (willAdvance && viewedPhase < flowStops.length - 1) {
+      if (shouldReturnToCurrentPhase) {
+        setViewedPhase(selectedCustomer.currentPhase)
+      }
+      if (!shouldReturnToCurrentPhase && willAdvance && viewedPhase < flowStops.length - 1) {
         setViewedPhase(viewedPhase + 1)
       }
     }
   }
 
-  function handleAddIssue(payload: { openedBy: string; targetDept: string; text: string }) {
+  async function handleAddIssue(payload: { openedBy: string; targetDept: string; text: string }) {
     if (!selectedCustomer) return
+
+    if (selectedCustomer.databaseId) {
+      try {
+        setOverviewError('')
+        await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/issues`, {
+          method: 'POST',
+          token: accessToken,
+          body: JSON.stringify({
+            ...payload,
+            phase: viewedPhase,
+          }),
+        })
+        await loadOverview()
+        return
+      } catch (error) {
+        setOverviewError(error instanceof Error ? error.message : 'Unable to open ticket.')
+        return
+      }
+    }
 
     updateCustomer(selectedCustomer.id, (customer) => {
       customer.issues.unshift({
