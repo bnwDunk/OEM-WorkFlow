@@ -474,8 +474,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
     const branch = selectedCustomer.branch[viewedPhase][branchIndex]
     const willAdvance =
-      branch.live.every(Boolean) &&
       selectedCustomer.branch[viewedPhase].every((item, index) => index === branchIndex || item.done)
+    let completedOnServer = false
 
     try {
       setOverviewError('')
@@ -485,16 +485,18 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           token: accessToken,
           body: JSON.stringify({ live: branch.live }),
         })
+        completedOnServer = true
       }
     } catch (error) {
-      setOverviewError(error instanceof Error ? error.message : 'Unable to complete branch.')
-      return
+      const message = error instanceof Error ? error.message : 'Unable to complete branch.'
+      if (!message.includes('409') && !message.toLowerCase().includes('conflict')) {
+        setOverviewError(message)
+        return
+      }
     }
 
     updateCustomer(selectedCustomer.id, (customer) => {
       const branch = customer.branch[viewedPhase][branchIndex]
-
-      if (!branch.live.every(Boolean)) return customer
 
       branch.saved = [...branch.live]
       branch.done = true
@@ -512,7 +514,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       return customer
     })
 
-    if (selectedCustomer.databaseId) {
+    if (selectedCustomer.databaseId && completedOnServer) {
       await loadOverview()
       if (willAdvance && viewedPhase < flowStops.length - 1) {
         setViewedPhase(viewedPhase + 1)
@@ -528,6 +530,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         ...payload,
         openedByDept: currentDept,
         closed: false,
+        phase: viewedPhase,
         time: 'เมื่อสักครู่',
       })
       addLog(customer, `Ticket ใหม่จาก ${payload.openedBy} (${currentDept}) ถึงฝ่าย ${payload.targetDept}: ${payload.text}`)

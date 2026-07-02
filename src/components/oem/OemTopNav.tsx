@@ -64,8 +64,8 @@ function OemTopNav({
         {bellOpen && (
           <div className="dropdown-panel">
             <h5>การแจ้งเตือนล่าสุด</h5>
-            {notifications.slice(0, 8).map((item) => (
-              <button className="dropdown-item" key={`${item.customerName}-${item.text}`} type="button">
+            {notifications.slice(0, 8).map((item, index) => (
+              <button className="dropdown-item" key={`${item.customerName}-${item.text}-${index}`} type="button">
                 <strong>{item.customerName}</strong>
                 <small>{item.text}</small>
               </button>
