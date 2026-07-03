@@ -21,6 +21,7 @@ type CustomerDetailViewProps = {
   onOpenReset: () => void
   onToggleBranchItem: (branchIndex: number, itemIndex: number) => void
   onViewPhase: (phase: number) => void
+  savingBranchAction?: string | null
 }
 
 function normalizeDepartmentName(value: string) {
@@ -45,6 +46,7 @@ function CustomerDetailView({
   onOpenReset,
   onToggleBranchItem,
   onViewPhase,
+  savingBranchAction = null,
   viewedPhase,
 }: CustomerDetailViewProps) {
   const stop = flowStops[viewedPhase]
@@ -97,7 +99,8 @@ function CustomerDetailView({
                         )}
                         <button
                           aria-label={`Save ${action.dept} checklist`}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={Boolean(savingBranchAction)}
                           onClick={() => onDoneBranch(action.branchIndex)}
                           title="Save"
                           type="button"
@@ -106,7 +109,8 @@ function CustomerDetailView({
                         </button>
                         <button
                           aria-label={`Cancel ${action.dept} checklist changes`}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border !border-rose-100 !bg-white !p-0 !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border !border-rose-100 !bg-white !p-0 !text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:!bg-rose-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={Boolean(savingBranchAction)}
                           onClick={() => onCancelBranch(action.branchIndex)}
                           title="Cancel"
                           type="button"
