@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
+import { TbCalendarDue } from 'react-icons/tb'
 import { customerStatusOptions } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatus, CustomerTag } from '../../data/oemWorkflow'
 import CustomerNameCombobox from './CustomerNameCombobox'
@@ -38,6 +39,36 @@ function getDaysLeft(dueDate: string) {
   return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
 }
 
+function formatDateForInput(value: string) {
+  if (!value) return ''
+
+  const [year, month, day] = value.slice(0, 10).split('-')
+  if (!year || !month || !day) return value
+
+  return `${day}/${month}/${year}`
+}
+
+function parseInputDate(value: string) {
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return ''
+
+  const match = trimmedValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) return ''
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const date = new Date(year, month - 1, day)
+
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return ''
+
+  return [
+    String(year).padStart(4, '0'),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-')
+}
+
 function CustomerEditView({
   customer,
   customers = [],
@@ -48,25 +79,28 @@ function CustomerEditView({
   onRemoveTag,
   onSave,
 }: CustomerEditViewProps) {
-  const [dueDate, setDueDate] = useState(customer.dueDate || '')
+  const [dueDate, setDueDate] = useState(formatDateForInput(customer.dueDate || ''))
   const [name, setName] = useState(customer.name)
   const [salesperson, setSalesperson] = useState(customer.salesperson || salespersonName)
   const [tags, setTags] = useState<CustomerTag[]>(customer.tags)
   const [tagDraft, setTagDraft] = useState('')
   const [removingTagKey, setRemovingTagKey] = useState('')
   const [duplicateCustomer, setDuplicateCustomer] = useState<CustomerNameOption | undefined>()
+  const datePickerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setName(customer.name)
     setSalesperson(customer.salesperson || salespersonName)
-    setDueDate(customer.dueDate || '')
+    setDueDate(formatDateForInput(customer.dueDate || ''))
     setTags(customer.tags)
     setTagDraft('')
     setRemovingTagKey('')
   }, [customer.dueDate, customer.id, customer.name, customer.salesperson, customer.tags, salespersonName])
 
   const typedName = name.trim()
-  const canSubmit = Boolean(typedName) && !duplicateCustomer && !loading
+  const parsedDueDate = parseInputDate(dueDate)
+  const dueDateIsValid = !dueDate.trim() || Boolean(parsedDueDate)
+  const canSubmit = Boolean(typedName) && !duplicateCustomer && dueDateIsValid && !loading
 
   function addTagFromDraft() {
     const nextTagName = tagDraft.trim().replace(/^,+|,+$/g, '').trim()
@@ -115,7 +149,7 @@ function CustomerEditView({
     const data = new FormData(event.currentTarget)
 
     onSave({
-      dueDate: String(data.get('dueDate') || ''),
+      dueDate: parseInputDate(String(data.get('dueDate') || '')),
       info: {
         costSyrup: String(data.get('costSyrup') || ''),
         costPackage: String(data.get('costPackage') || ''),
@@ -127,6 +161,18 @@ function CustomerEditView({
       status: String(data.get('status') || 'brief_spec') as CustomerStatus,
       tagsText: tags.map((tag) => tag.name.trim()).filter(Boolean).join(', '),
     })
+  }
+
+  function openDatePicker() {
+    const picker = datePickerRef.current
+    if (!picker) return
+
+    if (typeof picker.showPicker === 'function') {
+      picker.showPicker()
+      return
+    }
+
+    picker.click()
   }
 
   return (
@@ -178,13 +224,38 @@ function CustomerEditView({
           <div className="grid gap-x-10 gap-y-5 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-black text-slate-700">
               <span>Due Date</span>
-              <input
-                className="h-12 min-w-0 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 text-base font-bold text-slate-950 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
-                name="dueDate"
-                onChange={(event) => setDueDate(event.target.value)}
-                type="date"
-                value={dueDate}
-              />
+              <div className="relative">
+                <input
+                  className="h-12 w-full min-w-0 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 pr-14 text-base font-bold text-slate-950 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
+                  inputMode="numeric"
+                  name="dueDate"
+                  onChange={(event) => setDueDate(event.target.value)}
+                  pattern="\d{1,2}/\d{1,2}/\d{4}"
+                  placeholder="dd/mm/yyyy"
+                  title="กรุณากรอกวันที่เป็น วัน/เดือน/ปี เช่น 31/12/2026"
+                  type="text"
+                  value={dueDate}
+                />
+                <input
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-0 right-3 my-auto h-8 w-8 opacity-0"
+                  onChange={(event) => setDueDate(formatDateForInput(event.target.value))}
+                  ref={datePickerRef}
+                  tabIndex={-1}
+                  type="date"
+                  value={parsedDueDate}
+                />
+                <button
+                  aria-label="เลือกวันที่"
+                  className="absolute inset-y-0 right-2 my-auto grid h-8 w-8 place-items-center rounded-lg !border-0 !bg-transparent text-slate-700 hover:!bg-slate-100 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                  onClick={openDatePicker}
+                  title="เลือกวันที่"
+                  type="button"
+                >
+                  <TbCalendarDue aria-hidden="true" className="h-5 w-5" />
+                </button>
+              </div>
+              {!dueDateIsValid && <small className="text-xs font-bold text-rose-600">กรุณากรอกเป็น dd/mm/yyyy</small>}
             </label>
 
             <label className="grid gap-2 text-sm font-black text-slate-700">
@@ -193,7 +264,7 @@ function CustomerEditView({
                 className="h-12 min-w-0 rounded-xl !border !border-slate-200 !bg-slate-100 px-4 text-base font-bold text-slate-500 outline-none focus-visible:!outline-none"
                 name="daysLeft"
                 readOnly
-                value={getDaysLeft(dueDate)}
+                value={getDaysLeft(parsedDueDate)}
               />
             </label>
 
