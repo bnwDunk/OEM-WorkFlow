@@ -82,6 +82,7 @@ export type CustomerStatus =
   | 'follow_up_formula'
   | 'quote_negotiation'
   | 'success'
+  | 'cancel'
 
 export const customerStatusOptions: { label: string; value: CustomerStatus }[] = [
   { label: 'รับโจทย์/สรุปสเปค', value: 'brief_spec' },
@@ -90,6 +91,7 @@ export const customerStatusOptions: { label: string; value: CustomerStatus }[] =
   { label: 'ติดตามผล/ปรับสูตร', value: 'follow_up_formula' },
   { label: 'เสนอราคา & เจรจา', value: 'quote_negotiation' },
   { label: 'สำเร็จ (Success)', value: 'success' },
+  { label: 'ยกเลิก (Cancel)', value: 'cancel' },
 ]
 
 export function getCustomerStatusLabel(status: CustomerStatus | undefined) {

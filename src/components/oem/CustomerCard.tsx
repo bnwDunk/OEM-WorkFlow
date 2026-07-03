@@ -21,6 +21,7 @@ const customerStatusStyles: Record<CustomerStatus, string> = {
   follow_up_formula: 'border-yellow-200 bg-yellow-50 text-yellow-800 shadow-yellow-100/70',
   quote_negotiation: 'border-purple-200 bg-purple-50 text-purple-800 shadow-purple-100/70',
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800 shadow-emerald-100/70',
+  cancel: 'border-rose-200 bg-rose-50 text-rose-800 shadow-rose-100/70',
 }
 
 function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {

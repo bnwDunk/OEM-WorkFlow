@@ -817,6 +817,12 @@ button:disabled {
   color: var(--green) !important;
 }
 
+.status-pill.cancel {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c !important;
+}
+
 .customer-body {
   width: 100%;
   display: block;
