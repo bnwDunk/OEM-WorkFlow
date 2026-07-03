@@ -59,7 +59,7 @@ function OemTopNav({
           Customer
         </button>
         <button className={activeView === 'dept' ? 'active' : ''} onClick={() => onChangeView('dept')} type="button">
-          แผนกของฉัน
+          Department
         </button>
         <button className={activeView === 'config' ? 'active' : ''} onClick={() => onChangeView('config')} type="button">
           Configuration
