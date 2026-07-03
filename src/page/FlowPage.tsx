@@ -96,6 +96,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [overviewError, setOverviewError] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [viewedPhase, setViewedPhase] = useState(0)
+  const [savingBranchAction, setSavingBranchAction] = useState<string | null>(null)
   const userDepartments = useMemo(() => {
     const departments = currentUser.departments?.map((department) => department.name).filter(Boolean) || []
     return departments.length ? departments : [currentUser.department]
@@ -532,17 +533,17 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
   async function handleDoneBranch(branchIndex: number) {
     if (!canManageViewedBranch(branchIndex)) return
-    if (!selectedCustomer) return
+    if (!selectedCustomer || savingBranchAction) return
 
     const branch = selectedCustomer.branch[viewedPhase][branchIndex]
+    const busyKey = `complete-${viewedPhase}-${branchIndex}`
     const shouldReturnToCurrentPhase =
       Boolean(selectedCustomer.singleResets[viewedPhase]) && viewedPhase !== selectedCustomer.currentPhase
-    const willAdvance =
-      selectedCustomer.branch[viewedPhase].every((item, index) => index === branchIndex || item.done)
     let completedOnServer = false
 
     try {
       setOverviewError('')
+      setSavingBranchAction(busyKey)
       if (selectedCustomer.databaseId) {
         await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/phases/${viewedPhase}/branches/${branchIndex}/complete`, {
           method: 'POST',
@@ -555,8 +556,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       const message = error instanceof Error ? error.message : 'Unable to complete branch.'
       if (!message.includes('409') && !message.toLowerCase().includes('conflict')) {
         setOverviewError(message)
+        setSavingBranchAction(null)
         return
       }
+    } finally {
+      setSavingBranchAction(null)
     }
 
     updateCustomer(selectedCustomer.id, (customer) => {
@@ -583,13 +587,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     })
 
     if (selectedCustomer.databaseId && completedOnServer) {
-      await loadOverview()
-      if (shouldReturnToCurrentPhase) {
-        setViewedPhase(selectedCustomer.currentPhase)
-      }
-      if (!shouldReturnToCurrentPhase && willAdvance && viewedPhase < flowStops.length - 1) {
-        setViewedPhase(viewedPhase + 1)
-      }
+      void loadOverview().catch(() => undefined)
     }
     toast.success('Completed branch.')
   }
@@ -847,6 +845,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onOpenReset={() => setModal({ type: 'reset', customerId: selectedCustomer.id, phase: viewedPhase })}
           onToggleBranchItem={handleToggleBranchItem}
           onViewPhase={setViewedPhase}
+          savingBranchAction={savingBranchAction}
           viewedPhase={viewedPhase}
         />
       )}
