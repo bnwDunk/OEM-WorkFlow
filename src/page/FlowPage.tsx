@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminDashboard from './AdminDashboard'
 import ConfigView from '../components/oem/ConfigView'
@@ -21,6 +22,7 @@ import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
 import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
+import { confirmToast } from '../lib/confirmToast'
 import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
 import type { SalespersonOption } from '../components/oem/SalespersonCombobox'
 
@@ -129,9 +131,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const notifications = useMemo(
     () =>
       customers.flatMap((customer) =>
-        customer.notifications.map((notification) => ({
+        customer.notifications.map((notification, notificationIndex) => ({
           ...notification,
+          customerId: customer.id,
           customerName: customer.name,
+          notificationId: notification.id,
+          notificationIndex,
         })),
       ),
     [customers],
@@ -162,6 +167,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       setCurrentDept(userDepartments[0])
     }
   }, [currentDept, userDepartments])
+
+  useEffect(() => {
+    if (overviewError) toast.error(overviewError)
+  }, [overviewError])
 
   const loadOverview = useCallback(async () => {
     try {
@@ -270,6 +279,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       })
       setModal(null)
       await loadOverview()
+      toast.success('Created customer.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to create customer.')
     } finally {
@@ -313,6 +323,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       }
       setModal(null)
       await Promise.all([loadOverview(), loadTags()])
+      toast.success(modal?.type === 'tag' && modal.tag?.id ? 'Updated tag.' : 'Added tag.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to save tag.')
     } finally {
@@ -322,7 +333,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
   async function handleDeleteCustomerTag(tag: CustomerTag) {
     if (!tagCustomer?.databaseId || !tag.id) return
-    if (!window.confirm(`ลบ tag ${tag.name} ออกจาก ${tagCustomer.name}?`)) return
+    if (!(await confirmToast({
+      cancelLabel: 'ยกเลิก',
+      confirmLabel: 'ลบ',
+      message: `ลบ tag ${tag.name} ออกจาก ${tagCustomer.name}?`,
+      title: 'ยืนยันการลบ tag',
+    }))) return
 
     try {
       setOverviewError('')
@@ -333,6 +349,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       })
       setModal(null)
       await Promise.all([loadOverview(), loadTags()])
+      toast.success('Deleted tag.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to delete tag.')
     } finally {
@@ -358,6 +375,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         token: accessToken,
       })
       await Promise.all([loadOverview(), loadTags()])
+      toast.success('Deleted tag.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to delete tag.')
       throw error
@@ -371,7 +389,49 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }
 
   function addLog(customer: Customer, text: string) {
-    customer.notifications.unshift({ text, time: 'เมื่อสักครู่' })
+    customer.notifications.unshift({ text, time: 'เมื่อสักครู่', read: false })
+  }
+
+  async function handleMarkNotificationRead(customerId: string, notificationIndex: number, notificationId?: number) {
+    try {
+      if (notificationId) {
+        await apiRequest(`/workflow/notifications/${notificationId}/read`, {
+          method: 'PATCH',
+          token: accessToken,
+        })
+      }
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to update notification.')
+      return
+    }
+
+    updateCustomer(customerId, (customer) => {
+      const notification = customer.notifications[notificationIndex]
+      if (notification) notification.read = true
+      return customer
+    })
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    try {
+      await apiRequest('/workflow/notifications/read-all', {
+        method: 'PATCH',
+        token: accessToken,
+      })
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to update notifications.')
+      return
+    }
+
+    setCustomers((current) =>
+      current.map((customer) => ({
+        ...customer,
+        notifications: customer.notifications.map((notification) => ({
+          ...notification,
+          read: true,
+        })),
+      })),
+    )
   }
 
   function openCustomer(customerId: string) {
@@ -531,6 +591,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         setViewedPhase(viewedPhase + 1)
       }
     }
+    toast.success('Completed branch.')
   }
 
   async function handleAddIssue(payload: { openedBy: string; targetDept: string; text: string }) {
@@ -548,6 +609,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           }),
         })
         await loadOverview()
+        toast.success('Opened ticket.')
         return
       } catch (error) {
         setOverviewError(error instanceof Error ? error.message : 'Unable to open ticket.')
@@ -566,6 +628,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       addLog(customer, `Ticket ใหม่จาก ${payload.openedBy} (${currentDept}) ถึงฝ่าย ${payload.targetDept}: ${payload.text}`)
       return customer
     })
+    toast.success('Opened ticket.')
   }
 
   function handleCloseIssue(issueIndex: number) {
@@ -579,6 +642,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       addLog(customer, `Ticket ถึงฝ่าย ${issue.targetDept} ถูกปิดโดย ${currentDept}`)
       return customer
     })
+    toast.success('Closed ticket.')
   }
 
   async function handleReset(mode: 'all' | 'single') {
@@ -628,6 +692,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (selectedCustomer.databaseId) {
       await loadOverview()
     }
+    toast.success('Reset phase.')
   }
 
   async function handleSaveCustomerEdit(payload: CustomerEditPayload) {
@@ -675,6 +740,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         })
       }
       navigate('/flow')
+      toast.success('Saved customer.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to save customer.')
     } finally {
@@ -684,7 +750,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
   async function handleDeleteInfoCustomer() {
     if (!infoCustomer?.databaseId) return
-    if (!window.confirm(`Delete customer ${infoCustomer.name}? This will remove its workflow data and tags.`)) return
+    if (!(await confirmToast({
+      confirmLabel: 'Delete',
+      message: `Delete customer ${infoCustomer.name}? This will remove its workflow data and tags.`,
+      title: 'Delete customer',
+    }))) return
 
     try {
       setOverviewError('')
@@ -699,6 +769,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         navigate('/flow')
       }
       await loadOverview()
+      toast.success('Deleted customer.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to delete customer.')
     } finally {
@@ -715,6 +786,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         currentDept={currentDept}
         departments={userDepartments}
         notifications={notifications}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onMarkNotificationRead={handleMarkNotificationRead}
         onChangeDept={(dept) => {
           setCurrentDept(dept)
           setProfileOpen(false)

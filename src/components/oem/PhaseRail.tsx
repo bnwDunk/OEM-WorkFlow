@@ -1,3 +1,4 @@
+import { IoWarning } from 'react-icons/io5'
 import { flowStops, stages } from '../../data/oemWorkflow'
 import type { Customer } from '../../data/oemWorkflow'
 
@@ -96,7 +97,9 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
                       </span>
                     )}
                     {status === 'issue' && (
-                      <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-amber-500 ring-2 ring-white" />
+                      <span className="absolute -bottom-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-white text-amber-600 shadow-sm ring-2 ring-white">
+                        <IoWarning aria-hidden="true" className="h-3.5 w-3.5" />
+                      </span>
                     )}
                   </button>
                 )

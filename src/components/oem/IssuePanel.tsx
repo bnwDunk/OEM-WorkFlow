@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react'
+import { IoWarning } from 'react-icons/io5'
 import { departments } from '../../data/oemWorkflow'
 import type { IssueItem } from '../../data/oemWorkflow'
 
@@ -35,7 +36,8 @@ function IssuePanel({ currentDept, currentUserName, userDepartments, issues, onA
           <h4 className="m-0 text-lg font-black text-slate-950">Issue tickets</h4>
           <p className="m-0 mt-1 text-sm font-semibold text-slate-500">Open cross-team blockers for this customer.</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-black ${openIssueCount ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-600'}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black ${openIssueCount ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-600'}`}>
+          <IoWarning aria-hidden="true" className="h-3.5 w-3.5" />
           {openIssueCount} open
         </span>
       </div>
@@ -56,7 +58,8 @@ function IssuePanel({ currentDept, currentUserName, userDepartments, issues, onA
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full bg-white px-3 py-1 text-xs font-black shadow-sm ${issue.closed ? 'text-slate-600' : 'text-amber-900'}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-black shadow-sm ${issue.closed ? 'text-slate-600' : 'text-amber-900'}`}>
+                      {!issue.closed && <IoWarning aria-hidden="true" className="h-3.5 w-3.5" />}
                       To {issue.targetDept}
                     </span>
                     {typeof issue.phase === 'number' && (

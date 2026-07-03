@@ -1,4 +1,5 @@
 import { FaEdit } from 'react-icons/fa'
+import { IoWarning } from 'react-icons/io5'
 import type { KeyboardEvent, MouseEvent } from 'react'
 import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatus, CustomerTag } from '../../data/oemWorkflow'
@@ -116,7 +117,7 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
             </button>
           </div>
         </div>
-        <div className="badges">
+        <div className="badges customer-card-actions">
           <button
             aria-label={`Edit ${customer.name}`}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-transparent text-[#0f6e66] transition duration-150 ease-out hover:-translate-y-0.5 hover:bg-[#eef8f6] hover:shadow-[0_14px_26px_rgba(15,110,102,0.14)] hover:ring-1 hover:ring-[#9bc7c2] focus-visible:-translate-y-0.5 focus-visible:bg-[#eef8f6] focus-visible:shadow-[0_14px_26px_rgba(15,110,102,0.14)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#9bc7c2]"
@@ -126,7 +127,12 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
           >
             <FaEdit aria-hidden="true" className="h-[15px] w-[15px]" />
           </button>
-          {openIssues > 0 && <span className="badge issue">Issue {openIssues}</span>}
+          {openIssues > 0 && (
+            <span className="badge issue" title={`${openIssues} open issue${openIssues > 1 ? 's' : ''}`}>
+              <IoWarning aria-hidden="true" className="h-3.5 w-3.5" />
+              {openIssues}
+            </span>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import BrandBlock from '../components/BrandBlock'
 import type { AuthUser } from '../data/adminDashboard'
@@ -61,7 +62,9 @@ function LoginPage({ onLogin }: LoginPageProps) {
       )
       navigate('/flow', { replace: true })
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Login failed.')
+      const message = loginError instanceof Error ? loginError.message : 'Login failed.'
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }

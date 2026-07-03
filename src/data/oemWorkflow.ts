@@ -32,8 +32,10 @@ export type BranchState = {
 }
 
 export type NotificationItem = {
+  id?: number
   text: string
   time: string
+  read?: boolean
 }
 
 export type IssueItem = {

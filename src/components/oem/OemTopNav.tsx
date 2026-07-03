@@ -1,17 +1,27 @@
+import { FiBell } from 'react-icons/fi'
 import { getRoleDisplayName } from '../../data/adminDashboard'
 import type { AuthUser } from '../../data/adminDashboard'
 import type { NotificationItem } from '../../data/oemWorkflow'
+
+type TopNavNotification = NotificationItem & {
+  customerId: string
+  customerName: string
+  notificationId?: number
+  notificationIndex: number
+}
 
 type OemTopNavProps = {
   activeView: string
   currentUser: AuthUser
   currentDept: string
   departments: string[]
-  notifications: (NotificationItem & { customerName: string })[]
+  notifications: TopNavNotification[]
   bellOpen: boolean
   profileOpen: boolean
   onChangeDept: (dept: string) => void
   onChangeView: (view: 'overview' | 'customers' | 'dept' | 'config' | 'admin') => void
+  onMarkAllNotificationsRead: () => void | Promise<void>
+  onMarkNotificationRead: (customerId: string, notificationIndex: number, notificationId?: number) => void | Promise<void>
   onToggleBell: () => void
   onToggleProfile: () => void
   onLogout: () => void
@@ -28,11 +38,16 @@ function OemTopNav({
   onChangeDept,
   onChangeView,
   onLogout,
+  onMarkAllNotificationsRead,
+  onMarkNotificationRead,
   onOpenProfile,
   onToggleBell,
   onToggleProfile,
   profileOpen,
 }: OemTopNavProps) {
+  const unreadNotifications = notifications.filter((notification) => !notification.read)
+  const readNotifications = notifications.filter((notification) => notification.read)
+
   return (
     <header className="oem-topnav">
       <div className="oem-brand">P.Piya Solution</div>
@@ -57,19 +72,54 @@ function OemTopNav({
       </nav>
 
       <div className="oem-nav-actions">
-        <button className="icon-btn" onClick={onToggleBell} type="button">
-          Bell
-          {notifications.length > 0 && <span>{notifications.length}</span>}
+        <button className="icon-btn" onClick={onToggleBell} type="button" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">
+          <FiBell aria-hidden="true" size={18} />
+          {unreadNotifications.length > 0 && <span>{unreadNotifications.length}</span>}
         </button>
         {bellOpen && (
-          <div className="dropdown-panel">
-            <h5>การแจ้งเตือนล่าสุด</h5>
-            {notifications.slice(0, 8).map((item, index) => (
-              <button className="dropdown-item" key={`${item.customerName}-${item.text}-${index}`} type="button">
-                <strong>{item.customerName}</strong>
-                <small>{item.text}</small>
-              </button>
-            ))}
+          <div className="dropdown-panel notification-panel">
+            <div className="notification-head">
+              <h5>การแจ้งเตือนล่าสุด</h5>
+              {unreadNotifications.length > 0 && (
+                <button className="mark-read-btn" onClick={() => void onMarkAllNotificationsRead()} type="button">
+                  อ่านทั้งหมด
+                </button>
+              )}
+            </div>
+
+            <div className="notification-group">
+              <div className="notification-section-title">
+                <span>ยังไม่อ่าน</span>
+                <em>{unreadNotifications.length}</em>
+              </div>
+              {unreadNotifications.slice(0, 8).map((item) => (
+                <button
+                  className="dropdown-item notification-item unread"
+                  key={`${item.customerId}-${item.notificationIndex}-${item.text}`}
+                  onClick={() => void onMarkNotificationRead(item.customerId, item.notificationIndex, item.notificationId)}
+                  type="button"
+                >
+                  <i aria-hidden="true" />
+                  <strong>{item.customerName}</strong>
+                  <small>{item.text}</small>
+                </button>
+              ))}
+              {unreadNotifications.length === 0 && <div className="notification-empty">ไม่มีรายการที่ยังไม่อ่าน</div>}
+            </div>
+
+            <div className="notification-group">
+              <div className="notification-section-title">
+                <span>อ่านแล้ว</span>
+                <em>{readNotifications.length}</em>
+              </div>
+              {readNotifications.slice(0, 8).map((item) => (
+                <button className="dropdown-item notification-item read" key={`${item.customerId}-${item.notificationIndex}-${item.text}`} type="button">
+                  <strong>{item.customerName}</strong>
+                  <small>{item.text}</small>
+                </button>
+              ))}
+              {readNotifications.length === 0 && <div className="notification-empty">ยังไม่มีรายการที่อ่านแล้ว</div>}
+            </div>
           </div>
         )}
 

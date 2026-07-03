@@ -1,6 +1,7 @@
 import { FaTimes } from 'react-icons/fa'
 import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
 import type { Customer } from '../../data/oemWorkflow'
+import { formatDate } from '../../lib/dateFormat'
 
 type CustomerInfoModalProps = {
   canDelete?: boolean
@@ -31,7 +32,7 @@ function CustomerInfoModal({ canDelete = true, customer, deleting = false, onClo
   const daysLeft = getDaysLeft(customer.dueDate || '')
 
   const infoItems = [
-    { label: 'Due Date', value: customer.dueDate || '-' },
+    { label: 'Due Date', value: formatDate(customer.dueDate) },
     { label: 'Days Left', value: daysLeft || '-' },
     { label: 'Cost (Syrup)', value: customer.info.costSyrup },
     { label: 'Cost (Package)', value: customer.info.costPackage },
