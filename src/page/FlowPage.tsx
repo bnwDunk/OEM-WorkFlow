@@ -131,9 +131,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const notifications = useMemo(
     () =>
       customers.flatMap((customer) =>
-        customer.notifications.map((notification) => ({
+        customer.notifications.map((notification, notificationIndex) => ({
           ...notification,
+          customerId: customer.id,
           customerName: customer.name,
+          notificationId: notification.id,
+          notificationIndex,
         })),
       ),
     [customers],
@@ -386,7 +389,49 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }
 
   function addLog(customer: Customer, text: string) {
-    customer.notifications.unshift({ text, time: 'เมื่อสักครู่' })
+    customer.notifications.unshift({ text, time: 'เมื่อสักครู่', read: false })
+  }
+
+  async function handleMarkNotificationRead(customerId: string, notificationIndex: number, notificationId?: number) {
+    try {
+      if (notificationId) {
+        await apiRequest(`/workflow/notifications/${notificationId}/read`, {
+          method: 'PATCH',
+          token: accessToken,
+        })
+      }
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to update notification.')
+      return
+    }
+
+    updateCustomer(customerId, (customer) => {
+      const notification = customer.notifications[notificationIndex]
+      if (notification) notification.read = true
+      return customer
+    })
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    try {
+      await apiRequest('/workflow/notifications/read-all', {
+        method: 'PATCH',
+        token: accessToken,
+      })
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to update notifications.')
+      return
+    }
+
+    setCustomers((current) =>
+      current.map((customer) => ({
+        ...customer,
+        notifications: customer.notifications.map((notification) => ({
+          ...notification,
+          read: true,
+        })),
+      })),
+    )
   }
 
   function openCustomer(customerId: string) {
@@ -741,6 +786,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         currentDept={currentDept}
         departments={userDepartments}
         notifications={notifications}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onMarkNotificationRead={handleMarkNotificationRead}
         onChangeDept={(dept) => {
           setCurrentDept(dept)
           setProfileOpen(false)
