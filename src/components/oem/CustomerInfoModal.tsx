@@ -1,11 +1,12 @@
 import { FaTimes } from 'react-icons/fa'
-import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatusOption } from '../../data/oemWorkflow'
 import { formatDate } from '../../lib/dateFormat'
 
 type CustomerInfoModalProps = {
   canDelete?: boolean
   customer: Customer
+  customerStatusOptions?: CustomerStatusOption[]
   deleting?: boolean
   onClose: () => void
   onDelete: () => void
@@ -23,7 +24,7 @@ function getDaysLeft(dueDate: string) {
   return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
 }
 
-function CustomerInfoModal({ canDelete = true, customer, deleting = false, onClose, onDelete, onEdit }: CustomerInfoModalProps) {
+function CustomerInfoModal({ canDelete = true, customer, customerStatusOptions = fallbackCustomerStatusOptions, deleting = false, onClose, onDelete, onEdit }: CustomerInfoModalProps) {
   const currentStop = flowStops[customer.currentPhase]
   const stage = stages[currentStop.stageIndex]
   const status = customer.status || 'brief_spec'
@@ -58,7 +59,7 @@ function CustomerInfoModal({ canDelete = true, customer, deleting = false, onClo
             <div className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-800">
               <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
               <span className="uppercase opacity-70">Status</span>
-              <strong className="min-w-0 [overflow-wrap:anywhere]">{getCustomerStatusLabel(status)}</strong>
+              <strong className="min-w-0 [overflow-wrap:anywhere]">{getCustomerStatusLabel(status, customerStatusOptions)}</strong>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">

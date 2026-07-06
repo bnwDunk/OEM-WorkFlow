@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminDashboard from './AdminDashboard'
 import ConfigView from '../components/oem/ConfigView'
-import CreateCustomerModal from '../components/oem/CreateCustomerModal'
+import CustomerCreateView from '../components/oem/CustomerCreateView'
 import CustomerDetailView from '../components/oem/CustomerDetailView'
 import CustomerEditView from '../components/oem/CustomerEditView'
 import CustomerInfoModal from '../components/oem/CustomerInfoModal'
@@ -20,10 +20,11 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerTag } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerStatusOption, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
+import type { CustomerCreatePayload } from '../components/oem/CustomerCreateView'
 import type { SalespersonOption } from '../components/oem/SalespersonCombobox'
 
 type FlowPageProps = {
@@ -33,10 +34,9 @@ type FlowPageProps = {
   onUserChange: (user: AuthUser) => void
 }
 
-type ActiveView = 'overview' | 'customers' | 'detail' | 'edit-customer' | 'dept' | 'config' | 'admin'
+type ActiveView = 'overview' | 'customers' | 'detail' | 'edit-customer' | 'create-customer' | 'dept' | 'config' | 'admin'
 type ModalState =
   | { type: 'customer-info'; customerId: string }
-  | { type: 'create-customer' }
   | { type: 'reset'; customerId: string; phase: number }
   | { type: 'tag'; customerId: string; tag?: CustomerTag }
   | { type: 'profile' }
@@ -87,6 +87,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [customers, setCustomers] = useState<Customer[]>([])
   const [availableFlows, setAvailableFlows] = useState<ManagedFlow[]>([])
   const [availableTags, setAvailableTags] = useState<CustomerTag[]>([])
+  const [customerStatusOptions, setCustomerStatusOptions] = useState<CustomerStatusOption[]>([])
   const [availableUsers, setAvailableUsers] = useState<ManagedUser[]>([])
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false)
   const [customerSaving, setCustomerSaving] = useState(false)
@@ -106,9 +107,13 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
 
-  const routeCustomerMatch = location.pathname.match(/^\/flow\/customers\/([^/]+)(?:\/edit)?$/)
+  const routeCustomerMatch = location.pathname === '/flow/customers/new'
+    ? null
+    : location.pathname.match(/^\/flow\/customers\/([^/]+)(?:\/edit)?$/)
   const routeCustomerId = routeCustomerMatch ? decodeURIComponent(routeCustomerMatch[1]) : null
-  const activeView: ActiveView = location.pathname.startsWith('/flow/customers/') && location.pathname.endsWith('/edit')
+  const activeView: ActiveView = location.pathname === '/flow/customers/new'
+    ? 'create-customer'
+    : location.pathname.startsWith('/flow/customers/') && location.pathname.endsWith('/edit')
     ? 'edit-customer'
     : location.pathname.startsWith('/flow/customers/')
       ? 'detail'
@@ -219,6 +224,17 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }, [accessToken])
 
+  const loadCustomerStatuses = useCallback(async () => {
+    try {
+      const response = await apiRequest<{ statuses: CustomerStatusOption[] }>('/workflow/customer-statuses', {
+        token: accessToken,
+      })
+      setCustomerStatusOptions(response.statuses)
+    } catch {
+      setCustomerStatusOptions([])
+    }
+  }, [accessToken])
+
   const loadUsers = useCallback(async () => {
     try {
       const response = await apiRequest<{ users: ManagedUser[] }>('/admin/users', {
@@ -243,14 +259,24 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }, [loadTags])
 
   useEffect(() => {
+    loadCustomerStatuses()
+  }, [loadCustomerStatuses])
+
+  useEffect(() => {
     loadUsers()
   }, [loadUsers])
 
   useEffect(() => {
-    if (activeView === 'admin' && currentUser.role !== 'admin') {
+    if ((activeView === 'admin' || activeView === 'create-customer') && currentUser.role !== 'admin') {
       navigate('/flow', { replace: true })
     }
   }, [activeView, currentUser.role, navigate])
+
+  useEffect(() => {
+    if (activeView === 'create-customer') {
+      void loadFlows()
+    }
+  }, [activeView, loadFlows])
 
   useEffect(() => {
     if (!routeCustomerId) return
@@ -269,17 +295,37 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }, [customers, navigate, overviewLoading, routeCustomerId, selectedCustomerId])
 
-  async function handleCreateCustomer(payload: { flowId: number; name: string }) {
+  async function handleCreateCustomer(payload: CustomerCreatePayload) {
     try {
       setOverviewError('')
       setCreateCustomerLoading(true)
-      await apiRequest('/admin/customers', {
+      const createdCustomer = await apiRequest<{ id: number; name: string; slug: string }>('/admin/customers', {
         method: 'POST',
         token: accessToken,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          flowId: payload.flowId,
+          name: payload.name,
+        }),
       })
-      setModal(null)
+
+      await apiRequest(`/admin/customers/${createdCustomer.id}`, {
+        method: 'PATCH',
+        token: accessToken,
+        body: JSON.stringify({
+          costPackage: payload.info.costPackage,
+          costSyrup: payload.info.costSyrup,
+          dueDate: payload.dueDate,
+          name: payload.name,
+          price: payload.info.price,
+          salesperson: payload.salesperson,
+          status: payload.status,
+          tagsText: payload.tagsText,
+          volume: payload.info.volume,
+        }),
+      })
+
       await loadOverview()
+      navigate('/flow/customers')
       toast.success('Created customer.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to create customer.')
@@ -288,9 +334,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }
 
-  function openCreateCustomerModal() {
+  function openCreateCustomerPage() {
     void loadFlows()
-    setModal({ type: 'create-customer' })
+    navigate('/flow/customers/new')
   }
 
   function openTagModal(customerId: string) {
@@ -749,8 +795,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   async function handleDeleteInfoCustomer() {
     if (!infoCustomer?.databaseId) return
     if (!(await confirmToast({
+      cancelLabel: 'Cancel',
       confirmLabel: 'Delete',
-      message: `Delete customer ${infoCustomer.name}? This will remove its workflow data and tags.`,
+      dangerNote: 'ระบบจะลบข้อมูลทั้งหมดของลูกค้า "${infoCustomer.name}"?',
+      message: `Are you sure you want to permanently delete "${infoCustomer.name}"?`,
       title: 'Delete customer',
     }))) return
 
@@ -767,6 +815,34 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         navigate('/flow')
       }
       await loadOverview()
+      toast.success('Deleted customer.')
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Unable to delete customer.')
+    } finally {
+      setCustomerDeleting(false)
+    }
+  }
+
+  async function handleDeleteSelectedCustomer() {
+    if (!selectedCustomer?.databaseId) return
+    if (!(await confirmToast({
+      cancelLabel: 'Cancel',
+      confirmLabel: 'Delete',
+      dangerNote: `ระบบจะลบข้อมูลของลูกค้า ${selectedCustomer.name} ออกจากระบบ`,
+      message: `คุณแน่ใจแล้วหรือไม่ ที่จะลบข้อมูลของลูกค้า ${selectedCustomer.name} ออกจากระบบ`,
+      title: 'Delete customer',
+    }))) return
+
+    try {
+      setOverviewError('')
+      setCustomerDeleting(true)
+      await apiRequest(`/admin/customers/${selectedCustomer.databaseId}`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setSelectedCustomerId(null)
+      await loadOverview()
+      navigate('/flow/customers')
       toast.success('Deleted customer.')
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : 'Unable to delete customer.')
@@ -810,11 +886,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {activeView === 'overview' && (
         <OverviewView
           customers={customers}
+          customerStatusOptions={customerStatusOptions}
           error={overviewError}
           loading={overviewLoading}
           onAddTag={openTagModal}
           onEditTag={openEditTagModal}
-          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
+          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerPage : undefined}
           onOpenCompany={openCustomerEditor}
           onOpenCustomer={openCustomer}
           onOpenInfo={(customerId) => setModal({ type: 'customer-info', customerId })}
@@ -825,8 +902,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {activeView === 'customers' && (
         <CustomerListView
           customers={customers}
+          customerStatusOptions={customerStatusOptions}
           loading={overviewLoading}
-          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerModal : undefined}
+          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerPage : undefined}
           onOpenCustomer={openCustomer}
         />
       )}
@@ -852,12 +930,29 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {activeView === 'edit-customer' && selectedCustomer && (
         <CustomerEditView
+          canDelete={Boolean(selectedCustomer.databaseId)}
           customer={selectedCustomer}
+          customerStatusOptions={customerStatusOptions}
           customers={customers}
+          deleting={customerDeleting}
           loading={customerSaving}
           onBack={() => navigate('/flow')}
+          onDelete={() => void handleDeleteSelectedCustomer()}
           onRemoveTag={handleRemoveCustomerEditTag}
           onSave={handleSaveCustomerEdit}
+          salespersonName={currentUser.name}
+          salespersonOptions={salespersonOptions}
+        />
+      )}
+
+      {activeView === 'create-customer' && currentUser.role === 'admin' && (
+        <CustomerCreateView
+          customerStatusOptions={customerStatusOptions}
+          customers={customers}
+          flows={availableFlows}
+          loading={createCustomerLoading}
+          onBack={() => navigate('/flow/customers')}
+          onCreate={handleCreateCustomer}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
         />
@@ -874,26 +969,19 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {activeView === 'config' && <ConfigView />}
 
-      {activeView === 'admin' && currentUser.role === 'admin' && <AdminDashboard token={accessToken} />}
+      {activeView === 'admin' && currentUser.role === 'admin' && (
+        <AdminDashboard onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+      )}
 
       {modal?.type === 'customer-info' && infoCustomer && (
         <CustomerInfoModal
           canDelete={Boolean(infoCustomer.databaseId)}
           customer={infoCustomer}
+          customerStatusOptions={customerStatusOptions}
           deleting={customerDeleting}
           onClose={() => setModal(null)}
           onDelete={() => void handleDeleteInfoCustomer()}
           onEdit={() => openCustomerEditor(infoCustomer.id)}
-        />
-      )}
-
-      {modal?.type === 'create-customer' && (
-        <CreateCustomerModal
-          customers={customers}
-          flows={availableFlows}
-          loading={createCustomerLoading}
-          onClose={() => setModal(null)}
-          onCreate={handleCreateCustomer}
         />
       )}
 

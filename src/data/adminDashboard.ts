@@ -57,6 +57,16 @@ export type ManagedCustomerProject = {
   updatedAt: string
 }
 
+export type ManagedCustomerStatus = {
+  id: number
+  value: string
+  label: string
+  sortOrder: number
+  status: 'active' | 'inactive'
+  customerCount: number
+  updatedAt: string
+}
+
 export type ManagedTag = {
   id: number
   name: string
