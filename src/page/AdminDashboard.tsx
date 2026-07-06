@@ -19,6 +19,7 @@ import { getCustomerStatusLabel } from '../data/oemWorkflow'
 import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
   AppRole,
+  ManagedCustomerStatus,
   ManagedDepartment,
   ManagedCustomerProject,
   ManagedFlow,
@@ -39,6 +40,7 @@ const selectClass = 'h-12 rounded-xl !border !border-slate-200 !bg-white px-4 te
 const primaryButtonClass = 'min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none'
 const dangerButtonClass = 'min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
 const softButtonClass = 'min-h-10 rounded-xl !border !border-teal-100 !bg-teal-50 px-4 text-sm font-black !text-teal-800 transition hover:!bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50'
+const customerRowsPerPage = 10
 
 function getStatusBadgeClass(status: string) {
   if (status === 'active' || status === 'brief_spec') return 'inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800'
@@ -52,11 +54,13 @@ function formatAdminDate(value: string) {
 }
 
 type AdminDashboardProps = {
+  onCustomerStatusesChange?: () => void
   token: string
 }
 
 type FlowDraft = Pick<ManagedFlow, 'name' | 'status'>
 type TagDraft = Pick<ManagedTag, 'color' | 'name'>
+type CustomerStatusDraft = Pick<ManagedCustomerStatus, 'label' | 'sortOrder' | 'status' | 'value'>
 
 type DepartmentDetailState = {
   department: ManagedDepartment
@@ -65,16 +69,20 @@ type DepartmentDetailState = {
   workItems: DepartmentWorkItem[]
 }
 
-function AdminDashboard({ token }: AdminDashboardProps) {
+function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [customers, setCustomers] = useState<ManagedCustomerProject[]>([])
+  const [customerStatuses, setCustomerStatuses] = useState<ManagedCustomerStatus[]>([])
   const [departments, setDepartments] = useState<ManagedDepartment[]>([])
   const [flows, setFlows] = useState<ManagedFlow[]>([])
   const [tags, setTags] = useState<ManagedTag[]>([])
   const [flowDrafts, setFlowDrafts] = useState<Record<number, FlowDraft>>({})
   const [tagDrafts, setTagDrafts] = useState<Record<number, TagDraft>>({})
+  const [statusDrafts, setStatusDrafts] = useState<Record<number, CustomerStatusDraft>>({})
   const [newDepartmentName, setNewDepartmentName] = useState('')
   const [newFlowName, setNewFlowName] = useState('')
+  const [newStatusLabel, setNewStatusLabel] = useState('')
+  const [newStatusValue, setNewStatusValue] = useState('')
   const [newUser, setNewUser] = useState<NewUserDraft>({
     departmentIds: [],
     email: '',
@@ -93,6 +101,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   const [userDetail, setUserDetail] = useState<ManagedUser | null>(null)
   const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
+  const [customerPage, setCustomerPage] = useState(1)
 
   const stats = useMemo(
     () => ({
@@ -100,27 +109,43 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       admins: users.filter((user) => user.role === 'admin').length,
       activeDepartments: departments.filter((department) => department.status === 'active').length,
       customerCount: customers.length,
+      customerStatusCount: customerStatuses.filter((status) => status.status === 'active').length,
       activeFlows: flows.filter((flow) => flow.status === 'active').length,
       activeTags: tags.filter((tag) => tag.status === 'active').length,
       inactiveUsers: users.filter((user) => user.status === 'inactive').length,
     }),
-    [customers, departments, flows, tags, users],
+    [customerStatuses, customers, departments, flows, tags, users],
   )
+
+  const customerPageCount = Math.max(1, Math.ceil(customers.length / customerRowsPerPage))
+  const currentCustomerPage = Math.min(customerPage, customerPageCount)
+  const paginatedCustomers = useMemo(
+    () => {
+      const startIndex = (currentCustomerPage - 1) * customerRowsPerPage
+
+      return customers.slice(startIndex, startIndex + customerRowsPerPage)
+    },
+    [currentCustomerPage, customers],
+  )
+  const customerRangeStart = customers.length === 0 ? 0 : (currentCustomerPage - 1) * customerRowsPerPage + 1
+  const customerRangeEnd = Math.min(currentCustomerPage * customerRowsPerPage, customers.length)
 
   async function loadAdminData() {
     try {
       setError('')
       setLoading(true)
-      const [usersResponse, departmentsResponse, flowsResponse, tagsResponse, customersResponse] = await Promise.all([
+      const [usersResponse, departmentsResponse, flowsResponse, tagsResponse, customersResponse, statusesResponse] = await Promise.all([
         apiRequest<{ users: ManagedUser[] }>('/admin/users', { token }),
         apiRequest<{ departments: ManagedDepartment[] }>('/admin/departments', { token }),
         apiRequest<{ flows: ManagedFlow[] }>('/admin/flows', { token }),
         apiRequest<{ tags: ManagedTag[] }>('/admin/tags', { token }),
         apiRequest<{ customers: ManagedCustomerProject[] }>('/admin/customers', { token }),
+        apiRequest<{ statuses: ManagedCustomerStatus[] }>('/admin/customer-statuses', { token }),
       ])
 
       setUsers(usersResponse.users)
       setCustomers(customersResponse.customers)
+      setCustomerStatuses(statusesResponse.statuses)
       setDepartments(departmentsResponse.departments)
       setFlows(flowsResponse.flows)
       setTags(tagsResponse.tags)
@@ -146,16 +171,31 @@ function AdminDashboard({ token }: AdminDashboardProps) {
           ]),
         ),
       )
+      setStatusDrafts(
+        Object.fromEntries(
+          statusesResponse.statuses.map((status) => [
+            status.id,
+            {
+              label: status.label,
+              sortOrder: status.sortOrder,
+              status: status.status,
+              value: status.value,
+            },
+          ]),
+        ),
+      )
       setSourceFlowId(flowsResponse.flows[0]?.id || 0)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load admin data.')
       setUsers([])
       setCustomers([])
+      setCustomerStatuses([])
       setDepartments([])
       setFlows([])
       setTags([])
       setFlowDrafts({})
       setTagDrafts({})
+      setStatusDrafts({})
       setSourceFlowId(0)
     } finally {
       setLoading(false)
@@ -189,6 +229,14 @@ function AdminDashboard({ token }: AdminDashboardProps) {
   useEffect(() => {
     loadAdminData()
   }, [token])
+
+  useEffect(() => {
+    setCustomerPage(1)
+  }, [token])
+
+  useEffect(() => {
+    setCustomerPage((current) => Math.min(current, customerPageCount))
+  }, [customerPageCount])
 
   useEffect(() => {
     if (error) toast.error(error)
@@ -770,6 +818,101 @@ function AdminDashboard({ token }: AdminDashboardProps) {
     }
   }
 
+  function updateStatusDraft(statusId: number, patch: Partial<CustomerStatusDraft>) {
+    setStatusDrafts((current) => ({
+      ...current,
+      [statusId]: {
+        ...current[statusId],
+        ...patch,
+      },
+    }))
+  }
+
+  async function createCustomerStatus() {
+    const label = newStatusLabel.trim()
+    const value = newStatusValue.trim()
+    if (!label) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction('status-create')
+      await apiRequest('/admin/customer-statuses', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ label, value }),
+      })
+      setNewStatusLabel('')
+      setNewStatusValue('')
+      await loadAdminData()
+      onCustomerStatusesChange?.()
+      setActionMessage('Created status.')
+    } catch (createError) {
+      setActionError(createError instanceof Error ? createError.message : 'Failed to create status.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  async function saveCustomerStatus(statusId: number) {
+    const draft = statusDrafts[statusId]
+    if (!draft || !draft.label.trim() || !draft.value.trim()) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`status-update-${statusId}`)
+      await apiRequest(`/admin/customer-statuses/${statusId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({
+          label: draft.label,
+          sortOrder: Number(draft.sortOrder || 0),
+          status: draft.status,
+          value: draft.value,
+        }),
+      })
+      await loadAdminData()
+      onCustomerStatusesChange?.()
+      setActionMessage('Updated status.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update status.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  async function deleteCustomerStatus(statusId: number) {
+    const status = customerStatuses.find((item) => item.id === statusId)
+    if (!(await confirmToast({
+      confirmLabel: 'Delete',
+      message: `Delete status ${status?.label || ''}?`,
+      title: 'Delete status',
+    }))) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`status-delete-${statusId}`)
+      await apiRequest(`/admin/customer-statuses/${statusId}`, {
+        method: 'DELETE',
+        token,
+      })
+      setCustomerStatuses((current) => current.filter((item) => item.id !== statusId))
+      setStatusDrafts((current) => {
+        const next = { ...current }
+        delete next[statusId]
+        return next
+      })
+      onCustomerStatusesChange?.()
+      setActionMessage('Deleted status.')
+    } catch (deleteError) {
+      setActionError(deleteError instanceof Error ? deleteError.message : 'Failed to delete status.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function deleteCustomer(customerId: number) {
     const customer = customers.find((item) => item.id === customerId)
     if (!(await confirmToast({
@@ -813,12 +956,13 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       {actionMessage && <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{actionMessage}</p>}
       {loading && <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading admin data...</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" aria-label="Admin summary">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8" aria-label="Admin summary">
         {[
           ['Active users', stats.activeUsers],
           ['Admins', stats.admins],
           ['Departments', stats.activeDepartments],
           ['Customers', stats.customerCount],
+          ['Statuses', stats.customerStatusCount],
           ['Active flows', stats.activeFlows],
           ['Tags', stats.activeTags],
           ['Inactive users', stats.inactiveUsers],
@@ -952,6 +1096,144 @@ function AdminDashboard({ token }: AdminDashboardProps) {
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
+            <h2 className="m-0 text-xl font-black text-slate-950">Customer Statuses</h2>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+              Add, edit, disable, or remove statuses used in customer status dropdowns.
+            </p>
+          </div>
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(180px,260px)_minmax(140px,180px)_auto]">
+            <input
+              aria-label="New status label"
+              className={inputClass}
+              onChange={(event) => setNewStatusLabel(event.target.value)}
+              placeholder="Status label"
+              value={newStatusLabel}
+            />
+            <input
+              aria-label="New status code"
+              className={inputClass}
+              onChange={(event) => setNewStatusValue(event.target.value)}
+              placeholder="Code (optional)"
+              value={newStatusValue}
+            />
+            <button
+              className={primaryButtonClass}
+              disabled={Boolean(busyAction) || !newStatusLabel.trim()}
+              onClick={createCustomerStatus}
+              type="button"
+            >
+              {busyAction === 'status-create' ? 'Adding...' : 'Add status'}
+            </button>
+          </div>
+        </div>
+
+        <div className={tableWrapClass}>
+          <table className={`${tableClass} min-w-[980px]`}>
+            <thead>
+              <tr>
+                <th className={thClass}>Label</th>
+                <th className={thClass}>Code</th>
+                <th className={thClass}>Order</th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Used by</th>
+                <th className={thClass}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && customerStatuses.length === 0 && (
+                <tr>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No customer statuses found.</td>
+                </tr>
+              )}
+              {customerStatuses.map((status) => {
+                const draft = statusDrafts[status.id] || {
+                  label: status.label,
+                  sortOrder: status.sortOrder,
+                  status: status.status,
+                  value: status.value,
+                }
+                const hasChanges =
+                  draft.label !== status.label ||
+                  draft.sortOrder !== status.sortOrder ||
+                  draft.status !== status.status ||
+                  draft.value !== status.value
+
+                return (
+                  <tr className="group" key={status.id}>
+                    <td className={tdClass}>
+                      <input
+                        aria-label={`Label for ${status.label}`}
+                        className={inputClass}
+                        onChange={(event) => updateStatusDraft(status.id, { label: event.target.value })}
+                        value={draft.label}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        aria-label={`Code for ${status.label}`}
+                        className={inputClass}
+                        onChange={(event) => updateStatusDraft(status.id, { value: event.target.value })}
+                        value={draft.value}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        aria-label={`Sort order for ${status.label}`}
+                        className={`${inputClass} max-w-28`}
+                        min={0}
+                        onChange={(event) => updateStatusDraft(status.id, { sortOrder: Number(event.target.value || 0) })}
+                        type="number"
+                        value={draft.sortOrder}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <select
+                        aria-label={`Status state for ${status.label}`}
+                        className={selectClass}
+                        onChange={(event) => updateStatusDraft(status.id, { status: event.target.value as ManagedCustomerStatus['status'] })}
+                        value={draft.status}
+                      >
+                        <option value="active">active</option>
+                        <option value="inactive">inactive</option>
+                      </select>
+                    </td>
+                    <td className={tdClass}>
+                      <span className="inline-flex min-w-10 justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">
+                        {status.customerCount}
+                      </span>
+                    </td>
+                    <td className={tdClass}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          className={primaryButtonClass}
+                          disabled={Boolean(busyAction) || !hasChanges || !draft.label.trim() || !draft.value.trim()}
+                          onClick={() => saveCustomerStatus(status.id)}
+                          type="button"
+                        >
+                          {busyAction === `status-update-${status.id}` ? 'Updating...' : 'Update'}
+                        </button>
+                        <button
+                          className={dangerButtonClass}
+                          disabled={Boolean(busyAction) || status.customerCount > 0}
+                          onClick={() => deleteCustomerStatus(status.id)}
+                          title={status.customerCount > 0 ? 'Status is used by customers' : 'Delete status'}
+                          type="button"
+                        >
+                          {busyAction === `status-delete-${status.id}` ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={cardClass}>
+        <div className={cardHeadClass}>
+          <div>
             <h2 className="m-0 text-xl font-black text-slate-950">Customers</h2>
             <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
               Review customer projects and delete records that should no longer appear in the workflow.
@@ -977,7 +1259,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                   <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No customers found in database.</td>
                 </tr>
               )}
-              {customers.map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <tr className="group" key={customer.id}>
                   <td className={tdClass}>
                     <strong className="block text-base font-black text-slate-950">{customer.name}</strong>
@@ -986,7 +1268,7 @@ function AdminDashboard({ token }: AdminDashboardProps) {
                   <td className={tdClass}>{customer.flowName || '-'}</td>
                   <td className={tdClass}>{customer.currentPhaseName || '-'}</td>
                   <td className={tdClass}>
-                    <span className={getStatusBadgeClass(customer.status)}>{getCustomerStatusLabel(customer.status)}</span>
+                    <span className={getStatusBadgeClass(customer.status)}>{getCustomerStatusLabel(customer.status, customerStatuses)}</span>
                   </td>
                   <td className={`${tdClass} text-slate-500`}>{formatAdminDate(customer.updatedAt)}</td>
                   <td className={tdClass}>
@@ -1003,6 +1285,34 @@ function AdminDashboard({ token }: AdminDashboardProps) {
               ))}
             </tbody>
           </table>
+          {customers.length > customerRowsPerPage && (
+            <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="m-0 text-sm font-bold text-slate-500">
+                Showing {customerRangeStart}-{customerRangeEnd} of {customers.length} customers
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  className="min-h-10 rounded-xl !border !border-slate-200 !bg-white px-4 text-sm font-black !text-slate-700 shadow-sm transition hover:!border-teal-200 hover:!bg-teal-50 hover:!text-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-400 disabled:shadow-none"
+                  disabled={currentCustomerPage === 1}
+                  onClick={() => setCustomerPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  Previous
+                </button>
+                <span className="inline-flex min-h-10 items-center rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-600">
+                  Page {currentCustomerPage} / {customerPageCount}
+                </span>
+                <button
+                  className="min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
+                  disabled={currentCustomerPage === customerPageCount}
+                  onClick={() => setCustomerPage((current) => Math.min(customerPageCount, current + 1))}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

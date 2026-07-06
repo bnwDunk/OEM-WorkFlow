@@ -75,25 +75,30 @@ export type Customer = {
   issues: IssueItem[]
 }
 
-export type CustomerStatus =
-  | 'brief_spec'
-  | 'sampling'
-  | 'sample_revision'
-  | 'follow_up_formula'
-  | 'quote_negotiation'
-  | 'success'
+export type CustomerStatus = string
 
-export const customerStatusOptions: { label: string; value: CustomerStatus }[] = [
+export type CustomerStatusOption = {
+  id?: number
+  label: string
+  value: CustomerStatus
+  sortOrder?: number
+  status?: 'active' | 'inactive'
+  customerCount?: number
+  updatedAt?: string
+}
+
+export const customerStatusOptions: CustomerStatusOption[] = [
   { label: 'รับโจทย์/สรุปสเปค', value: 'brief_spec' },
   { label: 'ส่งตัวอย่าง (Sampling)', value: 'sampling' },
   { label: 'ส่งตัวอย่าง (แก้ไข)', value: 'sample_revision' },
   { label: 'ติดตามผล/ปรับสูตร', value: 'follow_up_formula' },
   { label: 'เสนอราคา & เจรจา', value: 'quote_negotiation' },
   { label: 'สำเร็จ (Success)', value: 'success' },
+  { label: 'ยกเลิก (Cancel)', value: 'cancel' },
 ]
 
-export function getCustomerStatusLabel(status: CustomerStatus | undefined) {
-  return customerStatusOptions.find((option) => option.value === status)?.label || 'รับโจทย์/สรุปสเปค'
+export function getCustomerStatusLabel(status: CustomerStatus | undefined, options: CustomerStatusOption[] = customerStatusOptions) {
+  return options.find((option) => option.value === status)?.label || customerStatusOptions.find((option) => option.value === status)?.label || status || 'รับโจทย์/สรุปสเปค'
 }
 
 export const stages: StageTemplate[] = [

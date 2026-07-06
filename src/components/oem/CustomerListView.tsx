@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react'
-import { flowStops, getCustomerStatusLabel } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { useEffect, useMemo, useState } from 'react'
+import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatusOption } from '../../data/oemWorkflow'
 import { formatDate } from '../../lib/dateFormat'
+
+const customerRowsPerPage = 10
 
 type CustomerListViewProps = {
   customers: Customer[]
+  customerStatusOptions?: CustomerStatusOption[]
   loading: boolean
   onCreateCustomer?: () => void
   onOpenCustomer: (customerId: string) => void
@@ -44,8 +47,9 @@ function formatNumber(value: string | undefined) {
   return numericValue.toLocaleString('en-US')
 }
 
-function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer }: CustomerListViewProps) {
+function CustomerListView({ customers, customerStatusOptions = fallbackCustomerStatusOptions, loading, onCreateCustomer, onOpenCustomer }: CustomerListViewProps) {
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
   const normalizedQuery = query.trim().toLowerCase()
 
   const filteredCustomers = useMemo(
@@ -57,7 +61,7 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
         const searchable = [
           customer.name,
           customer.salesperson || '',
-          getCustomerStatusLabel(customer.status),
+          getCustomerStatusLabel(customer.status, customerStatusOptions),
           currentStop?.name || '',
           customer.dueDate || '',
           customer.info.costSyrup,
@@ -69,8 +73,28 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
 
         return searchable.includes(normalizedQuery)
       }),
-    [customers, normalizedQuery],
+    [customerStatusOptions, customers, normalizedQuery],
   )
+  const pageCount = Math.max(1, Math.ceil(filteredCustomers.length / customerRowsPerPage))
+  const currentPage = Math.min(page, pageCount)
+  const paginatedCustomers = useMemo(
+    () => {
+      const startIndex = (currentPage - 1) * customerRowsPerPage
+
+      return filteredCustomers.slice(startIndex, startIndex + customerRowsPerPage)
+    },
+    [currentPage, filteredCustomers],
+  )
+  const rangeStart = filteredCustomers.length === 0 ? 0 : (currentPage - 1) * customerRowsPerPage + 1
+  const rangeEnd = Math.min(currentPage * customerRowsPerPage, filteredCustomers.length)
+
+  useEffect(() => {
+    setPage(1)
+  }, [normalizedQuery])
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount))
+  }, [pageCount])
 
   return (
     <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
@@ -130,7 +154,7 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
                     </td>
                   </tr>
                 )}
-                {filteredCustomers.map((customer) => {
+                {paginatedCustomers.map((customer) => {
                   const currentStop = flowStops[customer.currentPhase]
                   const productText = customer.tags.map((tag) => tag.name).join(', ') || '-'
 
@@ -147,7 +171,7 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
                         </div>
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{productText}</td>
-                      <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{getCustomerStatusLabel(customer.status)}</td>
+                      <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{getCustomerStatusLabel(customer.status, customerStatusOptions)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-600">{formatDate(customer.dueDate)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{getDaysLeft(customer.dueDate)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(customer.info.costSyrup)}</td>
@@ -160,6 +184,34 @@ function CustomerListView({ customers, loading, onCreateCustomer, onOpenCustomer
               </tbody>
             </table>
           </div>
+          {filteredCustomers.length > customerRowsPerPage && (
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="m-0 text-sm font-bold text-slate-500">
+                Showing {rangeStart}-{rangeEnd} of {filteredCustomers.length}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="min-h-10 rounded-xl !border !border-slate-200 !bg-white px-4 text-sm font-black !text-slate-700 shadow-sm transition hover:!border-teal-200 hover:!bg-teal-50 hover:!text-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-400 disabled:shadow-none"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  Previous
+                </button>
+                <span className="inline-flex min-h-10 items-center rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-600">
+                  Page {currentPage} / {pageCount}
+                </span>
+                <button
+                  className="min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
+                  disabled={currentPage === pageCount}
+                  onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

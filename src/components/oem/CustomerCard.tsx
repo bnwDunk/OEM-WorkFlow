@@ -1,12 +1,13 @@
 import { FaEdit } from 'react-icons/fa'
 import { IoWarning } from 'react-icons/io5'
 import type { KeyboardEvent, MouseEvent } from 'react'
-import { flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus, CustomerTag } from '../../data/oemWorkflow'
+import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
 import StageRail from './StageRail'
 
 type CustomerCardProps = {
   customer: Customer
+  customerStatusOptions?: CustomerStatusOption[]
   onAddTag: (customerId: string) => void
   onEditTag: (customerId: string, tag: CustomerTag) => void
   onOpen: (customerId: string) => void
@@ -14,16 +15,19 @@ type CustomerCardProps = {
   onOpenInfo: (customerId: string) => void
 }
 
-const customerStatusStyles: Record<CustomerStatus, string> = {
+const customerStatusStyles: Record<string, string> = {
   brief_spec: 'border-indigo-200 bg-indigo-50 text-indigo-800 shadow-indigo-100/70',
   sampling: 'border-sky-200 bg-sky-50 text-sky-800 shadow-sky-100/70',
   sample_revision: 'border-orange-200 bg-orange-50 text-orange-800 shadow-orange-100/70',
   follow_up_formula: 'border-yellow-200 bg-yellow-50 text-yellow-800 shadow-yellow-100/70',
   quote_negotiation: 'border-purple-200 bg-purple-50 text-purple-800 shadow-purple-100/70',
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800 shadow-emerald-100/70',
+  cancel: 'border-rose-200 bg-rose-50 text-rose-800 shadow-rose-100/70',
 }
 
-function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {
+const defaultCustomerStatusStyle = 'border-slate-200 bg-slate-50 text-slate-800 shadow-slate-100/70'
+
+function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatusOptions, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {
   const currentStop = flowStops[customer.currentPhase]
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
   const status = customer.status || 'brief_spec'
@@ -78,7 +82,7 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
           </button>
           <div className="mt-3 flex max-w-full items-start">
             <div
-              className={`inline-flex min-h-9 max-w-full items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-black leading-tight shadow-sm ring-1 ring-white/70 ${customerStatusStyles[status]}`}
+              className={`inline-flex min-h-9 max-w-full items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-black leading-tight shadow-sm ring-1 ring-white/70 ${customerStatusStyles[status] || defaultCustomerStatusStyle}`}
             >
               <span className="relative flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-white/80">
                 <span className="h-2 w-2 rounded-full bg-current" />
@@ -86,7 +90,7 @@ function CustomerCard({ customer, onAddTag, onEditTag, onOpen, onOpenCompany, on
               <span className="rounded-full bg-white/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-normal opacity-75">
                 Status
               </span>
-              <strong className="min-w-0 text-[12px] [overflow-wrap:anywhere]">{getCustomerStatusLabel(status)}</strong>
+              <strong className="min-w-0 text-[12px] [overflow-wrap:anywhere]">{getCustomerStatusLabel(status, customerStatusOptions)}</strong>
             </div>
           </div>
           <div className="tag-row">

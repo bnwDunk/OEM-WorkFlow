@@ -4,6 +4,7 @@ import type { Customer } from '../../data/oemWorkflow'
 export type CustomerNameOption = Pick<Customer, 'id' | 'name'> & Partial<Pick<Customer, 'currentPhase' | 'status' | 'tags'>>
 
 type CustomerNameComboboxProps = {
+  allowDuplicateNames?: boolean
   autoFocus?: boolean
   customers?: CustomerNameOption[]
   excludeCustomerId?: string
@@ -23,6 +24,7 @@ export function normalizeCustomerName(value: string) {
 }
 
 function CustomerNameCombobox({
+  allowDuplicateNames = false,
   autoFocus = false,
   customers = [],
   excludeCustomerId,
@@ -51,7 +53,7 @@ function CustomerNameCombobox({
   }, [customers, excludeCustomerId])
 
   const normalizedName = normalizeCustomerName(value)
-  const duplicateCustomer = normalizedName
+  const duplicateCustomer = !allowDuplicateNames && normalizedName
     ? customerHistory.find((item) => normalizeCustomerName(item.name) === normalizedName)
     : undefined
   const suggestedCustomers = customerHistory
@@ -128,7 +130,7 @@ function CustomerNameCombobox({
                 <div className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-400">No matching customer</div>
               )}
               {suggestedCustomers.map((item, index) => {
-                const exactMatch = normalizeCustomerName(item.name) === normalizedName
+                const exactMatch = !allowDuplicateNames && normalizeCustomerName(item.name) === normalizedName
                 return (
                   <button
                     className={`flex min-h-11 w-full items-center justify-between gap-3 !border-0 px-4 py-2 text-left text-sm font-black shadow-none transition ${
