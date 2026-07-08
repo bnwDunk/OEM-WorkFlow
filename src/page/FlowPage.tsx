@@ -312,15 +312,15 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         method: 'PATCH',
         token: accessToken,
         body: JSON.stringify({
-          costPackage: payload.info.costPackage,
-          costSyrup: payload.info.costSyrup,
-          dueDate: payload.dueDate,
+          costPackage: payload.info.costPackage || null,
+          costSyrup: payload.info.costSyrup || null,
+          dueDate: payload.dueDate || null,
           name: payload.name,
-          price: payload.info.price,
-          salesperson: payload.salesperson,
+          price: payload.info.price || null,
+          salesperson: payload.salesperson || null,
           status: payload.status,
           tagsText: payload.tagsText,
-          volume: payload.info.volume,
+          volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
         }),
       })
 
