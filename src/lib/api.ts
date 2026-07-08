@@ -108,7 +108,7 @@ async function sendRequest(path: string, options: ApiOptions = {}): Promise<Resp
   headers.set('Accept', 'application/json; charset=utf-8')
   headers.set('Content-Type', 'application/json; charset=utf-8')
 
-  const token = options.token || localStorage.getItem('oem-access-token')
+  const token = localStorage.getItem('oem-access-token') || options.token
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
