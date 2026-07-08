@@ -1263,7 +1263,6 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
                 <tr className="group" key={customer.id}>
                   <td className={tdClass}>
                     <strong className="block text-base font-black text-slate-950">{customer.name}</strong>
-                    <span className="text-xs font-bold text-slate-400">{customer.slug}</span>
                   </td>
                   <td className={tdClass}>{customer.flowName || '-'}</td>
                   <td className={tdClass}>{customer.currentPhaseName || '-'}</td>
