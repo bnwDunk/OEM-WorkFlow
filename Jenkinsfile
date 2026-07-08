@@ -99,10 +99,18 @@ pipeline {
       }
     }
 
+    stage('Clean Docker Stack') {
+      steps {
+        script {
+          composeCommand('down -v --remove-orphans --rmi local', true)
+        }
+      }
+    }
+
     stage('Build Images') {
       steps {
         script {
-          composeCommand('build')
+          composeCommand('build --no-cache')
         }
       }
     }
@@ -156,6 +164,7 @@ pipeline {
     failure {
       script {
         composeCommand('ps', true)
+        composeCommand('logs --tail=160 mysql db-migrate workflow-sync backend', true)
       }
     }
   }
