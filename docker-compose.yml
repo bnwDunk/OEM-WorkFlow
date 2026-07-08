@@ -3,13 +3,14 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
+      MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD:-yes}
       MYSQL_DATABASE: ${DB_NAME:-oem_app}
     volumes:
       - oem_mysql_data:/var/lib/mysql
       - ${BACKEND_CONTEXT:-../../OEM-backend}/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "if [ -n \"$$MYSQL_ROOT_PASSWORD\" ]; then mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent; else mysqladmin ping -h 127.0.0.1 -uroot --silent; fi"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -23,8 +24,8 @@ services:
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      PMA_USER: ${PMA_USER:-root}
+      PMA_PASSWORD: ${PMA_PASSWORD:-}
       UPLOAD_LIMIT: ${PHPMYADMIN_UPLOAD_LIMIT:-128M}
     ports:
       - "${PHPMYADMIN_PORT:-8089}:80"
@@ -43,8 +44,8 @@ services:
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8088}
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-oem_app}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
@@ -73,8 +74,8 @@ services:
       NODE_ENV: production
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-oem_app}
     volumes:
       - ${FRONTEND_WORKFLOW_FILE:-./src/data/oemWorkflow.ts}:/OEM/oem-workflow/src/data/oemWorkflow.ts:ro
@@ -91,8 +92,8 @@ services:
       NODE_ENV: production
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-oem_app}
 
   frontend:
