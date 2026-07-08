@@ -5,10 +5,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
       MYSQL_ALLOW_EMPTY_PASSWORD: ${MYSQL_ALLOW_EMPTY_PASSWORD:-yes}
+      MYSQL_ROOT_HOST: "${MYSQL_ROOT_HOST:-%}"
       MYSQL_DATABASE: ${DB_NAME:-oem_app}
     volumes:
       - oem_mysql_data:/var/lib/mysql
       - ${BACKEND_CONTEXT:-../../OEM-backend}/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./docker/mysql/002-users.sql:/docker-entrypoint-initdb.d/002-users.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "if [ -n \"$$MYSQL_ROOT_PASSWORD\" ]; then mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent; else mysqladmin ping -h 127.0.0.1 -uroot --silent; fi"]
       interval: 10s
