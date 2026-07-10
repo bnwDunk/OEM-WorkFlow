@@ -70,6 +70,7 @@ export type Customer = {
     volume: string
   }
   branch: BranchState[][]
+  workflowBranches?: BranchTemplate[][]
   singleResets: Record<number, boolean>
   notifications: NotificationItem[]
   issues: IssueItem[]

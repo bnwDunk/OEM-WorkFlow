@@ -236,6 +236,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }, [accessToken])
 
   const loadUsers = useCallback(async () => {
+    if (currentUser.role !== 'admin') {
+      setAvailableUsers([])
+      return
+    }
+
     try {
       const response = await apiRequest<{ users: ManagedUser[] }>('/admin/users', {
         token: accessToken,
@@ -244,7 +249,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     } catch {
       setAvailableUsers([])
     }
-  }, [accessToken])
+  }, [accessToken, currentUser.role])
 
   useEffect(() => {
     void loadOverview()
@@ -971,7 +976,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       {activeView === 'config' && (
         currentUser.role === 'admin'
           ? <AdminDashboard mode="config" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
-          : <ConfigView />
+          : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
       )}
 
       {activeView === 'admin' && currentUser.role === 'admin' && (
