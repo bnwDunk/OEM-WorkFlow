@@ -930,6 +930,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {activeView === 'edit-customer' && selectedCustomer && (
         <CustomerEditView
+          availableTags={availableTags}
           canDelete={Boolean(selectedCustomer.databaseId)}
           customer={selectedCustomer}
           customerStatusOptions={customerStatusOptions}
