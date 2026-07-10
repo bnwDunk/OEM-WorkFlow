@@ -79,6 +79,14 @@ Restart after code changes:
 docker compose --env-file .env.production up -d --build
 ```
 
+Stop the stack without deleting database data:
+
+```bash
+docker compose --env-file .env.production down --remove-orphans
+```
+
+Avoid `docker compose down -v` on production unless you intentionally want to delete the MySQL volume and reset the database.
+
 Run workflow sync again:
 
 ```bash
