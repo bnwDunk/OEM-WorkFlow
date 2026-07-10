@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import AddDepartmentModal from '../components/oem/admin/AddDepartmentModal'
 import DepartmentDetailModal from '../components/oem/admin/DepartmentDetailModal'
@@ -41,6 +41,16 @@ const primaryButtonClass = 'min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text
 const dangerButtonClass = 'min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
 const softButtonClass = 'min-h-10 rounded-xl !border !border-teal-100 !bg-teal-50 px-4 text-sm font-black !text-teal-800 transition hover:!bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50'
 const customerRowsPerPage = 10
+type ConfigSection = 'flows' | 'statuses' | 'customers' | 'tags' | 'users' | 'departments'
+
+const configSectionOptions: { description: string; label: string; value: ConfigSection }[] = [
+  { description: 'Workflow templates and phase structure', label: 'Flow Management', value: 'flows' },
+  { description: 'Customer status dropdown values', label: 'Customer Statuses', value: 'statuses' },
+  { description: 'Customer records and workflow data', label: 'Customers', value: 'customers' },
+  { description: 'Tag labels and colors', label: 'Tags', value: 'tags' },
+  { description: 'User access and department assignment', label: 'Users', value: 'users' },
+  { description: 'Department ownership and members', label: 'Departments', value: 'departments' },
+]
 
 function getStatusBadgeClass(status: string) {
   if (status === 'active' || status === 'brief_spec') return 'inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800'
@@ -54,6 +64,7 @@ function formatAdminDate(value: string) {
 }
 
 type AdminDashboardProps = {
+  mode?: 'admin' | 'config'
   onCustomerStatusesChange?: () => void
   token: string
 }
@@ -69,7 +80,7 @@ type DepartmentDetailState = {
   workItems: DepartmentWorkItem[]
 }
 
-function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps) {
+function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [customers, setCustomers] = useState<ManagedCustomerProject[]>([])
   const [customerStatuses, setCustomerStatuses] = useState<ManagedCustomerStatus[]>([])
@@ -102,6 +113,8 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
   const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
   const [customerPage, setCustomerPage] = useState(1)
+  const [configDropdownOpen, setConfigDropdownOpen] = useState(false)
+  const [configSection, setConfigSection] = useState<ConfigSection>('flows')
 
   const stats = useMemo(
     () => ({
@@ -129,8 +142,26 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
   )
   const customerRangeStart = customers.length === 0 ? 0 : (currentCustomerPage - 1) * customerRowsPerPage + 1
   const customerRangeEnd = Math.min(currentCustomerPage * customerRowsPerPage, customers.length)
+  const isAdminMode = mode === 'admin'
+  const summaryItems = isAdminMode
+    ? [
+        ['Active users', stats.activeUsers],
+        ['Admins', stats.admins],
+        ['Departments', stats.activeDepartments],
+        ['Customers', stats.customerCount],
+        ['Statuses', stats.customerStatusCount],
+        ['Active flows', stats.activeFlows],
+        ['Tags', stats.activeTags],
+        ['Inactive users', stats.inactiveUsers],
+      ]
+    : [
+        ['Active users', stats.activeUsers],
+        ['Admins', stats.admins],
+        ['Inactive users', stats.inactiveUsers],
+      ]
+  const selectedConfigSection = configSectionOptions.find((option) => option.value === configSection) || configSectionOptions[0]
 
-  async function loadAdminData() {
+  const loadAdminData = useCallback(async () => {
     try {
       setError('')
       setLoading(true)
@@ -200,7 +231,7 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
 
   function resetNewUserForm() {
     setNewUser({ departmentIds: [], email: '', name: '', password: 'password123', role: 'user' })
@@ -227,16 +258,8 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
   }
 
   useEffect(() => {
-    loadAdminData()
-  }, [token])
-
-  useEffect(() => {
-    setCustomerPage(1)
-  }, [token])
-
-  useEffect(() => {
-    setCustomerPage((current) => Math.min(current, customerPageCount))
-  }, [customerPageCount])
+    void loadAdminData()
+  }, [loadAdminData])
 
   useEffect(() => {
     if (error) toast.error(error)
@@ -942,11 +965,12 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
     <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
       <div className="mx-auto mb-6 flex max-w-7xl flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-teal-700">OEM Admin</p>
-          <h1 className="m-0 text-3xl font-black text-slate-950">Admin Dashboard</h1>
-          <p className="m-0 mt-2 text-sm font-semibold text-slate-500">
-            Manage user access, department ownership, and account status for the OEM workflow.
+          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-teal-700">
+            {isAdminMode ? 'OEM Admin' : 'OEM Config'}
           </p>
+          <h1 className="m-0 text-3xl font-black text-slate-950">
+            {isAdminMode ? 'Admin Dashboard' : 'Configuration'}
+          </h1>
         </div>
       </div>
 
@@ -956,24 +980,65 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
       {actionMessage && <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{actionMessage}</p>}
       {loading && <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading admin data...</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8" aria-label="Admin summary">
-        {[
-          ['Active users', stats.activeUsers],
-          ['Admins', stats.admins],
-          ['Departments', stats.activeDepartments],
-          ['Customers', stats.customerCount],
-          ['Statuses', stats.customerStatusCount],
-          ['Active flows', stats.activeFlows],
-          ['Tags', stats.activeTags],
-          ['Inactive users', stats.inactiveUsers],
-        ].map(([label, value]) => (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" key={label}>
-            <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
-            <strong className="mt-2 block text-3xl font-black text-slate-950">{value}</strong>
-          </div>
-        ))}
-      </div>
+      {isAdminMode && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8" aria-label="Admin summary">
+          {summaryItems.map(([label, value]) => (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" key={label}>
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
+              <strong className="mt-2 block text-3xl font-black text-slate-950">{value}</strong>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {!isAdminMode && (
+        <div className="relative z-20 justify-self-start">
+          <button
+            aria-expanded={configDropdownOpen}
+            aria-haspopup="menu"
+            className="inline-flex min-h-11 items-center gap-3 rounded-lg !border !border-teal-300 !bg-white px-4 text-base font-bold !text-slate-700 shadow-sm transition hover:!bg-teal-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            onClick={() => setConfigDropdownOpen((open) => !open)}
+            type="button"
+          >
+            Configuration
+            <span aria-hidden="true" className="h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent border-t-current" />
+          </button>
+          {configDropdownOpen && (
+            <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-slate-950/5" role="menu">
+              {configSectionOptions.map((option) => (
+                <button
+                  className={`grid min-h-12 w-full gap-0.5 !border-0 px-5 py-2.5 text-left shadow-none transition ${
+                    configSection === option.value
+                      ? '!bg-slate-100 !text-slate-900'
+                      : '!bg-transparent !text-slate-600 hover:!bg-teal-50 hover:!text-teal-800'
+                  }`}
+                  key={option.value}
+                  onClick={() => {
+                    setConfigSection(option.value)
+                    setConfigDropdownOpen(false)
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <span className="text-sm font-black">{option.label}</span>
+                  <span className="text-xs font-semibold text-slate-400">{option.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isAdminMode && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+          <span className="text-xs font-black uppercase tracking-wide text-teal-700">Selected Configuration</span>
+          <div className="mt-1 text-lg font-black text-slate-950">{selectedConfigSection.label}</div>
+          <p className="m-0 mt-1 text-sm font-semibold text-slate-500">{selectedConfigSection.description}</p>
+        </div>
+      )}
+
+      {!isAdminMode && configSection === 'flows' && (
+      <>
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
@@ -1092,7 +1157,10 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
           </table>
         </div>
       </section>
+      </>
+      )}
 
+      {!isAdminMode && configSection === 'statuses' && (
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
@@ -1230,7 +1298,9 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
           </table>
         </div>
       </section>
+      )}
 
+      {!isAdminMode && configSection === 'customers' && (
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
@@ -1314,7 +1384,9 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
           )}
         </div>
       </section>
+      )}
 
+      {!isAdminMode && configSection === 'tags' && (
       <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div>
@@ -1426,7 +1498,9 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
           </table>
         </div>
       </section>
+      )}
 
+      {!isAdminMode && configSection === 'users' && (
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
@@ -1543,7 +1617,9 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
           </table>
         </div>
       </section>
+      )}
 
+      {!isAdminMode && configSection === 'departments' && (
       <section className={cardClass}>
         <div className={cardHeadClass}>
           <div>
@@ -1559,48 +1635,85 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
             Add department
           </button>
         </div>
-        <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
-          {departments.map((department) => (
-            <article
-              className="grid cursor-pointer gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-teal-200 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-              key={department.id}
-              onClick={() => openDepartmentDetail(department)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  openDepartmentDetail(department)
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div>
-                <strong className="block text-lg font-black text-slate-950">{department.name}</strong>
-                <span className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">{department.code}</span>
-              </div>
-              <dl className="m-0 grid grid-cols-2 gap-3">
-                <div>
-                  <dt className="text-xs font-black uppercase tracking-wide text-slate-500">Members</dt>
-                  <dd className="m-0 mt-1 text-2xl font-black text-slate-950">{department.memberCount}</dd>
-                </div>
-              </dl>
-              <button
-                className={department.status === 'active' ? primaryButtonClass : 'min-h-10 rounded-xl !border-0 !bg-slate-200 px-4 text-sm font-black !text-slate-600 transition hover:!bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50'}
-                disabled={Boolean(busyAction)}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  toggleDepartment(department.id)
-                }}
-                type="button"
-              >
-                {department.status}
-              </button>
-            </article>
-          ))}
+        <div className={tableWrapClass}>
+          <table className={`${tableClass} min-w-[900px]`}>
+            <thead>
+              <tr>
+                <th className={thClass}>Department</th>
+                <th className={thClass}>Code</th>
+                <th className={thClass}>Members</th>
+                <th className={thClass}>Status</th>
+                <th className={thClass}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!loading && departments.length === 0 && (
+                <tr>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={5}>No departments found.</td>
+                </tr>
+              )}
+              {departments.map((department) => (
+                <tr
+                  className="group cursor-pointer transition hover:bg-teal-50/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                  key={department.id}
+                  onClick={() => openDepartmentDetail(department)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openDepartmentDetail(department)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <td className={tdClass}>
+                    <strong className="block text-base font-black text-slate-950 transition group-hover:text-teal-800">
+                      {department.name}
+                    </strong>
+                  </td>
+                  <td className={`${tdClass} text-slate-500`}>
+                    <span className="text-xs font-black uppercase tracking-wide">{department.code}</span>
+                  </td>
+                  <td className={tdClass}>
+                    <span className="inline-flex min-w-10 justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-700">
+                      {department.memberCount}
+                    </span>
+                  </td>
+                  <td className={tdClass}>
+                    <span
+                      className={
+                        department.status === 'active'
+                          ? 'inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800'
+                          : 'inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600'
+                      }
+                    >
+                      {department.status}
+                    </span>
+                  </td>
+                  <td className={tdClass}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        className={department.status === 'active' ? 'min-h-10 rounded-xl !border-0 !bg-slate-200 px-4 text-sm font-black !text-slate-600 transition hover:!bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50' : primaryButtonClass}
+                        disabled={Boolean(busyAction)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleDepartment(department.id)
+                        }}
+                        type="button"
+                      >
+                        {department.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
+      )}
 
-      {createDepartmentOpen && (
+      {!isAdminMode && createDepartmentOpen && (
         <AddDepartmentModal
           busy={busyAction === 'department-create'}
           name={newDepartmentName}
@@ -1610,7 +1723,7 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
         />
       )}
 
-      {departmentDetail && (
+      {!isAdminMode && departmentDetail && (
         <DepartmentDetailModal
           busy={Boolean(busyAction)}
           department={departmentDetail.department}
@@ -1622,14 +1735,14 @@ function AdminDashboard({ onCustomerStatusesChange, token }: AdminDashboardProps
         />
       )}
 
-      {userDetail && (
+      {!isAdminMode && userDetail && (
         <UserDetailModal
           onClose={() => setUserDetail(null)}
           user={userDetail}
         />
       )}
 
-      {structureEditor && (
+      {!isAdminMode && structureEditor && (
         <FlowStructureEditorModal
           busyAction={busyAction}
           departments={departments}
