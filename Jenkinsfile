@@ -99,10 +99,10 @@ pipeline {
       }
     }
 
-    stage('Clean Docker Stack') {
+    stage('Stop Docker Stack') {
       steps {
         script {
-          composeCommand('down -v --remove-orphans --rmi local', true)
+          composeCommand('down --remove-orphans', true)
         }
       }
     }
