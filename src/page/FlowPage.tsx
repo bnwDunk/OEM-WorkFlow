@@ -247,23 +247,23 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }, [accessToken])
 
   useEffect(() => {
-    loadOverview()
+    void loadOverview()
   }, [loadOverview])
 
   useEffect(() => {
-    loadFlows()
+    void loadFlows()
   }, [loadFlows])
 
   useEffect(() => {
-    loadTags()
+    void loadTags()
   }, [loadTags])
 
   useEffect(() => {
-    loadCustomerStatuses()
+    void loadCustomerStatuses()
   }, [loadCustomerStatuses])
 
   useEffect(() => {
-    loadUsers()
+    void loadUsers()
   }, [loadUsers])
 
   useEffect(() => {
@@ -968,10 +968,14 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         />
       )}
 
-      {activeView === 'config' && <ConfigView />}
+      {activeView === 'config' && (
+        currentUser.role === 'admin'
+          ? <AdminDashboard mode="config" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+          : <ConfigView />
+      )}
 
       {activeView === 'admin' && currentUser.role === 'admin' && (
-        <AdminDashboard onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+        <AdminDashboard mode="admin" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
       )}
 
       {modal?.type === 'customer-info' && infoCustomer && (

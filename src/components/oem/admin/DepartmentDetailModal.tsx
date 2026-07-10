@@ -19,6 +19,16 @@ type DepartmentDetailModalProps = {
   onToggleStatus: (departmentId: number) => void
 }
 
+function getRoleTagClass(role: string | undefined) {
+  if (role === 'admin') {
+    return 'border-teal-100 bg-teal-50 text-teal-700'
+  }
+  if (role === 'manager') {
+    return 'border-amber-100 bg-amber-50 text-amber-700'
+  }
+  return 'border-slate-200 bg-slate-50 text-slate-600'
+}
+
 function DepartmentDetailModal({
   busy,
   department,
@@ -59,7 +69,11 @@ function DepartmentDetailModal({
                   <strong>{member.name}</strong>
                   <span>{member.email}</span>
                 </div>
-                <span className={`department-status-pill ${member.status}`}>{getRoleDisplayName(member.role)}</span>
+                <div
+                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black leading-5 ${getRoleTagClass(member.role)}`}
+                >
+                  {getRoleDisplayName(member.role)}
+                </div>
               </div>
             ))}
             {members.length === 0 && <p className="department-empty">No users in this department yet.</p>}
