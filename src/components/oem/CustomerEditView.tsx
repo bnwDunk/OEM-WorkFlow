@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { TbCalendarDue } from 'react-icons/tb'
 import { customerStatusOptions as fallbackCustomerStatusOptions } from '../../data/oemWorkflow'
@@ -18,6 +18,7 @@ export type CustomerEditPayload = {
 }
 
 type CustomerEditViewProps = {
+  availableTags?: CustomerTag[]
   canDelete?: boolean
   customer: Customer
   customerStatusOptions?: CustomerStatusOption[]
@@ -74,6 +75,7 @@ function parseInputDate(value: string) {
 }
 
 function CustomerEditView({
+  availableTags = [],
   canDelete = true,
   customer,
   customerStatusOptions = fallbackCustomerStatusOptions,
@@ -92,6 +94,7 @@ function CustomerEditView({
   const [salesperson, setSalesperson] = useState(customer.salesperson || salespersonName)
   const [tags, setTags] = useState<CustomerTag[]>(customer.tags)
   const [tagDraft, setTagDraft] = useState('')
+  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false)
   const [removingTagKey, setRemovingTagKey] = useState('')
   const datePickerRef = useRef<HTMLInputElement>(null)
 
@@ -109,17 +112,40 @@ function CustomerEditView({
   const dueDateIsValid = !dueDate.trim() || Boolean(parsedDueDate)
   const busy = loading || deleting
   const canSubmit = Boolean(typedName) && dueDateIsValid && !busy
+  const normalizedTagDraft = tagDraft.trim().toLowerCase()
+  const suggestedTags = useMemo(() => {
+    const selectedNames = new Set(tags.map((tag) => tag.name.trim().toLowerCase()).filter(Boolean))
+    const seen = new Set<string>()
 
-  function addTagFromDraft() {
-    const nextTagName = tagDraft.trim().replace(/^,+|,+$/g, '').trim()
+    return availableTags
+      .filter((tag) => tag.name.trim())
+      .filter((tag) => {
+        const key = tag.name.trim().toLowerCase()
+        if (selectedNames.has(key) || seen.has(key)) return false
+        seen.add(key)
+        return !normalizedTagDraft || key.includes(normalizedTagDraft)
+      })
+      .slice(0, 8)
+  }, [availableTags, normalizedTagDraft, tags])
+
+  function addTag(nextTag: CustomerTag) {
+    const nextTagName = nextTag.name.trim().replace(/^,+|,+$/g, '').trim()
     if (!nextTagName) return
 
     setTags((currentTags) => {
       const alreadyExists = currentTags.some((tag) => tag.name.trim().toLowerCase() === nextTagName.toLowerCase())
       if (alreadyExists) return currentTags
-      return [...currentTags, { name: nextTagName }]
+      return [...currentTags, { ...nextTag, name: nextTagName }]
     })
     setTagDraft('')
+    setTagSuggestionsOpen(false)
+  }
+
+  function addTagFromDraft() {
+    const nextTagName = tagDraft.trim().replace(/^,+|,+$/g, '').trim()
+    const existingTag = availableTags.find((tag) => tag.name.trim().toLowerCase() === nextTagName.toLowerCase())
+
+    addTag(existingTag || { name: nextTagName })
   }
 
   async function removeTag(tagToRemove: CustomerTag) {
@@ -145,6 +171,12 @@ function CustomerEditView({
   }
 
   function handleTagKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter' && suggestedTags[0] && tagSuggestionsOpen) {
+      event.preventDefault()
+      addTag(suggestedTags[0])
+      return
+    }
+
     if (event.key !== 'Enter' && event.key !== ',') return
     event.preventDefault()
     addTagFromDraft()
@@ -324,8 +356,9 @@ function CustomerEditView({
 
             <div className="grid gap-2 text-sm font-black text-slate-700">
               <span>Tags</span>
-              <div className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-3 py-2 transition focus-within:!border-teal-600 focus-within:!bg-white focus-within:ring-4 focus-within:ring-teal-100">
-                <div className="flex min-h-8 flex-wrap items-center gap-2">
+              <div className="relative">
+                <div className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-3 py-2 transition focus-within:!border-teal-600 focus-within:!bg-white focus-within:ring-4 focus-within:ring-teal-100">
+                  <div className="flex min-h-8 flex-wrap items-center gap-2">
                   {tags.map((tag) => (
                     (() => {
                       const tagKey = `${tag.id || tag.name}-${tag.color || ''}`
@@ -352,14 +385,59 @@ function CustomerEditView({
                     })()
                   ))}
                   <input
+                    aria-expanded={tagSuggestionsOpen}
+                    aria-haspopup="listbox"
                     className="min-h-8 min-w-[140px] flex-1 !border-0 !bg-transparent px-1 text-sm font-bold text-slate-950 outline-none placeholder:text-slate-400 focus:ring-0 focus-visible:!outline-none"
-                    onBlur={addTagFromDraft}
-                    onChange={(event) => setTagDraft(event.target.value)}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        addTagFromDraft()
+                        setTagSuggestionsOpen(false)
+                      }, 120)
+                    }}
+                    onChange={(event) => {
+                      setTagDraft(event.target.value)
+                      setTagSuggestionsOpen(true)
+                    }}
+                    onFocus={() => setTagSuggestionsOpen(true)}
                     onKeyDown={handleTagKeyDown}
                     placeholder={tags.length ? 'Add tag' : 'เพิ่ม tag'}
+                    role="combobox"
                     value={tagDraft}
                   />
+                  </div>
                 </div>
+                {tagSuggestionsOpen && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-slate-950/5">
+                    <div className="max-h-64 overflow-y-auto pr-1" role="listbox">
+                      {suggestedTags.length === 0 && (
+                        <div className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-400">No matching tag</div>
+                      )}
+                      {suggestedTags.map((tag, index) => (
+                        <button
+                          className={`flex min-h-11 w-full items-center gap-3 !border-0 px-4 py-2 text-left text-sm font-black shadow-none transition ${
+                            index === 0
+                              ? '!bg-slate-100 !text-slate-800 hover:!bg-slate-100'
+                              : '!bg-transparent !text-slate-600 hover:!bg-teal-50 hover:!text-teal-800'
+                          }`}
+                          key={`${tag.id || tag.name}-${tag.color || ''}`}
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            addTag(tag)
+                          }}
+                          role="option"
+                          style={{ borderRadius: 12 }}
+                          type="button"
+                        >
+                          <span
+                            className="h-3 w-3 shrink-0 rounded-full bg-teal-600"
+                            style={tag.color ? { background: tag.color } : undefined}
+                          />
+                          <span className="min-w-0 truncate">{tag.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
