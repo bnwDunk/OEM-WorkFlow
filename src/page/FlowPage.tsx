@@ -587,6 +587,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!selectedCustomer || savingBranchAction) return
 
     const branch = selectedCustomer.branch[viewedPhase][branchIndex]
+    if (!branch.live.some(Boolean)) {
+      toast.error('Please tick at least one item before saving.')
+      return
+    }
+
     const busyKey = `complete-${viewedPhase}-${branchIndex}`
     const shouldReturnToCurrentPhase =
       Boolean(selectedCustomer.singleResets[viewedPhase]) && viewedPhase !== selectedCustomer.currentPhase
