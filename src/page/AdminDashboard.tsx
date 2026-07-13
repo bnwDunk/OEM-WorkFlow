@@ -17,6 +17,7 @@ import { apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import { formatDate } from '../lib/dateFormat'
 import { getCustomerStatusLabel } from '../data/oemWorkflow'
+import type { ConfigSection } from '../data/configSections'
 import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
   AppRole,
@@ -40,18 +41,7 @@ const inputClass = 'h-12 w-full rounded-xl !border !border-slate-200 !bg-white p
 const selectClass = 'h-12 rounded-xl !border !border-slate-200 !bg-white px-4 text-base font-semibold text-slate-900 shadow-sm outline-none transition focus:!border-teal-600 focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none disabled:cursor-not-allowed disabled:opacity-60'
 const primaryButtonClass = 'min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none'
 const dangerButtonClass = 'min-h-10 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
-const softButtonClass = 'min-h-10 rounded-xl !border !border-teal-100 !bg-teal-50 px-4 text-sm font-black !text-teal-800 transition hover:!bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50'
 const customerRowsPerPage = 10
-type ConfigSection = 'flows' | 'statuses' | 'customers' | 'tags' | 'users' | 'departments'
-
-const configSectionOptions: { description: string; label: string; value: ConfigSection }[] = [
-  { description: 'Workflow templates and phase structure', label: 'Flow Management', value: 'flows' },
-  { description: 'Customer status dropdown values', label: 'Customer Statuses', value: 'statuses' },
-  { description: 'Customer records and workflow data', label: 'Customers', value: 'customers' },
-  { description: 'Tag labels and colors', label: 'Tags', value: 'tags' },
-  { description: 'User access and department assignment', label: 'Users', value: 'users' },
-  { description: 'Department ownership and members', label: 'Departments', value: 'departments' },
-]
 
 function getStatusBadgeClass(status: string) {
   if (status === 'active' || status === 'brief_spec') return 'inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800'
@@ -65,6 +55,7 @@ function formatAdminDate(value: string) {
 }
 
 type AdminDashboardProps = {
+  configSection?: ConfigSection
   mode?: 'admin' | 'config'
   onCustomerStatusesChange?: () => void
   token: string
@@ -81,7 +72,7 @@ type DepartmentDetailState = {
   workItems: DepartmentWorkItem[]
 }
 
-function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: AdminDashboardProps) {
+function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerStatusesChange, token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [customers, setCustomers] = useState<ManagedCustomerProject[]>([])
   const [customerStatuses, setCustomerStatuses] = useState<ManagedCustomerStatus[]>([])
@@ -114,8 +105,6 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
   const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
   const [customerPage, setCustomerPage] = useState(1)
-  const [configDropdownOpen, setConfigDropdownOpen] = useState(false)
-  const [configSection, setConfigSection] = useState<ConfigSection>('flows')
 
   const stats = useMemo(
     () => ({
@@ -159,8 +148,6 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
         ['Admins', stats.admins],
         ['Inactive users', stats.inactiveUsers],
       ]
-  const selectedConfigSection = configSectionOptions.find((option) => option.value === configSection) || configSectionOptions[0]
-
   const loadAdminData = useCallback(async () => {
     try {
       setError('')
@@ -962,19 +949,19 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
   }
 
   return (
-    <section className="min-h-[calc(100svh-52px)] bg-white px-5 py-6 sm:px-8">
-      <div className="mx-auto mb-6 flex max-w-7xl flex-wrap items-end justify-between gap-4">
+    <section className={isAdminMode ? 'min-h-[calc(100svh-48px)] bg-white px-5 py-6 sm:px-8' : 'min-h-[calc(100svh-48px)] bg-slate-50 px-6 py-7'}>
+      <div className={`mx-auto mb-5 flex flex-wrap items-end justify-between gap-4 ${isAdminMode ? 'max-w-7xl' : 'max-w-[1200px]'}`}>
         <div>
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-teal-700">
+          <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#00a99d]">
             {isAdminMode ? 'OEM Admin' : 'OEM Config'}
           </p>
-          <h1 className="m-0 text-3xl font-black text-slate-950">
+          <h1 className="m-0 text-[26px] font-bold text-slate-950">
             {isAdminMode ? 'Admin Dashboard' : 'Configuration'}
           </h1>
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-6">
+      <div className={`mx-auto grid gap-5 ${isAdminMode ? 'max-w-7xl' : 'max-w-[1200px]'}`}>
       {error && <p className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p>}
       {actionError && <p className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{actionError}</p>}
       {actionMessage && <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{actionMessage}</p>}
@@ -991,66 +978,20 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
         </div>
       )}
 
-      {!isAdminMode && (
-        <div className="relative justify-self-start">
-          <button
-            aria-expanded={configDropdownOpen}
-            aria-haspopup="menu"
-            className="inline-flex min-h-11 items-center gap-3 rounded-lg !border !border-teal-300 !bg-white px-4 text-base font-bold !text-slate-700 shadow-sm transition hover:!bg-teal-50 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-            onClick={() => setConfigDropdownOpen((open) => !open)}
-            type="button"
-          >
-            Configuration
-            <span aria-hidden="true" className="h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent border-t-current" />
-          </button>
-          {configDropdownOpen && (
-            <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] overflow-hidden rounded-lg border border-slate-200 bg-white py-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-slate-950/5" role="menu">
-              {configSectionOptions.map((option) => (
-                <button
-                  className={`grid min-h-12 w-full gap-0.5 !border-0 px-5 py-2.5 text-left shadow-none transition ${
-                    configSection === option.value
-                      ? '!bg-slate-100 !text-slate-900'
-                      : '!bg-transparent !text-slate-600 hover:!bg-teal-50 hover:!text-teal-800'
-                  }`}
-                  key={option.value}
-                  onClick={() => {
-                    setConfigSection(option.value)
-                    setConfigDropdownOpen(false)
-                  }}
-                  role="menuitem"
-                  type="button"
-                >
-                  <span className="text-sm font-black">{option.label}</span>
-                  <span className="text-xs font-semibold text-slate-400">{option.description}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!isAdminMode && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-          <span className="text-xs font-black uppercase tracking-wide text-teal-700">Selected Configuration</span>
-          <div className="mt-1 text-lg font-black text-slate-950">{selectedConfigSection.label}</div>
-          <p className="m-0 mt-1 text-sm font-semibold text-slate-500">{selectedConfigSection.description}</p>
-        </div>
-      )}
-
       {!isAdminMode && configSection === 'flows' && (
       <>
-      <section className={cardClass}>
-        <div className={cardHeadClass}>
+      <section className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
-            <h2 className="m-0 text-xl font-black text-slate-950">Flow Management</h2>
-            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+            <h2 className="m-0 text-[15px] font-semibold text-slate-950">Flow Management</h2>
+            <p className="m-0 mt-0.5 text-xs font-medium text-slate-500">
               Create a new workflow from an existing flow, then edit, disable, or delete templates.
             </p>
           </div>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_auto]">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <select
               aria-label="Source flow"
-              className={selectClass}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
               onChange={(event) => setSourceFlowId(Number(event.target.value))}
               disabled={flows.length === 0}
               value={sourceFlowId}
@@ -1062,33 +1003,36 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
             </select>
             <input
               aria-label="New flow name"
-              className={inputClass}
+              className="h-9 min-w-[180px] rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
               onChange={(event) => setNewFlowName(event.target.value)}
               placeholder="New flow name"
               value={newFlowName}
             />
-            <button className={primaryButtonClass} disabled={Boolean(busyAction) || !newFlowName.trim()} onClick={createFlowFromSource} type="button">
+            <button className="min-h-9 rounded-md border-0 bg-[#00a99d] px-3 text-[13px] font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={Boolean(busyAction) || !newFlowName.trim()} onClick={createFlowFromSource} type="button">
               {busyAction === 'flow-create' ? 'Creating...' : 'Create flow'}
             </button>
           </div>
         </div>
 
-        <div className={tableWrapClass}>
-          <table className={`${tableClass} min-w-[980px]`}>
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] border-collapse text-left">
+            <thead className="bg-slate-50">
               <tr>
-                <th className={thClass}>Flow</th>
-                <th className={thClass}>Based on</th>
-                <th className={thClass}>Structure</th>
-                <th className={thClass}>Status</th>
-                <th className={thClass}>Updated</th>
-                <th className={thClass}>Action</th>
+                <th className="w-8 border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <input aria-label="Select all flows" type="checkbox" />
+                </th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Flow</th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Based on</th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Structure</th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Updated</th>
+                <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && flows.length === 0 && (
                 <tr>
-                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No flows found in database.</td>
+                  <td className="px-4 py-10 text-center text-sm font-bold text-slate-400" colSpan={7}>No flows found in database.</td>
                 </tr>
               )}
               {flows.map((flow) => {
@@ -1101,20 +1045,23 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
                   draft.status !== flow.status
 
                 return (
-                  <tr className="group" key={flow.id}>
-                    <td className={tdClass}>
+                  <tr className="group hover:bg-slate-50" key={flow.id}>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <input aria-label={`Select ${flow.name}`} type="checkbox" />
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
                       <input
                         aria-label={`Name for ${flow.name}`}
-                        className={inputClass}
+                        className="h-8 w-full min-w-[220px] rounded border border-transparent bg-transparent px-2 text-[13.5px] font-semibold text-slate-950 outline-none transition hover:border-slate-200 hover:bg-white focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100"
                         onChange={(event) => updateFlowDraft(flow.id, { name: event.target.value })}
                         value={draft.name}
                       />
-                      <span className="mt-1 block text-xs font-black uppercase tracking-wide text-slate-400">{flow.code}</span>
+                      <span className="mt-0.5 block px-2 font-mono text-[11.5px] font-medium text-slate-400">{flow.code}</span>
                     </td>
-                    <td className={tdClass}>{getSourceFlowLabel(flow)}</td>
-                    <td className={tdClass}>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle text-[13px] font-medium text-slate-500">{getSourceFlowLabel(flow)}</td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
                       <button
-                        className={softButtonClass}
+                        className="min-h-7 rounded-full border-0 bg-teal-50 px-3 text-[11.5px] font-semibold text-[#00a99d] transition hover:bg-teal-100"
                         disabled={Boolean(busyAction)}
                         onClick={() => openStructureEditor(flow)}
                         type="button"
@@ -1122,10 +1069,16 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
                         {flow.stageCount} stages / {flow.phaseCount} phases
                       </button>
                     </td>
-                    <td className={tdClass}>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
                       <select
                         aria-label={`Status for ${flow.name}`}
-                        className={selectClass}
+                        className={`h-8 rounded border-0 bg-transparent px-1 text-[11.5px] font-semibold outline-none ${
+                          draft.status === 'active'
+                            ? 'text-emerald-600'
+                            : draft.status === 'draft'
+                              ? 'text-amber-600'
+                              : 'text-rose-600'
+                        }`}
                         onChange={(event) => updateFlowDraft(flow.id, { status: event.target.value as ManagedFlow['status'] })}
                         value={draft.status}
                       >
@@ -1134,18 +1087,26 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
                         <option value="inactive">inactive</option>
                       </select>
                     </td>
-                    <td className={`${tdClass} text-slate-500`}>{formatAdminDate(flow.updatedAt)}</td>
-                    <td className={tdClass}>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle text-[12.5px] font-medium text-slate-500">{formatAdminDate(flow.updatedAt)}</td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
                       <div className="flex flex-wrap items-center gap-2">
                         <button
-                          className={primaryButtonClass}
+                          className="min-h-8 rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={Boolean(busyAction)}
+                          onClick={() => openStructureEditor(flow)}
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="min-h-8 rounded-md border-0 bg-[#00a99d] px-3 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                           disabled={Boolean(busyAction) || !hasChanges}
                           onClick={() => saveFlowDetails(flow.id)}
                           type="button"
                         >
                           {busyAction === `flow-update-${flow.id}` ? 'Updating...' : 'Update'}
                         </button>
-                        <button className={dangerButtonClass} disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
+                        <button className="min-h-8 rounded-md border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(busyAction)} onClick={() => deleteFlow(flow.id)} type="button">
                           {busyAction === `flow-delete-${flow.id}` ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>

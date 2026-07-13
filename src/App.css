@@ -2141,6 +2141,556 @@ button:disabled {
   font-size: 12px;
 }
 
+.config-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 20px;
+  background: #1f2937;
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.config-nav-brand {
+  flex: 0 0 auto;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.config-nav-items {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.config-nav-item,
+.config-bell-btn,
+.config-avatar-btn {
+  min-height: 34px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.config-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+}
+
+.config-nav-item:hover,
+.config-nav-item.active {
+  background: #374151;
+  color: #fff;
+}
+
+.config-nav-config {
+  position: relative;
+}
+
+.config-nav-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 270px;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.16);
+}
+
+.config-nav-dd-item {
+  width: 100%;
+  height: auto;
+  min-height: 48px;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #374151;
+  text-align: left;
+}
+
+.config-nav-dd-item b {
+  color: #111827;
+  font-size: 13px;
+}
+
+.config-nav-dd-item span {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.config-nav-dd-item:hover,
+.config-nav-dd-item.active {
+  background: #e6f7f6;
+}
+
+.config-nav-dd-item.active b,
+.config-nav-dd-item:hover b {
+  color: #008f86;
+}
+
+.config-nav-right {
+  margin-left: auto;
+}
+
+.config-bell-btn {
+  position: relative;
+  width: 34px;
+  display: grid;
+  place-items: center;
+}
+
+.config-bell-btn:hover,
+.config-avatar-btn:hover {
+  background: #374151;
+  color: #fff;
+}
+
+.config-bell-btn span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+}
+
+.config-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px 0 5px;
+  max-width: 210px;
+}
+
+.config-avatar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  border-radius: 999px;
+  background: #00a99d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.config-page {
+  min-height: calc(100svh - 48px);
+  padding: 28px 24px 56px;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.config-page-inner {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+}
+
+.config-breadcrumb {
+  margin: 0 0 6px;
+  color: #00a99d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.config-page-title {
+  margin: 0 0 22px;
+  color: #111827;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.config-alert {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.config-list-card {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+.config-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.config-list-header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.config-list-header p {
+  margin: 3px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.config-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.config-badge-teal {
+  background: #e6f7f6;
+  color: #008f86;
+}
+
+.config-table-wrap {
+  overflow-x: auto;
+}
+
+.config-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.config-table thead {
+  background: #f9fafb;
+}
+
+.config-table th {
+  padding: 9px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.config-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.config-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.config-table input[type="checkbox"],
+.config-page input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #00a99d;
+}
+
+.config-table td:nth-child(2) > div:first-child {
+  color: #111827;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.config-table td:nth-child(2) > div:last-child {
+  margin-top: 2px;
+  color: #9ca3af;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.config-status-active {
+  color: #059669;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.config-status-active + span {
+  display: none !important;
+}
+
+.config-empty-row {
+  padding: 40px 16px !important;
+  color: #9ca3af !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  text-align: center;
+}
+
+.config-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.config-btn-sm {
+  min-height: 32px;
+}
+
+.config-btn-secondary {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+}
+
+.config-btn-secondary:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.config-btn-primary {
+  border: 0;
+  background: #00a99d;
+  color: #fff;
+}
+
+.config-page > div + div {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  padding: 32px 16px !important;
+  background: rgba(17, 24, 39, 0.54) !important;
+}
+
+.config-page > div + div > section {
+  width: min(900px, 100%) !important;
+  max-height: calc(100vh - 64px) !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  box-shadow: 0 20px 60px rgba(17, 24, 39, 0.24) !important;
+}
+
+.config-page > div + div > section > div:first-child {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 16px !important;
+  align-items: start !important;
+  padding: 18px 22px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.config-page > div + div > section > div:first-child h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.config-page > div + div > section > div:first-child p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.config-page > div + div > section > div:first-child button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0;
+}
+
+.config-page > div + div > section > div:first-child button::before {
+  content: "x";
+  font-size: 18px;
+  line-height: 1;
+}
+
+.config-page > div + div > section > div:first-child button:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.config-page .config-toggle-btn {
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.config-page .config-toggle-btn:hover,
+.config-page .config-toggle-btn:focus-visible {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.config-page .config-toggle-btn + span {
+  display: none !important;
+}
+
+.config-page .config-collapse-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.config-page .config-collapse-row:hover {
+  background: #eef2f7 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) {
+  overflow: auto !important;
+  padding: 10px 0 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section {
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section:last-child {
+  border-bottom: 0 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:first-child {
+  display: grid !important;
+  grid-template-columns: 22px auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 10px 16px !important;
+  background: #f9fafb !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:first-child > span:first-child,
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child > span:first-child {
+  color: #6b7280 !important;
+  font-size: 0 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:first-child > span:first-child::before,
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child > span:first-child::before {
+  content: "▼";
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:first-child > span:nth-child(2) {
+  margin-right: 8px !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  background: #111827 !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) strong {
+  min-width: 0;
+  color: #111827 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) {
+  border-top: 1px solid #f3f4f6 !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child {
+  display: grid !important;
+  grid-template-columns: 58px 76px minmax(240px, 1fr) minmax(180px, auto) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 16px 8px 36px !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child > span:nth-child(2) {
+  padding: 5px 8px !important;
+  border-radius: 4px !important;
+  background: #e6f7f6 !important;
+  color: #008f86 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  text-align: center !important;
+}
+
+.config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:last-child {
+  padding: 4px 16px 14px 52px !important;
+  border-top: 1px solid #f3f4f6 !important;
+  background: #f9fafb !important;
+}
+
+.config-page > div + div input[type="text"],
+.config-page > div + div input:not([type]) {
+  min-height: 32px !important;
+  border-radius: 4px !important;
+}
+
+.config-page > div + div input:focus {
+  border-color: #00a99d !important;
+  box-shadow: 0 0 0 2px rgba(0, 169, 157, 0.12) !important;
+}
+
+.config-page > div + div > section > div:last-child {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  padding: 14px 22px !important;
+  border-top: 1px solid #e5e7eb !important;
+}
+
 @media (max-width: 1100px) {
   .phase-rail {
     grid-template-columns: repeat(3, minmax(180px, 1fr));
@@ -2189,6 +2739,79 @@ button:disabled {
     align-items: stretch;
     flex-wrap: wrap;
     padding: 10px 14px;
+  }
+
+  .config-nav {
+    height: auto;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .config-nav-items {
+    order: 3;
+    width: 100%;
+    flex: 1 0 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .config-nav-item {
+    flex: 0 0 auto;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+
+  .config-nav-dropdown {
+    left: auto;
+    right: 0;
+    width: min(270px, calc(100vw - 28px));
+  }
+
+  .config-avatar-btn {
+    max-width: 150px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .config-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .config-page {
+    padding: 22px 14px 44px;
+  }
+
+  .config-page > div + div {
+    padding: 12px !important;
+  }
+
+  .config-page > div + div > section > div:first-child,
+  .config-page > div + div > section > div:last-child {
+    padding: 14px !important;
+  }
+
+  .config-page > div + div > section > div:nth-child(2) > section > div:first-child {
+    grid-template-columns: 22px auto minmax(0, 1fr) !important;
+  }
+
+  .config-page > div + div > section > div:nth-child(2) > section > div:first-child > span:last-child {
+    grid-column: 3;
+  }
+
+  .config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child {
+    grid-template-columns: 22px 76px minmax(0, 1fr) !important;
+    padding-left: 16px !important;
+  }
+
+  .config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:first-child > div:last-child {
+    grid-column: 2 / -1;
+  }
+
+  .config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:last-child {
+    padding-left: 16px !important;
   }
 
   .oem-tabs {
