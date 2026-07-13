@@ -514,14 +514,17 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       setActionError('')
       setActionMessage('')
       setBusyAction(`flow-structure-${flow.id}`)
-      const response = await apiRequest<FlowStructure>(`/admin/flows/${flow.id}/structure`, { token })
+      const response = await apiRequest<FlowStructure>(`/workflow/flows/${flow.id}/structure`, { token })
       setStructureEditor({
         ...response,
         stages: response.stages.map((stage) => ({
           ...stage,
           phases: stage.phases.map((phase) => ({
             ...phase,
-            departmentIds: phase.departments?.map((department) => department.id) || [],
+            branches: phase.branches || [],
+            departmentIds: phase.departments?.map((department) => department.id)
+              || phase.branches?.map((branch) => branch.departmentId || branch.department?.id).filter((departmentId): departmentId is number => Boolean(departmentId))
+              || [],
           })),
         })),
       })
@@ -666,6 +669,83 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     updatePhaseDepartments(stageIndex, phaseIndex, (departmentIds) =>
       departmentIds.filter((item) => item !== departmentId),
     )
+  }
+
+  function updateBranchItems(
+    stageIndex: number,
+    phaseIndex: number,
+    branchIndex: number,
+    updater: (items: { id?: number; label: string }[]) => { id?: number; label: string }[],
+  ) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, currentStageIndex) =>
+          currentStageIndex !== stageIndex
+            ? stage
+            : {
+                ...stage,
+                phases: stage.phases.map((phase, currentPhaseIndex) =>
+                  currentPhaseIndex !== phaseIndex
+                    ? phase
+                    : {
+                        ...phase,
+                        branches: (phase.branches || []).map((branch, currentBranchIndex) =>
+                          currentBranchIndex === branchIndex
+                            ? { ...branch, items: updater(branch.items || []) }
+                            : branch,
+                        ),
+                      },
+                ),
+              },
+        ),
+      }
+    })
+  }
+
+  function updateBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number, itemIndex: number, label: string) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) =>
+      items.map((item, currentItemIndex) => currentItemIndex === itemIndex ? { ...item, label } : item),
+    )
+  }
+
+  function addBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) => [...items, { label: 'New checklist' }])
+  }
+
+  function removeBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number, itemIndex: number) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) => items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex))
+  }
+
+  async function saveBranchItems(stageIndex: number, phaseIndex: number, branchIndex: number) {
+    if (!structureEditor) return
+
+    const phase = structureEditor.stages[stageIndex]?.phases[phaseIndex]
+    const branch = phase?.branches?.[branchIndex]
+    if (!phase?.id || !branch?.id) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-branch-items-${branch.id}`)
+      const response = await apiRequest<{ items: { id?: number; label: string }[] }>(
+        `/workflow/flows/${structureEditor.flow.id}/phases/${phase.id}/branches/${branch.id}/items`,
+        {
+          method: 'PUT',
+          token,
+          body: JSON.stringify({ items: branch.items || [] }),
+        },
+      )
+
+      updateBranchItems(stageIndex, phaseIndex, branchIndex, () => response.items)
+      setActionMessage('Updated checklist.')
+    } catch (saveError) {
+      setActionError(saveError instanceof Error ? saveError.message : 'Failed to update checklist.')
+    } finally {
+      setBusyAction('')
+    }
   }
 
   async function saveStructure() {
@@ -1701,14 +1781,18 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         <FlowStructureEditorModal
           busyAction={busyAction}
           departments={departments}
+          onAddBranchItem={addBranchItem}
           onAddPhase={addPhase}
           onAddPhaseDepartment={addPhaseDepartment}
           onAddStage={addStage}
           onClose={() => setStructureEditor(null)}
+          onRemoveBranchItem={removeBranchItem}
           onRemovePhase={removePhase}
           onRemovePhaseDepartment={removePhaseDepartment}
           onRemoveStage={removeStage}
           onSave={saveStructure}
+          onSaveBranchItems={saveBranchItems}
+          onUpdateBranchItem={updateBranchItem}
           onUpdatePhase={updatePhase}
           onUpdateStage={updateStage}
           structure={structureEditor}
