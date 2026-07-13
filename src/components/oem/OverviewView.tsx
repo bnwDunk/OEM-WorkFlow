@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { customerStatusOptions as fallbackCustomerStatusOptions, getCustomerStatusLabel } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
 import CustomerCard from './CustomerCard'
+import Pagination from './Pagination'
 
 const overviewRowsPerPage = 10
 
@@ -69,10 +70,9 @@ function OverviewView({
     },
     [currentPage, filteredCustomers],
   )
-  const rangeStart = filteredCustomers.length === 0 ? 0 : (currentPage - 1) * overviewRowsPerPage + 1
-  const rangeEnd = Math.min(currentPage * overviewRowsPerPage, filteredCustomers.length)
   const successCount = statusCounts.success || 0
   const activeCount = customers.length - successCount
+  const shouldShowPagination = filteredCustomers.length > overviewRowsPerPage
 
   useEffect(() => {
     setPage(1)
@@ -145,6 +145,17 @@ function OverviewView({
         </div>
       </div>
 
+      {shouldShowPagination && (
+        <Pagination
+          className="pagination-top"
+          currentPage={currentPage}
+          onPageChange={setPage}
+          pageCount={pageCount}
+          pageSize={overviewRowsPerPage}
+          totalItems={filteredCustomers.length}
+        />
+      )}
+
       <div className="customer-list">
         {error && <p className="overview-state error">{error}</p>}
         {!error && loading && customers.length === 0 && <p className="overview-state">กำลังโหลดข้อมูลงาน...</p>}
@@ -164,33 +175,15 @@ function OverviewView({
             onOpenInfo={onOpenInfo}
           />
         ))}
-        {filteredCustomers.length > overviewRowsPerPage && (
-          <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className="m-0 text-sm font-bold text-slate-500">
-              Showing {rangeStart}-{rangeEnd} of {filteredCustomers.length}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="min-h-10 rounded-xl !border !border-slate-200 !bg-white px-4 text-sm font-black !text-slate-700 shadow-sm transition hover:!border-teal-200 hover:!bg-teal-50 hover:!text-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-400 disabled:shadow-none"
-                disabled={currentPage === 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                type="button"
-              >
-                Previous
-              </button>
-              <span className="inline-flex min-h-10 items-center rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-600">
-                Page {currentPage} / {pageCount}
-              </span>
-              <button
-                className="min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
-                disabled={currentPage === pageCount}
-                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-                type="button"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+        {shouldShowPagination && (
+          <Pagination
+            className="pagination-bottom"
+            currentPage={currentPage}
+            onPageChange={setPage}
+            pageCount={pageCount}
+            pageSize={overviewRowsPerPage}
+            totalItems={filteredCustomers.length}
+          />
         )}
       </div>
     </section>

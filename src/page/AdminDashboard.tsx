@@ -6,6 +6,7 @@ import type { DepartmentWorkItem } from '../components/oem/admin/DepartmentDetai
 import AddUserModal from '../components/oem/admin/AddUserModal'
 import type { NewUserDraft } from '../components/oem/admin/AddUserModal'
 import FlowStructureEditorModal from '../components/oem/admin/FlowStructureEditorModal'
+import Pagination from '../components/oem/Pagination'
 import UserDetailModal from '../components/oem/admin/UserDetailModal'
 import type {
   FlowPhaseDraft,
@@ -140,8 +141,7 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
     },
     [currentCustomerPage, customers],
   )
-  const customerRangeStart = customers.length === 0 ? 0 : (currentCustomerPage - 1) * customerRowsPerPage + 1
-  const customerRangeEnd = Math.min(currentCustomerPage * customerRowsPerPage, customers.length)
+  const shouldShowCustomerPagination = customers.length > customerRowsPerPage
   const isAdminMode = mode === 'admin'
   const summaryItems = isAdminMode
     ? [
@@ -992,7 +992,7 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
       )}
 
       {!isAdminMode && (
-        <div className="relative z-20 justify-self-start">
+        <div className="relative justify-self-start">
           <button
             aria-expanded={configDropdownOpen}
             aria-haspopup="menu"
@@ -1312,6 +1312,17 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
         </div>
 
         <div className={tableWrapClass}>
+          {shouldShowCustomerPagination && (
+            <Pagination
+              className="pagination-top"
+              currentPage={currentCustomerPage}
+              itemLabel="customers"
+              onPageChange={setCustomerPage}
+              pageCount={customerPageCount}
+              pageSize={customerRowsPerPage}
+              totalItems={customers.length}
+            />
+          )}
           <table className={`${tableClass} min-w-[900px]`}>
             <thead>
               <tr>
@@ -1354,33 +1365,16 @@ function AdminDashboard({ mode = 'admin', onCustomerStatusesChange, token }: Adm
               ))}
             </tbody>
           </table>
-          {customers.length > customerRowsPerPage && (
-            <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="m-0 text-sm font-bold text-slate-500">
-                Showing {customerRangeStart}-{customerRangeEnd} of {customers.length} customers
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  className="min-h-10 rounded-xl !border !border-slate-200 !bg-white px-4 text-sm font-black !text-slate-700 shadow-sm transition hover:!border-teal-200 hover:!bg-teal-50 hover:!text-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-100 disabled:!text-slate-400 disabled:shadow-none"
-                  disabled={currentCustomerPage === 1}
-                  onClick={() => setCustomerPage((current) => Math.max(1, current - 1))}
-                  type="button"
-                >
-                  Previous
-                </button>
-                <span className="inline-flex min-h-10 items-center rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-600">
-                  Page {currentCustomerPage} / {customerPageCount}
-                </span>
-                <button
-                  className="min-h-10 rounded-xl !border-0 !bg-teal-700 px-4 text-sm font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400 disabled:shadow-none"
-                  disabled={currentCustomerPage === customerPageCount}
-                  onClick={() => setCustomerPage((current) => Math.min(customerPageCount, current + 1))}
-                  type="button"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+          {shouldShowCustomerPagination && (
+            <Pagination
+              className="pagination-table-bottom"
+              currentPage={currentCustomerPage}
+              itemLabel="customers"
+              onPageChange={setCustomerPage}
+              pageCount={customerPageCount}
+              pageSize={customerRowsPerPage}
+              totalItems={customers.length}
+            />
           )}
         </div>
       </section>
