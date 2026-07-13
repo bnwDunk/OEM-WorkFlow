@@ -50,6 +50,7 @@ function CustomerDetailView({
   viewedPhase,
 }: CustomerDetailViewProps) {
   const stop = flowStops[viewedPhase]
+  const phaseBranches = customer.workflowBranches?.[viewedPhase] || stop.branches
   const branchStates = customer.branch[viewedPhase]
   const isPast = viewedPhase < customer.currentPhase && !customer.singleResets[viewedPhase]
   const isFuture = viewedPhase > customer.currentPhase
@@ -59,7 +60,7 @@ function CustomerDetailView({
       .filter((issue) => !issue.closed)
       .map((issue) => typeof issue.phase === 'number' ? issue.phase : customer.currentPhase),
   )
-  const branchActions = stop.branches
+  const branchActions = phaseBranches
     .map((branch, branchIndex) => ({
       branchIndex,
       canManage: hasDepartment(userDepartments, branch.dept),
@@ -154,8 +155,8 @@ function CustomerDetailView({
           </button>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-[repeat(var(--branch-count),minmax(0,1fr))]" style={{ '--branch-count': stop.branches.length } as React.CSSProperties}>
-          {stop.branches.map((branch, branchIndex) => (
+        <div className="grid gap-4 lg:grid-cols-[repeat(var(--branch-count),minmax(0,1fr))]" style={{ '--branch-count': phaseBranches.length } as React.CSSProperties}>
+          {phaseBranches.map((branch, branchIndex) => (
             <BranchCard
               branch={branch}
               branchState={branchStates[branchIndex]}
