@@ -66,6 +66,7 @@ function CustomerDetailView({
       canManage: hasDepartment(userDepartments, branch.dept),
       dept: branch.dept,
       done: branchStates[branchIndex].done,
+      hasCheckedItem: branchStates[branchIndex].live.some(Boolean),
     }))
     .filter((action) => !action.done && isActive && action.canManage)
 
@@ -101,9 +102,9 @@ function CustomerDetailView({
                         <button
                           aria-label={`Save ${action.dept} checklist`}
                           className="inline-flex h-10 w-10 items-center justify-center rounded-xl !border-0 !bg-teal-700 !p-0 !text-white shadow-sm transition hover:-translate-y-0.5 hover:!bg-teal-800 focus-visible:!outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={Boolean(savingBranchAction)}
+                          disabled={Boolean(savingBranchAction) || !action.hasCheckedItem}
                           onClick={() => onDoneBranch(action.branchIndex)}
-                          title="Save"
+                          title={action.hasCheckedItem ? 'Save' : 'Tick at least one item before saving'}
                           type="button"
                         >
                           <IoCloudUpload aria-hidden="true" className="h-5 w-5" />

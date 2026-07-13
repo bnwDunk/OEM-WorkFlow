@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { apiRequest } from '../../lib/api'
 
 type ConfigViewProps = {
@@ -9,10 +10,12 @@ type ConfigViewProps = {
 }
 
 type WorkflowOption = {
+  code?: string
   id: number
   name: string
   phaseCount?: number
   stageCount?: number
+  status?: string
 }
 
 type FlowStructureResponse = {
@@ -96,14 +99,18 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
   const [workflowTemplates, setWorkflowTemplates] = useState<Record<string, ConfigStage[]>>({})
   const [workflowOptions, setWorkflowOptions] = useState<WorkflowOption[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
+  const [editorOpen, setEditorOpen] = useState(false)
   const [loadingWorkflows, setLoadingWorkflows] = useState(false)
   const [savingBranchId, setSavingBranchId] = useState<number | null>(null)
   const [dirtyBranchIds, setDirtyBranchIds] = useState<Set<number>>(() => new Set())
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set())
+  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(() => new Set())
   const [workflowError, setWorkflowError] = useState('')
   const workflowStages = useMemo(
     () => selectedWorkflowId === null ? [] : workflowTemplates[String(selectedWorkflowId)] || [],
     [selectedWorkflowId, workflowTemplates],
   )
+  const selectedWorkflow = workflowOptions.find((flow) => flow.id === selectedWorkflowId) || null
 
   const editableDept = useMemo(() => {
     const current = departments.find((department) => normalizeDept(department) === normalizeDept(currentDept))
@@ -215,6 +222,18 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
   function markBranchDirty(branchId: number | undefined) {
     if (!branchId) return
     setDirtyBranchIds((current) => new Set(current).add(branchId))
+  }
+
+  function toggleCollapsed(setter: Dispatch<SetStateAction<Set<string>>>, key: string) {
+    setter((current) => {
+      const next = new Set(current)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
   }
 
   async function saveBranch(stageIndex: number, stopIndex: number, branchIndex: number, nextItems?: ConfigWorkItem[]) {
@@ -362,178 +381,246 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
   }
 
   return (
-    <section className="page-pad">
-      <div className="page-heading">
-        <div>
-          <h1>Configuration</h1>
-          <p>Review every stage and phase, then edit only the work assigned to your department.</p>
-        </div>
-      </div>
+    <section className="config-page">
+      <div className="config-page-inner">
+        <p className="config-breadcrumb">OEM Config</p>
+        <h1 className="config-page-title">Configuration</h1>
 
-      <section className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5">
-          <div className="min-w-0">
-            <h3 className="m-0 text-xl font-black text-slate-950">Workflow Template</h3>
-            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
-              All workflow phases are visible. Editable work is limited to {editableDept}.
-            </p>
-          </div>
-          <div className="grid w-full gap-2 sm:w-[360px]">
-            <label className="grid gap-2 text-sm font-black text-slate-700">
-              <span>Workflow</span>
-              <select
-                className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={loadingWorkflows || workflowOptions.length === 0}
-                onChange={(event) => setSelectedWorkflowId(event.target.value ? Number(event.target.value) : null)}
-                value={selectedWorkflowId ?? ''}
-              >
-                {workflowOptions.length === 0 && <option value="">No workflow available</option>}
-                {workflowOptions.map((flow) => (
-                  <option key={flow.id} value={flow.id}>
-                    {flow.name}
-                    {typeof flow.stageCount === 'number' && typeof flow.phaseCount === 'number'
-                      ? ` (${flow.stageCount} stages / ${flow.phaseCount} phases)`
-                      : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700">
-                {templateSummary.phaseCount} phases
-              </span>
-              <span className="rounded-full bg-teal-50 px-4 py-2 text-sm font-black text-teal-800">
-                {templateSummary.editableWorkCount} editable work
-              </span>
-            </div>
-          </div>
-        </div>
         {workflowError && (
-          <p className="m-0 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+          <p className="config-alert">
             {workflowError}
           </p>
         )}
-        {!workflowError && !loadingWorkflows && workflowOptions.length === 0 && (
-          <p className="m-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-            No workflow found from API.
-          </p>
-        )}
-        {loadingWorkflows && (
-          <p className="m-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-            Loading workflow from database...
-          </p>
-        )}
 
-        {workflowStages.map((stage, stageIndex) => (
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70" key={`${stage.name}-${stageIndex}`}>
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-4">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-950 text-xs font-black text-white shadow-sm">
-                S{stageIndex + 1}
-              </span>
+        <section className="config-list-card">
+          <div className="config-list-header">
+            <div>
+              <h2>Flow Management</h2>
+              <p>
+                Review workflow templates. You can edit checklist work only for {editableDept}.
+              </p>
+            </div>
+            <span className="config-badge config-badge-teal">
+              {workflowOptions.length} workflows
+            </span>
+          </div>
+
+          <div className="config-table-wrap">
+            <table className="config-table">
+              <thead>
+                <tr>
+                  <th className="w-8 border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <input aria-label="Select all workflows" type="checkbox" />
+                  </th>
+                  <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Flow</th>
+                  <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Structure</th>
+                  <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Permission</th>
+                  <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                  <th className="border-b border-slate-200 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingWorkflows && workflowOptions.length === 0 && (
+                  <tr>
+                    <td className="config-empty-row" colSpan={6}>Loading workflows...</td>
+                  </tr>
+                )}
+                {!loadingWorkflows && workflowOptions.length === 0 && (
+                  <tr>
+                    <td className="config-empty-row" colSpan={6}>No workflow found from API.</td>
+                  </tr>
+                )}
+                {workflowOptions.map((flow) => (
+                  <tr className="group hover:bg-slate-50" key={flow.id}>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <input aria-label={`Select ${flow.name}`} type="checkbox" />
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <div className="text-[13.5px] font-semibold text-slate-950">{flow.name}</div>
+                      <div className="mt-0.5 font-mono text-[11.5px] font-medium text-slate-400">{flow.code || `FLOW_${flow.id}`}</div>
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <span className="rounded-full bg-teal-50 px-3 py-1 text-[11.5px] font-semibold text-[#00a99d]">
+                        {flow.stageCount || 0} stages / {flow.phaseCount || 0} phases
+                      </span>
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle text-[13px] font-medium text-slate-500">
+                      {editableDept}
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <span className="config-status-active">● {flow.status || 'active'}</span>
+                      <span className="text-[11.5px] font-semibold text-emerald-600">● {flow.status || 'active'}</span>
+                    </td>
+                    <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
+                      <button
+                        className="config-btn config-btn-secondary config-btn-sm"
+                        onClick={() => {
+                          setSelectedWorkflowId(flow.id)
+                          setEditorOpen(true)
+                        }}
+                        type="button"
+                      >
+                        Edit checklist
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      {editorOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-8"
+          onMouseDown={(event) => event.target === event.currentTarget && setEditorOpen(false)}
+        >
+          <section className="grid max-h-[calc(100vh-64px)] w-full max-w-[900px] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[10px] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-slate-200 px-6 py-5">
               <div>
-                <h4 className="m-0 text-base font-black text-slate-900">{stage.name}</h4>
-                <p className="m-0 mt-0.5 text-xs font-bold text-slate-400">{stage.stops.length} phases</p>
+                <h2 className="m-0 text-[17px] font-bold text-slate-950">{selectedWorkflow?.name || 'Workflow'}</h2>
+                <p className="mt-0.5 text-[12.5px] font-medium text-slate-500">
+                  Edit checklist items for {editableDept}. Other departments are read-only.
+                  <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-[11.5px] font-semibold text-[#00a99d]">
+                    {templateSummary.phaseCount} phases
+                  </span>
+                </p>
               </div>
+              <button className="border-0 bg-transparent p-0 text-xl leading-none text-slate-500" onClick={() => setEditorOpen(false)} type="button">×</button>
             </div>
 
-            <div className="grid gap-3 p-4">
-              {stage.stops.map((stop, stopIndex) => (
-                <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" key={`${stage.name}-${stop.label}-${stopIndex}`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-teal-700">
-                        Phase {stop.label}
-                      </span>
-                      <strong className="mt-2 block text-base font-black leading-snug text-slate-950">{stop.name}</strong>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
-                      {stop.branches.length} departments
-                    </span>
+            <div className="overflow-auto py-3">
+              {loadingWorkflows && workflowStages.length === 0 && (
+                <p className="mx-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading workflow structure...</p>
+              )}
+
+              {workflowStages.map((stage, stageIndex) => {
+                const stageKey = `${selectedWorkflowId || 'flow'}-stage-${stage.id || stageIndex}`
+                const stageCollapsed = collapsedStages.has(stageKey)
+
+                return (
+                <section className="border-b border-slate-200 last:border-b-0" key={`${stage.name}-${stageIndex}`}>
+                  <div
+                    className="config-collapse-row grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-0 bg-slate-50 px-4 py-2.5"
+                    onClick={() => toggleCollapsed(setCollapsedStages, stageKey)}
+                  >
+                    <button
+                      aria-expanded={!stageCollapsed}
+                      aria-label={`${stageCollapsed ? 'Open' : 'Close'} ${stage.name}`}
+                      className="config-toggle-btn"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleCollapsed(setCollapsedStages, stageKey)
+                      }}
+                      type="button"
+                    >
+                      {stageCollapsed ? '▶' : '▼'}
+                    </button>
+                    <span className="text-[15px] font-bold leading-none text-slate-700">▾</span>
+                    <span className="mr-2 rounded bg-slate-800 px-2 py-0.5 text-[11px] font-bold text-white">S{stageIndex + 1}</span>
+                    <strong className="min-w-0 text-[13.5px] font-semibold text-slate-950">{stage.name}</strong>
+                    <span className="text-xs font-medium text-slate-500">{stage.stops.length} phases</span>
                   </div>
 
-                  <div className="grid gap-3">
-                    {stop.branches.map((branch, branchIndex) => {
-                      const editable = normalizeDept(branch.dept) === normalizeDept(editableDept)
+                  {!stageCollapsed && stage.stops.map((stop, stopIndex) => {
+                    const phaseKey = `${stageKey}-phase-${stop.id || stopIndex}`
+                    const phaseCollapsed = collapsedPhases.has(phaseKey)
 
-                      if (!editable) {
-                        return branch.items.map((item, itemIndex) => (
-                          <div
-                            className="border-b border-slate-100 py-2 text-sm font-semibold leading-relaxed text-slate-600 last:border-b-0"
-                            key={`${branch.dept}-${branchIndex}-${itemIndex}`}
-                          >
-                            Phase {stop.label} - {branch.dept}: {item.label}
-                          </div>
-                        ))
-                      }
-
-                      const branchIsDirty = branch.id ? dirtyBranchIds.has(branch.id) : false
-
-                      return (
-                        <div className="grid gap-3 rounded-xl border border-teal-200 bg-teal-50/50 p-4 shadow-[0_10px_26px_rgba(13,148,136,0.08)]" key={`${branch.dept}-${branchIndex}`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="rounded-full bg-teal-700 px-3 py-1 text-xs font-black text-white">
-                                {branch.dept}
-                              </span>
-                              <span className="text-xs font-black uppercase tracking-wide text-teal-700">Editable</span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                className="min-h-9 rounded-lg !border !border-teal-100 !bg-white px-3 text-xs font-black !text-teal-800 shadow-sm transition hover:!bg-teal-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={savingBranchId === branch.id}
-                                onClick={() => addWork(stageIndex, stopIndex, branchIndex)}
-                                type="button"
-                              >
-                                Add work
-                              </button>
-                              <button
-                                className="min-h-9 rounded-lg !border-0 !bg-teal-700 px-3 text-xs font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-not-allowed disabled:!bg-slate-200 disabled:!text-slate-400"
-                                disabled={savingBranchId === branch.id || !branchIsDirty}
-                                onClick={() => saveBranch(stageIndex, stopIndex, branchIndex)}
-                                type="button"
-                              >
-                                {savingBranchId === branch.id ? 'Updating...' : 'Update'}
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-2">
-                            {branch.items.map((item, itemIndex) => (
-                              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]" key={`${branch.dept}-${itemIndex}`}>
-                                <input
-                                  aria-label={`Work item ${itemIndex + 1} for phase ${stop.label}`}
-                                  className="min-h-11 rounded-xl !border !border-teal-100 !bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:!border-teal-600 focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
-                                  disabled={savingBranchId === branch.id}
-                                  onChange={(event) => updateWork(stageIndex, stopIndex, branchIndex, itemIndex, event.target.value)}
-                                  value={item.label}
-                                />
-                                <button
-                                  className="min-h-11 rounded-xl !border-0 !bg-rose-50 px-4 text-sm font-black !text-rose-700 transition hover:!bg-rose-100"
-                                  disabled={savingBranchId === branch.id}
-                                  onClick={() => deleteWork(stageIndex, stopIndex, branchIndex, itemIndex)}
-                                  type="button"
-                                >
-                                  {savingBranchId === branch.id ? 'Saving...' : 'Delete'}
-                                </button>
-                              </div>
-                            ))}
-
-                            {branch.items.length === 0 && (
-                              <p className="m-0 rounded-xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-400">
-                                No work in this phase yet.
-                              </p>
-                            )}
-                          </div>
+                    return (
+                    <div className="border-t border-slate-100" key={`${stage.name}-${stop.label}-${stopIndex}`}>
+                      <div
+                        className="config-collapse-row grid grid-cols-[58px_76px_minmax(240px,1fr)_minmax(180px,auto)] items-center gap-2 px-4 py-2 pl-9 max-[900px]:grid-cols-1 max-[900px]:pl-4"
+                        onClick={() => toggleCollapsed(setCollapsedPhases, phaseKey)}
+                      >
+                        <button
+                          aria-expanded={!phaseCollapsed}
+                          aria-label={`${phaseCollapsed ? 'Open' : 'Close'} ${stop.name}`}
+                          className="config-toggle-btn"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            toggleCollapsed(setCollapsedPhases, phaseKey)
+                          }}
+                          type="button"
+                        >
+                          {phaseCollapsed ? '▶' : '▼'}
+                        </button>
+                        <span className="text-[15px] font-bold leading-none text-slate-500 max-[900px]:hidden">▾</span>
+                        <span className="rounded bg-teal-50 px-2 py-1 text-center text-[11px] font-bold text-[#00a99d]">{stop.label}</span>
+                        <strong className="min-w-0 text-[13px] font-medium text-slate-900">{stop.name}</strong>
+                        <div className="flex flex-wrap gap-1.5">
+                          {stop.branches.map((branch) => (
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700" key={`${stop.id}-${branch.id}-${branch.dept}`}>
+                              {branch.dept}
+                            </span>
+                          ))}
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
+                      </div>
+
+                      {!phaseCollapsed && <div className="border-t border-slate-100 bg-slate-50/60 px-4 pb-3 pl-[52px] pt-1 max-[900px]:pl-4">
+                        {stop.branches.map((branch, branchIndex) => {
+                          const editable = normalizeDept(branch.dept) === normalizeDept(editableDept)
+                          const branchIsDirty = branch.id ? dirtyBranchIds.has(branch.id) : false
+
+                          return (
+                            <div className="mt-3" key={`${branch.dept}-${branchIndex}`}>
+                              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-teal-50 px-3 py-1 text-[11.5px] font-semibold text-[#00a99d]">{branch.dept}</span>
+                                {!editable && <span className="text-[11.5px] font-medium text-slate-400">Locked to assigned department</span>}
+                              </div>
+                              <div>
+                                {branch.items.map((item, itemIndex) => (
+                                  <div className="flex items-center gap-2 border-b border-slate-100 py-1 last:border-b-0" key={`${branch.dept}-${itemIndex}`}>
+                                    <span className="text-xs text-slate-400">☐</span>
+                                    <input
+                                      aria-label={`Checklist ${itemIndex + 1} for ${branch.dept}`}
+                                      className="h-8 flex-1 rounded border border-transparent bg-transparent px-2 text-[12.5px] font-medium text-slate-800 outline-none transition hover:border-slate-200 hover:bg-white focus:border-[#00a99d] focus:bg-white disabled:text-slate-500"
+                                      disabled={!editable || savingBranchId === branch.id}
+                                      onChange={(event) => updateWork(stageIndex, stopIndex, branchIndex, itemIndex, event.target.value)}
+                                      readOnly={!editable}
+                                      value={item.label}
+                                    />
+                                    {editable && (
+                                      <button
+                                        className="border-0 bg-transparent px-1 text-sm text-slate-300 transition hover:text-rose-600"
+                                        disabled={savingBranchId === branch.id}
+                                        onClick={() => deleteWork(stageIndex, stopIndex, branchIndex, itemIndex)}
+                                        type="button"
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              {editable && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <button className="min-h-7 rounded border border-slate-200 bg-slate-50 px-2.5 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100" disabled={savingBranchId === branch.id} onClick={() => addWork(stageIndex, stopIndex, branchIndex)} type="button">
+                                    + Add checklist
+                                  </button>
+                                  <button className="min-h-7 rounded border-0 bg-[#00a99d] px-2.5 text-[11.5px] font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={savingBranchId === branch.id || !branchIsDirty} onClick={() => saveBranch(stageIndex, stopIndex, branchIndex)} type="button">
+                                    {savingBranchId === branch.id ? 'Saving...' : 'Update'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>}
+                    </div>
+                    )
+                  })}
+                </section>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+              <button className="min-h-9 rounded-md border border-slate-200 bg-slate-50 px-4 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" onClick={() => setEditorOpen(false)} type="button">Close</button>
             </div>
           </section>
-        ))}
-      </section>
+        </div>
+      )}
     </section>
   )
 }

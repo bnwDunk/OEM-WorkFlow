@@ -23,6 +23,7 @@ import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
 import type { BranchState, Customer, CustomerStatusOption, CustomerTag } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
+import type { ConfigSection } from '../data/configSections'
 import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
 import type { CustomerCreatePayload } from '../components/oem/CustomerCreateView'
 import type { SalespersonOption } from '../components/oem/SalespersonCombobox'
@@ -103,6 +104,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     return departments.length ? departments : [currentUser.department]
   }, [currentUser.department, currentUser.departments])
   const [currentDept, setCurrentDept] = useState(userDepartments[0])
+  const [configSection, setConfigSection] = useState<ConfigSection>('flows')
   const [bellOpen, setBellOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>(null)
@@ -173,6 +175,12 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       setCurrentDept(userDepartments[0])
     }
   }, [currentDept, userDepartments])
+
+  useEffect(() => {
+    if (currentUser.role !== 'admin' && configSection !== 'flows') {
+      setConfigSection('flows')
+    }
+  }, [configSection, currentUser.role])
 
   useEffect(() => {
     if (overviewError) toast.error(overviewError)
@@ -511,6 +519,21 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     setProfileOpen(false)
   }
 
+  function handleChangeConfigSection(section: ConfigSection) {
+    if (currentUser.role !== 'admin' && section !== 'flows') {
+      setConfigSection('flows')
+      navigate('/flow/config')
+      setBellOpen(false)
+      setProfileOpen(false)
+      return
+    }
+
+    setConfigSection(section)
+    navigate('/flow/config')
+    setBellOpen(false)
+    setProfileOpen(false)
+  }
+
   function handleLogout() {
     onLogout()
     navigate('/login', { replace: true })
@@ -587,6 +610,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!selectedCustomer || savingBranchAction) return
 
     const branch = selectedCustomer.branch[viewedPhase][branchIndex]
+    if (!branch.live.some(Boolean)) {
+      toast.error('Please tick at least one item before saving.')
+      return
+    }
+
     const busyKey = `complete-${viewedPhase}-${branchIndex}`
     const shouldReturnToCurrentPhase =
       Boolean(selectedCustomer.singleResets[viewedPhase]) && viewedPhase !== selectedCustomer.currentPhase
@@ -871,6 +899,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           setCurrentDept(dept)
           setProfileOpen(false)
         }}
+        configSection={configSection}
+        onChangeConfigSection={handleChangeConfigSection}
         onChangeView={handleChangeView}
         onLogout={handleLogout}
         onToggleBell={() => {
@@ -975,7 +1005,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {activeView === 'config' && (
         currentUser.role === 'admin'
-          ? <AdminDashboard mode="config" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+          ? <AdminDashboard configSection={configSection} mode="config" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
           : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
       )}
 
