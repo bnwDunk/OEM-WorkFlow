@@ -99,14 +99,6 @@ pipeline {
       }
     }
 
-    stage('Stop Docker Stack') {
-      steps {
-        script {
-          composeCommand('down --remove-orphans', true)
-        }
-      }
-    }
-
     stage('Build Images') {
       steps {
         script {
