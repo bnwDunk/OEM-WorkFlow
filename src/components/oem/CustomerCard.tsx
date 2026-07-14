@@ -82,6 +82,9 @@ function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatus
           >
             {customer.name}
           </button>
+          {customer.customerCode && (
+            <div className="mt-1 font-mono text-xs font-bold text-slate-400">{customer.customerCode}</div>
+          )}
           <div className="mt-3 flex max-w-full items-start">
             <div
               className={`inline-flex min-h-9 max-w-full items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-black leading-tight shadow-sm ring-1 ring-white/70 ${customerStatusStyles[status] || defaultCustomerStatusStyle}`}

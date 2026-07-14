@@ -48,6 +48,7 @@ export type ManagedFlow = {
 export type ManagedCustomerProject = {
   id: number
   slug: string
+  customerCode?: string | null
   name: string
   status: CustomerStatus
   flowId: number | null
@@ -55,6 +56,12 @@ export type ManagedCustomerProject = {
   currentPhaseId: number | null
   currentPhaseName: string | null
   updatedAt: string
+}
+
+export type CustomerCodeSettings = {
+  datePattern: 'YYMM'
+  fixedPrefix: string
+  suffixLength: number
 }
 
 export type ManagedCustomerStatus = {

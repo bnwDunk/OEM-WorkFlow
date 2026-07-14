@@ -47,6 +47,7 @@ type ModalState =
 
 type OverviewCustomerResponse = Omit<Customer, 'branch' | 'singleResets'> & {
   branch?: BranchState[][]
+  customer_code?: string | null
   databaseId?: number
   flow?: { id?: number | null; name?: string | null } | null
   flow_id?: number | null
@@ -74,6 +75,7 @@ function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
 
   return {
     ...customer,
+    customerCode: customer.customerCode || customer.customer_code || null,
     currentPhase,
     flowId,
     flowName,

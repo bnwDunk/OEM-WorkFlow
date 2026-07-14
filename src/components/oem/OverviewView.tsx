@@ -54,6 +54,7 @@ function OverviewView({
         const matchesStatus = statusFilter === 'all' || customer.status === statusFilter
         const searchable = [
           customer.name,
+          customer.customerCode || '',
           getCustomerStatusLabel(customer.status, customerStatusOptions),
           ...customer.tags.map((tag) => tag.name),
         ].join(' ').toLowerCase()
