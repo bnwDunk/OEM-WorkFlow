@@ -1,17 +1,20 @@
-import { flowStops } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
+import type { Customer, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 
 type DeptWorkViewProps = {
   currentDept: string
   departments: string[]
   customers: Customer[]
+  getWorkflowTemplate?: (customer: Customer) => CustomerWorkflowTemplate
   onOpenCustomer: (customerId: string) => void
 }
 
-function DeptWorkView({ currentDept, departments, customers, onOpenCustomer }: DeptWorkViewProps) {
+function DeptWorkView({ currentDept, departments, customers, getWorkflowTemplate, onOpenCustomer }: DeptWorkViewProps) {
   const assignedDepartments = departments.length ? departments : [currentDept]
-  const workItems = customers.flatMap((customer) =>
-    flowStops.flatMap((stop, stopIndex) => {
+  const workItems = customers.flatMap((customer) => {
+    const workflowTemplate = getWorkflowTemplate?.(customer) || defaultWorkflowTemplate
+
+    return workflowTemplate.stops.flatMap((stop, stopIndex) => {
       const active = stopIndex === customer.currentPhase || customer.singleResets[stopIndex]
 
       if (!active) return []
@@ -19,10 +22,10 @@ function DeptWorkView({ currentDept, departments, customers, onOpenCustomer }: D
       return stop.branches
         .map((branch, branchIndex) => ({ branch, branchIndex, customer, stop }))
         .filter(({ branch, branchIndex }) =>
-          assignedDepartments.includes(branch.dept) && !customer.branch[stopIndex][branchIndex].done,
+          assignedDepartments.includes(branch.dept) && !customer.branch[stopIndex]?.[branchIndex]?.done,
         )
-    }),
-  )
+    })
+  })
 
   return (
     <section className="page-pad">

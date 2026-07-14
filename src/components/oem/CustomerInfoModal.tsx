@@ -1,6 +1,6 @@
 import { FaTimes } from 'react-icons/fa'
-import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatusOption } from '../../data/oemWorkflow'
+import { customerStatusOptions as fallbackCustomerStatusOptions, defaultWorkflowTemplate, getCustomerStatusLabel } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatusOption, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import { formatDate } from '../../lib/dateFormat'
 
 type CustomerInfoModalProps = {
@@ -8,6 +8,7 @@ type CustomerInfoModalProps = {
   customer: Customer
   customerStatusOptions?: CustomerStatusOption[]
   deleting?: boolean
+  workflowTemplate?: CustomerWorkflowTemplate
   onClose: () => void
   onDelete: () => void
   onEdit: () => void
@@ -24,9 +25,9 @@ function getDaysLeft(dueDate: string) {
   return String(Math.ceil((due.getTime() - today.getTime()) / 86_400_000))
 }
 
-function CustomerInfoModal({ canDelete = true, customer, customerStatusOptions = fallbackCustomerStatusOptions, deleting = false, onClose, onDelete, onEdit }: CustomerInfoModalProps) {
-  const currentStop = flowStops[customer.currentPhase]
-  const stage = stages[currentStop.stageIndex]
+function CustomerInfoModal({ canDelete = true, customer, customerStatusOptions = fallbackCustomerStatusOptions, deleting = false, workflowTemplate = defaultWorkflowTemplate, onClose, onDelete, onEdit }: CustomerInfoModalProps) {
+  const currentStop = workflowTemplate.stops[customer.currentPhase] || workflowTemplate.stops[0] || defaultWorkflowTemplate.stops[0]
+  const stage = workflowTemplate.stages[currentStop.stageIndex]
   const status = customer.status || 'brief_spec'
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
   const latestNotification = customer.notifications[0]
@@ -95,7 +96,7 @@ function CustomerInfoModal({ canDelete = true, customer, customerStatusOptions =
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="m-0 text-xs font-black uppercase text-slate-500">Current workflow</p>
             <p className="mt-2 mb-0 text-sm font-semibold text-slate-600">
-              Stage {currentStop.stageIndex + 1}/5 ({stage.name}) - Phase {currentStop.label}
+              Stage {currentStop.stageIndex + 1}/{workflowTemplate.stages.length} ({stage.name}) - Phase {currentStop.label}
             </p>
             <p className="mt-1 mb-0 text-lg font-black text-slate-950">{currentStop.name}</p>
           </div>

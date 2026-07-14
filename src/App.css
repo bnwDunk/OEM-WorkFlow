@@ -2592,6 +2592,251 @@ button:disabled {
   background: #eef2f7 !important;
 }
 
+.admin-flow-collapse-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-flow-collapse-row .config-toggle-btn {
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-flow-collapse-row .config-toggle-btn:hover,
+.admin-flow-collapse-row .config-toggle-btn:focus-visible {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.admin-flow-collapse-row .config-toggle-btn + span {
+  display: inline-flex !important;
+}
+
+.admin-flow-overlay {
+  background: rgba(17, 24, 39, 0.58) !important;
+}
+
+.admin-flow-modal {
+  width: min(1125px, calc(100vw - 48px)) !important;
+  max-width: 1125px !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+}
+
+.admin-flow-head {
+  padding: 24px 30px !important;
+  border-bottom-color: #e5e7eb !important;
+  background: #fff;
+}
+
+.admin-flow-head h3 {
+  color: #111827 !important;
+  font-size: 20px !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-head p {
+  margin-top: 6px !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.admin-flow-body {
+  padding: 14px 0 10px !important;
+  background: #fff;
+}
+
+.admin-flow-stage {
+  border-bottom-color: #e5e7eb !important;
+}
+
+.admin-flow-stage-head {
+  min-height: 72px;
+  grid-template-columns: 28px auto minmax(0, 1fr) auto !important;
+  padding: 14px 30px 14px 22px !important;
+  background: #f1f5f9 !important;
+}
+
+.admin-flow-stage-head:hover {
+  background: #eaf0f6 !important;
+}
+
+.admin-flow-stage-pill {
+  min-width: 35px;
+  min-height: 28px;
+  display: inline-grid !important;
+  place-items: center;
+  margin-right: 14px !important;
+  border-radius: 6px !important;
+  background: #111827 !important;
+  color: #fff !important;
+  font-size: 12px !important;
+}
+
+.admin-flow-stage-head input,
+.admin-flow-phase-head input {
+  height: 36px !important;
+  border-radius: 6px !important;
+  letter-spacing: 0;
+}
+
+.admin-flow-stage-head input {
+  color: #111827 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-phase-head {
+  min-height: 70px;
+  grid-template-columns: 28px 96px minmax(260px, 1fr) minmax(240px, auto) auto !important;
+  padding: 10px 20px 10px 48px !important;
+  background: #fff;
+}
+
+.admin-flow-phase-head:hover {
+  background: #f7fbfb !important;
+}
+
+.admin-flow-phase-head label:first-of-type input {
+  background: #e6f7f6 !important;
+  color: #008f86 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-phase-head label:nth-of-type(2) input {
+  color: #111827 !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+.admin-flow-dept-chip,
+.admin-flow-branch-chip {
+  min-height: 34px !important;
+  display: inline-flex !important;
+  align-items: center;
+  border-color: #dbe5ef !important;
+  background: #f8fafc !important;
+  color: #334155 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.admin-flow-branch-chip {
+  min-height: 28px !important;
+  border: 0 !important;
+  background: #ecfdf5 !important;
+  color: #009688 !important;
+}
+
+.admin-flow-phase-head select {
+  height: 38px !important;
+  min-width: 205px;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: #64748b !important;
+  font-size: 13px !important;
+}
+
+.admin-flow-checklist {
+  padding: 16px 28px 18px 110px !important;
+  background: #f8fafc !important;
+}
+
+.admin-flow-branch {
+  margin-top: 12px !important;
+  padding: 12px 14px;
+  border: 1px solid #edf2f7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.admin-flow-branch:first-child {
+  margin-top: 0 !important;
+}
+
+.admin-flow-check-item {
+  min-height: 42px;
+  border-bottom-color: #edf2f7 !important;
+}
+
+.admin-flow-check-item input {
+  height: 36px !important;
+  border-radius: 5px !important;
+  color: #475569 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.admin-flow-check-item input:focus,
+.admin-flow-stage-head input:focus,
+.admin-flow-phase-head input:focus {
+  border-color: #00a99d !important;
+  box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.12);
+}
+
+.admin-flow-btn {
+  border-radius: 8px !important;
+  letter-spacing: 0;
+}
+
+.admin-flow-btn-secondary {
+  border-color: #dbe5ef !important;
+  background: #fff !important;
+  color: #111827 !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-flow-btn-primary {
+  background: #00a99d !important;
+  color: #fff !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-btn-primary:hover:not(:disabled) {
+  background: #008f86 !important;
+}
+
+.admin-flow-btn-danger {
+  border-color: #ffe4e6 !important;
+  background: #fff7f8 !important;
+  color: #be123c !important;
+  font-weight: 900 !important;
+}
+
+.admin-flow-btn-danger:hover:not(:disabled) {
+  background: #ffe4e6 !important;
+}
+
+.admin-flow-foot {
+  padding: 20px 30px !important;
+  border-top-color: #dbe5ef !important;
+  background: #fff;
+}
+
+.admin-flow-foot .admin-flow-btn {
+  min-height: 48px !important;
+  padding-inline: 22px !important;
+  font-size: 16px !important;
+}
+
 .config-page > div + div > section > div:nth-child(2) {
   overflow: auto !important;
   padding: 10px 0 !important;
@@ -2812,6 +3057,46 @@ button:disabled {
 
   .config-page > div + div > section > div:nth-child(2) > section > div:not(:first-child) > div:last-child {
     padding-left: 16px !important;
+  }
+
+  .admin-flow-modal {
+    width: calc(100vw - 24px) !important;
+  }
+
+  .admin-flow-head,
+  .admin-flow-foot {
+    padding: 16px !important;
+  }
+
+  .admin-flow-head {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-flow-stage-head {
+    grid-template-columns: 28px auto minmax(0, 1fr) !important;
+    padding: 12px 14px !important;
+  }
+
+  .admin-flow-stage-head > button:last-child {
+    grid-column: 2 / -1;
+    justify-self: start;
+    margin-left: 0 !important;
+    margin-top: 8px;
+  }
+
+  .admin-flow-phase-head {
+    grid-template-columns: 28px 96px minmax(0, 1fr) !important;
+    padding: 10px 14px !important;
+  }
+
+  .admin-flow-phase-head > div,
+  .admin-flow-phase-head > button:last-child {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+
+  .admin-flow-checklist {
+    padding: 12px 14px !important;
   }
 
   .oem-tabs {

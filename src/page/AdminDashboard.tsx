@@ -9,6 +9,7 @@ import FlowStructureEditorModal from '../components/oem/admin/FlowStructureEdito
 import Pagination from '../components/oem/Pagination'
 import UserDetailModal from '../components/oem/admin/UserDetailModal'
 import type {
+  FlowBranchDraft,
   FlowPhaseDraft,
   FlowStageDraft,
   FlowStructure,
@@ -58,6 +59,7 @@ type AdminDashboardProps = {
   configSection?: ConfigSection
   mode?: 'admin' | 'config'
   onCustomerStatusesChange?: () => void
+  onFlowStructureChange?: () => void | Promise<void>
   token: string
 }
 
@@ -72,7 +74,16 @@ type DepartmentDetailState = {
   workItems: DepartmentWorkItem[]
 }
 
-function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerStatusesChange, token }: AdminDashboardProps) {
+type BranchWorkItemDraft = { id?: number; label: string }
+type DraftBranchItems = {
+  departmentId: number
+  items: BranchWorkItemDraft[]
+  phaseId: number | undefined
+  phaseIndex: number
+  stageIndex: number
+}
+
+function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerStatusesChange, onFlowStructureChange, token }: AdminDashboardProps) {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [customers, setCustomers] = useState<ManagedCustomerProject[]>([])
   const [customerStatuses, setCustomerStatuses] = useState<ManagedCustomerStatus[]>([])
@@ -514,14 +525,18 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       setActionError('')
       setActionMessage('')
       setBusyAction(`flow-structure-${flow.id}`)
-      const response = await apiRequest<FlowStructure>(`/admin/flows/${flow.id}/structure`, { token })
+      const response = await apiRequest<FlowStructure>(`/workflow/flows/${flow.id}/structure`, { token })
       setStructureEditor({
         ...response,
         stages: response.stages.map((stage) => ({
           ...stage,
-          phases: stage.phases.map((phase) => ({
+          phases: stage.phases.map((phase, phaseIndex) => ({
             ...phase,
-            departmentIds: phase.departments?.map((department) => department.id) || [],
+            label: /^\d+$/.test(phase.label) ? String(phaseIndex + 1) : phase.label,
+            branches: phase.branches || [],
+            departmentIds: phase.departments?.map((department) => department.id)
+              || phase.branches?.map((branch) => branch.departmentId || branch.department?.id).filter((departmentId): departmentId is number => Boolean(departmentId))
+              || [],
           })),
         })),
       })
@@ -565,9 +580,21 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     })
   }
 
+  function createDraftBranch(departmentId: number): FlowBranchDraft {
+    const department = departments.find((item) => item.id === departmentId)
+
+    return {
+      department,
+      departmentId,
+      departmentName: department?.name,
+      items: [],
+    }
+  }
+
   function addStage() {
     setStructureEditor((current) => {
       if (!current) return current
+      const defaultDepartmentId = departments[0]?.id
 
       return {
         ...current,
@@ -575,7 +602,12 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
           ...current.stages,
           {
             name: `Stage ${current.stages.length + 1}`,
-            phases: [{ label: '1', name: 'New phase', departmentIds: departments[0] ? [departments[0].id] : [] }],
+            phases: [{
+              branches: defaultDepartmentId ? [createDraftBranch(defaultDepartmentId)] : [],
+              label: '1',
+              name: 'New phase',
+              departmentIds: defaultDepartmentId ? [defaultDepartmentId] : [],
+            }],
           },
         ],
       }
@@ -596,6 +628,7 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
   function addPhase(stageIndex: number) {
     setStructureEditor((current) => {
       if (!current) return current
+      const defaultDepartmentId = departments[0]?.id
 
       return {
         ...current,
@@ -605,7 +638,12 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
                 ...stage,
                 phases: [
                   ...stage.phases,
-                  { label: String(stage.phases.length + 1), name: 'New phase', departmentIds: departments[0] ? [departments[0].id] : [] },
+                  {
+                    branches: defaultDepartmentId ? [createDraftBranch(defaultDepartmentId)] : [],
+                    label: String(stage.phases.length + 1),
+                    name: 'New phase',
+                    departmentIds: defaultDepartmentId ? [defaultDepartmentId] : [],
+                  },
                 ],
               }
             : stage,
@@ -641,10 +679,28 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
                 ...stage,
                 phases: stage.phases.map((phase, itemIndex) => {
                   if (itemIndex !== phaseIndex) return phase
+                  const nextDepartmentIds = updater(phase.departmentIds || [])
+                  const nextBranches = (phase.branches || [])
+                    .filter((branch) => {
+                      const branchDepartmentId = branch.departmentId || branch.department?.id
+
+                      return branchDepartmentId ? nextDepartmentIds.includes(branchDepartmentId) : true
+                    })
+                  const branchDepartmentIds = new Set(
+                    nextBranches
+                      .map((branch) => branch.departmentId || branch.department?.id)
+                      .filter((departmentId): departmentId is number => Boolean(departmentId)),
+                  )
 
                   return {
                     ...phase,
-                    departmentIds: updater(phase.departmentIds || []),
+                    branches: [
+                      ...nextBranches,
+                      ...nextDepartmentIds
+                        .filter((departmentId) => !branchDepartmentIds.has(departmentId))
+                        .map((departmentId) => createDraftBranch(departmentId)),
+                    ],
+                    departmentIds: nextDepartmentIds,
                   }
                 }),
               }
@@ -668,6 +724,83 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     )
   }
 
+  function updateBranchItems(
+    stageIndex: number,
+    phaseIndex: number,
+    branchIndex: number,
+    updater: (items: BranchWorkItemDraft[]) => BranchWorkItemDraft[],
+  ) {
+    setStructureEditor((current) => {
+      if (!current) return current
+
+      return {
+        ...current,
+        stages: current.stages.map((stage, currentStageIndex) =>
+          currentStageIndex !== stageIndex
+            ? stage
+            : {
+                ...stage,
+                phases: stage.phases.map((phase, currentPhaseIndex) =>
+                  currentPhaseIndex !== phaseIndex
+                    ? phase
+                    : {
+                        ...phase,
+                        branches: (phase.branches || []).map((branch, currentBranchIndex) =>
+                          currentBranchIndex === branchIndex
+                            ? { ...branch, items: updater(branch.items || []) }
+                            : branch,
+                        ),
+                      },
+                ),
+              },
+        ),
+      }
+    })
+  }
+
+  function updateBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number, itemIndex: number, label: string) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) =>
+      items.map((item, currentItemIndex) => currentItemIndex === itemIndex ? { ...item, label } : item),
+    )
+  }
+
+  function addBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) => [...items, { label: 'New checklist' }])
+  }
+
+  function removeBranchItem(stageIndex: number, phaseIndex: number, branchIndex: number, itemIndex: number) {
+    updateBranchItems(stageIndex, phaseIndex, branchIndex, (items) => items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex))
+  }
+
+  async function saveBranchItems(stageIndex: number, phaseIndex: number, branchIndex: number) {
+    if (!structureEditor) return
+
+    const phase = structureEditor.stages[stageIndex]?.phases[phaseIndex]
+    const branch = phase?.branches?.[branchIndex]
+    if (!phase?.id || !branch?.id) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`flow-branch-items-${branch.id}`)
+      const response = await apiRequest<{ items: { id?: number; label: string }[] }>(
+        `/workflow/flows/${structureEditor.flow.id}/phases/${phase.id}/branches/${branch.id}/items`,
+        {
+          method: 'PUT',
+          token,
+          body: JSON.stringify({ items: branch.items || [] }),
+        },
+      )
+
+      updateBranchItems(stageIndex, phaseIndex, branchIndex, () => response.items)
+      setActionMessage('Updated checklist.')
+    } catch (saveError) {
+      setActionError(saveError instanceof Error ? saveError.message : 'Failed to update checklist.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function saveStructure() {
     if (!structureEditor) return
 
@@ -675,11 +808,25 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       setActionError('')
       setActionMessage('')
       setBusyAction(`flow-structure-save-${structureEditor.flow.id}`)
+      const draftBranchItems = structureEditor.stages.flatMap((stage, stageIndex) =>
+        stage.phases.flatMap((phase, phaseIndex) =>
+          (phase.branches || [])
+            .map((branch) => {
+              const departmentId = branch.departmentId || branch.department?.id
+              const items = (branch.items || []).filter((item) => item.label.trim())
+
+              return departmentId
+                ? { departmentId, items, phaseId: phase.id, phaseIndex, stageIndex }
+                : null
+            })
+            .filter((item): item is DraftBranchItems => Boolean(item)),
+        ),
+      )
       const stages = structureEditor.stages.map((stage) => ({
         ...stage,
-        phases: stage.phases.map((phase) => ({
+        phases: stage.phases.map((phase, phaseIndex) => ({
           id: phase.id,
-          label: phase.label,
+          label: /^\d+$/.test(phase.label) ? String(phaseIndex + 1) : phase.label,
           name: phase.name,
           departmentIds: phase.departmentIds || [],
         })),
@@ -690,8 +837,35 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         token,
         body: JSON.stringify({ stages }),
       })
+      const savedStructure = await apiRequest<FlowStructure>(`/workflow/flows/${structureEditor.flow.id}/structure`, { token })
+
+      if (draftBranchItems.length > 0) {
+        await Promise.all(
+          draftBranchItems.map(async (draft) => {
+            const phase = draft.phaseId
+              ? savedStructure.stages
+                .flatMap((stage) => stage.phases)
+                .find((item) => item.id === draft.phaseId)
+              : savedStructure.stages[draft.stageIndex]?.phases[draft.phaseIndex]
+            const branch = phase?.branches?.find((item) => (item.departmentId || item.department?.id) === draft.departmentId)
+
+            if (!phase?.id || !branch?.id) return
+
+            await apiRequest(
+              `/workflow/flows/${structureEditor.flow.id}/phases/${phase.id}/branches/${branch.id}/items`,
+              {
+                method: 'PUT',
+                token,
+                body: JSON.stringify({ items: draft.items }),
+              },
+            )
+          }),
+        )
+      }
+
       setStructureEditor(null)
       await loadAdminData()
+      await onFlowStructureChange?.()
       setActionMessage('Updated flow structure.')
     } catch (saveError) {
       setActionError(saveError instanceof Error ? saveError.message : 'Failed to update flow structure.')
@@ -1701,14 +1875,18 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         <FlowStructureEditorModal
           busyAction={busyAction}
           departments={departments}
+          onAddBranchItem={addBranchItem}
           onAddPhase={addPhase}
           onAddPhaseDepartment={addPhaseDepartment}
           onAddStage={addStage}
           onClose={() => setStructureEditor(null)}
+          onRemoveBranchItem={removeBranchItem}
           onRemovePhase={removePhase}
           onRemovePhaseDepartment={removePhaseDepartment}
           onRemoveStage={removeStage}
           onSave={saveStructure}
+          onSaveBranchItems={saveBranchItems}
+          onUpdateBranchItem={updateBranchItem}
           onUpdatePhase={updatePhase}
           onUpdateStage={updateStage}
           structure={structureEditor}

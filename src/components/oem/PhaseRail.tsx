@@ -1,11 +1,12 @@
 import { IoWarning } from 'react-icons/io5'
-import { flowStops, stages } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
+import type { Customer, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 
 type PhaseRailProps = {
   customer: Customer
   issuePhaseSet?: Set<number>
   viewedPhase: number
+  workflowTemplate?: CustomerWorkflowTemplate
   onViewPhase: (phase: number) => void
 }
 
@@ -44,10 +45,10 @@ const statusLabels: Record<PhaseStatus, string> = {
   locked: 'Waiting',
 }
 
-function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, viewedPhase }: PhaseRailProps) {
-  const stageGroups = stages.map((stage, stageIndex) => ({
+function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, viewedPhase, workflowTemplate = defaultWorkflowTemplate }: PhaseRailProps) {
+  const stageGroups = workflowTemplate.stages.map((stage, stageIndex) => ({
     stage,
-    stops: flowStops
+    stops: workflowTemplate.stops
       .map((stop, phase) => ({ ...stop, phase }))
       .filter((stop) => stop.stageIndex === stageIndex),
   }))
