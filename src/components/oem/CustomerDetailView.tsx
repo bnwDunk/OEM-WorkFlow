@@ -1,7 +1,7 @@
 import { IoCloudUpload } from 'react-icons/io5'
 import { MdCancel } from 'react-icons/md'
-import { flowStops } from '../../data/oemWorkflow'
-import type { Customer } from '../../data/oemWorkflow'
+import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
+import type { Customer, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import ActivityPanel from './ActivityPanel'
 import BranchCard from './BranchCard'
 import IssuePanel from './IssuePanel'
@@ -12,6 +12,7 @@ type CustomerDetailViewProps = {
   currentUserName: string
   userDepartments: string[]
   customer: Customer
+  workflowTemplate?: CustomerWorkflowTemplate
   viewedPhase: number
   onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
   onBack: () => void
@@ -38,6 +39,7 @@ function CustomerDetailView({
   currentUserName,
   userDepartments,
   customer,
+  workflowTemplate = defaultWorkflowTemplate,
   onAddIssue,
   onBack,
   onCancelBranch,
@@ -49,9 +51,9 @@ function CustomerDetailView({
   savingBranchAction = null,
   viewedPhase,
 }: CustomerDetailViewProps) {
-  const stop = flowStops[viewedPhase]
-  const phaseBranches = customer.workflowBranches?.[viewedPhase] || stop.branches
-  const branchStates = customer.branch[viewedPhase]
+  const stop = workflowTemplate.stops[viewedPhase] || workflowTemplate.stops[0] || defaultWorkflowTemplate.stops[0]
+  const phaseBranches = stop.branches
+  const branchStates = customer.branch[viewedPhase] || []
   const isPast = viewedPhase < customer.currentPhase && !customer.singleResets[viewedPhase]
   const isFuture = viewedPhase > customer.currentPhase
   const isActive = viewedPhase === customer.currentPhase || customer.singleResets[viewedPhase]
@@ -65,8 +67,8 @@ function CustomerDetailView({
       branchIndex,
       canManage: hasDepartment(userDepartments, branch.dept),
       dept: branch.dept,
-      done: branchStates[branchIndex].done,
-      hasCheckedItem: branchStates[branchIndex].live.some(Boolean),
+      done: branchStates[branchIndex]?.done || false,
+      hasCheckedItem: branchStates[branchIndex]?.live.some(Boolean) || false,
     }))
     .filter((action) => !action.done && isActive && action.canManage)
 
@@ -84,7 +86,7 @@ function CustomerDetailView({
         <header className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.06)]">
           <div className="border-b border-slate-100 bg-white px-4 py-4 sm:px-5">
             <span className="inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-black uppercase text-teal-800">
-              Stage {stop.stageIndex + 1}/5 - Phase {stop.label}
+              Stage {stop.stageIndex + 1}/{workflowTemplate.stages.length} - Phase {stop.label}
             </span>
             <div className="mt-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -144,7 +146,7 @@ function CustomerDetailView({
           </div>
         </header>
 
-        <PhaseRail customer={customer} issuePhaseSet={openIssuePhaseSet} onViewPhase={onViewPhase} viewedPhase={viewedPhase} />
+        <PhaseRail customer={customer} issuePhaseSet={openIssuePhaseSet} onViewPhase={onViewPhase} viewedPhase={viewedPhase} workflowTemplate={workflowTemplate} />
 
         {isPast && (
           <button
@@ -160,7 +162,7 @@ function CustomerDetailView({
           {phaseBranches.map((branch, branchIndex) => (
             <BranchCard
               branch={branch}
-              branchState={branchStates[branchIndex]}
+              branchState={branchStates[branchIndex] || { done: false, live: branch.items.map(() => false), saved: branch.items.map(() => false) }}
               canManage={hasDepartment(userDepartments, branch.dept)}
               isActive={Boolean(isActive)}
               key={`${branch.dept}-${branchIndex}`}

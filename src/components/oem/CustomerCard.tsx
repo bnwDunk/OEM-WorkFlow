@@ -1,13 +1,14 @@
 import { FaEdit } from 'react-icons/fa'
 import { IoWarning } from 'react-icons/io5'
 import type { KeyboardEvent, MouseEvent } from 'react'
-import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel, stages } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
+import { customerStatusOptions as fallbackCustomerStatusOptions, defaultWorkflowTemplate, getCustomerStatusLabel } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import StageRail from './StageRail'
 
 type CustomerCardProps = {
   customer: Customer
   customerStatusOptions?: CustomerStatusOption[]
+  workflowTemplate?: CustomerWorkflowTemplate
   onAddTag: (customerId: string) => void
   onEditTag: (customerId: string, tag: CustomerTag) => void
   onOpen: (customerId: string) => void
@@ -27,8 +28,9 @@ const customerStatusStyles: Record<string, string> = {
 
 const defaultCustomerStatusStyle = 'border-slate-200 bg-slate-50 text-slate-800 shadow-slate-100/70'
 
-function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatusOptions, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {
-  const currentStop = flowStops[customer.currentPhase]
+function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatusOptions, workflowTemplate = defaultWorkflowTemplate, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {
+  const currentStop = workflowTemplate.stops[customer.currentPhase] || workflowTemplate.stops[0] || defaultWorkflowTemplate.stops[0]
+  const currentStage = workflowTemplate.stages[currentStop.stageIndex]
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
   const status = customer.status || 'brief_spec'
 
@@ -141,9 +143,9 @@ function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatus
       </div>
 
       <div className="customer-body">
-        <StageRail currentPhase={customer.currentPhase} />
+        <StageRail currentPhase={customer.currentPhase} workflowTemplate={workflowTemplate} />
         <p>
-          Stage {currentStop.stageIndex + 1}/5 ({stages[currentStop.stageIndex].name}) - Phase {currentStop.label}:{' '}
+          Stage {currentStop.stageIndex + 1}/{workflowTemplate.stages.length} ({currentStage.name}) - Phase {currentStop.label}:{' '}
           <strong>{currentStop.name}</strong>
         </p>
       </div>

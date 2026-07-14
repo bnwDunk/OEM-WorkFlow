@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { customerStatusOptions as fallbackCustomerStatusOptions, getCustomerStatusLabel } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import CustomerCard from './CustomerCard'
 import Pagination from './Pagination'
 
@@ -11,6 +11,7 @@ type OverviewViewProps = {
   customerStatusOptions?: CustomerStatusOption[]
   error: string
   loading: boolean
+  getWorkflowTemplate?: (customer: Customer) => CustomerWorkflowTemplate
   onAddTag: (customerId: string) => void
   onEditTag: (customerId: string, tag: CustomerTag) => void
   onCreateCustomer?: () => void
@@ -24,6 +25,7 @@ function OverviewView({
   customers,
   customerStatusOptions = fallbackCustomerStatusOptions,
   error,
+  getWorkflowTemplate,
   loading,
   onAddTag,
   onEditTag,
@@ -168,6 +170,7 @@ function OverviewView({
             customer={customer}
             customerStatusOptions={customerStatusOptions}
             key={customer.id}
+            workflowTemplate={getWorkflowTemplate?.(customer)}
             onAddTag={onAddTag}
             onEditTag={onEditTag}
             onOpen={onOpenCustomer}

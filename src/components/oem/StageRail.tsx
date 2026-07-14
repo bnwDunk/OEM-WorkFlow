@@ -1,7 +1,9 @@
-import { stageRanges, stages } from '../../data/oemWorkflow'
+import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
+import type { CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 
 type StageRailProps = {
   currentPhase: number
+  workflowTemplate?: CustomerWorkflowTemplate
 }
 
 type StageStatus = 'done' | 'current' | 'locked'
@@ -18,10 +20,16 @@ const stageStatusStyles = {
   locked: 'border-dashed border-slate-200 bg-white text-slate-500 shadow-slate-100/70',
 }
 
-function StageRail({ currentPhase }: StageRailProps) {
+function StageRail({ currentPhase, workflowTemplate = defaultWorkflowTemplate }: StageRailProps) {
+  const stageRanges = workflowTemplate.stages.reduce<{ start: number; end: number }[]>((ranges, stage) => {
+    const start = ranges.length === 0 ? 0 : ranges[ranges.length - 1].end + 1
+    ranges.push({ start, end: start + stage.stops.length - 1 })
+    return ranges
+  }, [])
+
   return (
     <div className="flex flex-wrap gap-2.5">
-      {stages.map((stage, index) => {
+      {workflowTemplate.stages.map((stage, index) => {
         const range = stageRanges[index]
         const status = getStageStatus(currentPhase, range.start, range.end)
         const within = Math.min(Math.max(currentPhase - range.start + 1, 0), stage.stops.length)

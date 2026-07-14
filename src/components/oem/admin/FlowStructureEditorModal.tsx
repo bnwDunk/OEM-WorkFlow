@@ -263,13 +263,13 @@ function FlowStructureEditorModal({
                                           <input
                                             aria-label={`Checklist ${itemIndex + 1} for ${branchDepartmentName}`}
                                             className="h-8 flex-1 rounded border border-transparent bg-transparent px-2 text-[12.5px] font-medium text-slate-800 outline-none transition hover:border-slate-200 hover:bg-white focus:border-[#00a99d] focus:bg-white"
-                                            disabled={!branch.id || branchBusy}
+                                            disabled={branchBusy}
                                             onChange={(event) => onUpdateBranchItem(stageIndex, phaseIndex, branchIndex, itemIndex, event.target.value)}
                                             value={item.label}
                                           />
                                           <button
                                             className="border-0 bg-transparent px-1 text-sm text-slate-300 transition hover:text-rose-600"
-                                            disabled={!branch.id || branchBusy}
+                                            disabled={branchBusy}
                                             onClick={() => onRemoveBranchItem(stageIndex, phaseIndex, branchIndex, itemIndex)}
                                             type="button"
                                           >
@@ -282,14 +282,14 @@ function FlowStructureEditorModal({
                                       )}
                                     </div>
                                     <div className="mt-2 flex flex-wrap gap-2">
-                                      <button className="admin-flow-btn admin-flow-btn-secondary min-h-7 rounded border border-slate-200 bg-slate-50 px-2.5 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100" disabled={!branch.id || branchBusy} onClick={() => onAddBranchItem(stageIndex, phaseIndex, branchIndex)} type="button">
+                                      <button className="admin-flow-btn admin-flow-btn-secondary min-h-7 rounded border border-slate-200 bg-slate-50 px-2.5 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100" disabled={branchBusy} onClick={() => onAddBranchItem(stageIndex, phaseIndex, branchIndex)} type="button">
                                         + Add checklist
                                       </button>
                                       <button className="admin-flow-btn admin-flow-btn-primary min-h-7 rounded border-0 bg-[#00a99d] px-2.5 text-[11.5px] font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!branch.id || branchBusy} onClick={() => onSaveBranchItems(stageIndex, phaseIndex, branchIndex)} type="button">
                                         {branchBusy ? 'Saving...' : 'Update checklist'}
                                       </button>
                                     </div>
-                                    {!branch.id && <p className="m-0 mt-1 text-[11.5px] font-medium text-amber-600">Save structure first to create this department checklist.</p>}
+                                    {!branch.id && <p className="m-0 mt-1 text-[11.5px] font-medium text-amber-600">Save structure to create this department checklist.</p>}
                                   </div>
                                 )
                               })}

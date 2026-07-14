@@ -15,12 +15,14 @@ import OverviewView from '../components/oem/OverviewView'
 import ResetModal from '../components/oem/ResetModal'
 import TagModal from '../components/oem/TagModal'
 import {
-  flowStops,
+  createWorkflowTemplateFromBranches,
+  createWorkflowTemplateFromStages,
+  defaultWorkflowTemplate,
   seedBranchState,
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerStatusOption, CustomerTag } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate, StageTemplate } from '../data/oemWorkflow'
 import { apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import type { ConfigSection } from '../data/configSections'
@@ -46,6 +48,9 @@ type ModalState =
 type OverviewCustomerResponse = Omit<Customer, 'branch' | 'singleResets'> & {
   branch?: BranchState[][]
   databaseId?: number
+  flow?: { id?: number | null; name?: string | null } | null
+  flow_id?: number | null
+  flow_name?: string | null
   singleResets?: Record<number, boolean>
 }
 
@@ -53,15 +58,79 @@ type OverviewResponse = {
   customers: OverviewCustomerResponse[]
 }
 
+type CustomerFlowReference = {
+  flowId?: number | null
+  flowName?: string | null
+  id?: number
+  name?: string
+  slug?: string
+}
+
 function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
-  const currentPhase = Math.min(Math.max(customer.currentPhase, 0), flowStops.length - 1)
+  const fallbackTemplate = createWorkflowTemplateFromBranches(customer.workflowBranches)
+  const currentPhase = Math.min(Math.max(customer.currentPhase, 0), fallbackTemplate.stops.length - 1)
+  const flowId = customer.flowId || customer.flow_id || customer.flow?.id || null
+  const flowName = customer.flowName || customer.flow_name || customer.flow?.name || null
 
   return {
     ...customer,
     currentPhase,
-    branch: customer.branch || seedBranchState(currentPhase),
+    flowId,
+    flowName,
+    branch: customer.branch || seedBranchState(currentPhase, {}, fallbackTemplate.stops),
     singleResets: customer.singleResets || {},
   }
+}
+
+function mergeCustomerFlowReferences(customers: Customer[], references: CustomerFlowReference[]) {
+  return customers.map((customer) => {
+    if (customer.flowId) return customer
+
+    const reference = references.find((item) =>
+      (customer.databaseId && item.id === customer.databaseId) ||
+      (item.slug && item.slug === customer.id) ||
+      (item.name && item.name === customer.name),
+    )
+
+    if (!reference?.flowId) return customer
+
+    return {
+      ...customer,
+      flowId: reference.flowId,
+      flowName: customer.flowName || reference.flowName || null,
+    }
+  })
+}
+
+type FlowStructureResponse = {
+  stages: {
+    name: string
+    phases: {
+      label: string
+      name: string
+      branches?: {
+        department?: { name?: string } | null
+        departmentName?: string
+        items?: { label: string }[]
+      }[]
+    }[]
+  }[]
+}
+
+function mapFlowStructureToTemplate(structure: FlowStructureResponse): CustomerWorkflowTemplate {
+  const templateStages: StageTemplate[] = structure.stages.map((stage) => ({
+    name: stage.name,
+    stops: stage.phases.map((phase) => ({
+      branches: (phase.branches || []).map((branch) => ({
+        dept: branch.departmentName || branch.department?.name || 'Department',
+        items: (branch.items || []).map((item) => item.label),
+      })),
+      label: phase.label,
+      name: phase.name,
+    })),
+  }))
+
+  return createWorkflowTemplateFromStages(templateStages)
 }
 
 function normalizeDepartmentName(value: string) {
@@ -87,6 +156,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   const location = useLocation()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [availableFlows, setAvailableFlows] = useState<ManagedFlow[]>([])
+  const [flowTemplates, setFlowTemplates] = useState<Record<number, CustomerWorkflowTemplate>>({})
   const [availableTags, setAvailableTags] = useState<CustomerTag[]>([])
   const [customerStatusOptions, setCustomerStatusOptions] = useState<CustomerStatusOption[]>([])
   const [availableUsers, setAvailableUsers] = useState<ManagedUser[]>([])
@@ -193,7 +263,17 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       const response = await apiRequest<OverviewResponse>('/workflow/overview', {
         token: accessToken,
       })
-      const nextCustomers = response.customers.map(mapOverviewCustomer)
+      let nextCustomers = response.customers.map(mapOverviewCustomer)
+
+      if (currentUser.role === 'admin' && nextCustomers.some((customer) => !customer.flowId)) {
+        const adminCustomers = await apiRequest<{ customers: CustomerFlowReference[] }>('/admin/customers', {
+          token: accessToken,
+        }).catch(() => null)
+
+        if (adminCustomers) {
+          nextCustomers = mergeCustomerFlowReferences(nextCustomers, adminCustomers.customers)
+        }
+      }
 
       setCustomers(nextCustomers)
       setSelectedCustomerId((currentId) =>
@@ -206,18 +286,55 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     } finally {
       setOverviewLoading(false)
     }
+  }, [accessToken, currentUser.role])
+
+  const loadFlowTemplates = useCallback(async (flowIds: number[]) => {
+    const uniqueFlowIds = Array.from(new Set(flowIds)).filter((flowId) => flowId)
+    if (uniqueFlowIds.length === 0) return
+
+    const entries = await Promise.all(
+      uniqueFlowIds.map(async (flowId) => {
+        try {
+          const response = await apiRequest<FlowStructureResponse>(`/workflow/flows/${flowId}/structure`, {
+            token: accessToken,
+          })
+
+          return [flowId, mapFlowStructureToTemplate(response)] as const
+        } catch {
+          return null
+        }
+      }),
+    )
+
+    const nextEntries = entries.filter((entry): entry is readonly [number, CustomerWorkflowTemplate] => Boolean(entry))
+    if (nextEntries.length === 0) return
+
+    setFlowTemplates((current) => ({
+      ...current,
+      ...Object.fromEntries(nextEntries),
+    }))
   }, [accessToken])
 
   const loadFlows = useCallback(async () => {
-    if (currentUser.role !== 'admin') return
-
     try {
-      const response = await apiRequest<{ flows: ManagedFlow[] }>('/admin/flows', {
+      const response = await apiRequest<{ flows: ManagedFlow[] }>('/workflow/flows', {
         token: accessToken,
       })
       setAvailableFlows(response.flows)
     } catch {
-      setAvailableFlows([])
+      if (currentUser.role !== 'admin') {
+        setAvailableFlows([])
+        return
+      }
+
+      try {
+        const response = await apiRequest<{ flows: ManagedFlow[] }>('/admin/flows', {
+          token: accessToken,
+        })
+        setAvailableFlows(response.flows)
+      } catch {
+        setAvailableFlows([])
+      }
     }
   }, [accessToken, currentUser.role])
 
@@ -262,6 +379,24 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   useEffect(() => {
     void loadOverview()
   }, [loadOverview])
+
+  const resolveCustomerFlowId = useCallback((customer: Customer | null | undefined) => {
+    if (!customer) return null
+    if (customer.flowId) return customer.flowId
+
+    const flowName = customer.flowName?.trim().toLowerCase()
+    if (!flowName) return null
+
+    return availableFlows.find((flow) => flow.name.trim().toLowerCase() === flowName)?.id || null
+  }, [availableFlows])
+
+  useEffect(() => {
+    const flowIds = customers
+      .map((customer) => resolveCustomerFlowId(customer))
+      .filter((flowId): flowId is number => Boolean(flowId))
+
+    void loadFlowTemplates(flowIds)
+  }, [customers, loadFlowTemplates, resolveCustomerFlowId])
 
   useEffect(() => {
     void loadFlows()
@@ -452,6 +587,29 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     customer.notifications.unshift({ text, time: 'เมื่อสักครู่', read: false })
   }
 
+  function getCustomerWorkflowTemplate(customer: Customer | null | undefined): CustomerWorkflowTemplate {
+    if (!customer) return defaultWorkflowTemplate
+    const flowId = resolveCustomerFlowId(customer)
+    if (flowId && flowTemplates[flowId]) return flowTemplates[flowId]
+
+    return createWorkflowTemplateFromBranches(customer.workflowBranches)
+  }
+
+  function ensureCustomerBranchState(customer: Customer, phase: number, branchIndex: number): BranchState | null {
+    const workflowTemplate = getCustomerWorkflowTemplate(customer)
+    const branchTemplate = workflowTemplate.stops[phase]?.branches[branchIndex]
+    if (!branchTemplate) return null
+
+    customer.branch[phase] ||= []
+    customer.branch[phase][branchIndex] ||= {
+      done: false,
+      live: branchTemplate.items.map(() => false),
+      saved: branchTemplate.items.map(() => false),
+    }
+
+    return customer.branch[phase][branchIndex]
+  }
+
   async function handleMarkNotificationRead(customerId: string, notificationIndex: number, notificationId?: number) {
     try {
       if (notificationId) {
@@ -576,7 +734,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }
 
   function canManageViewedBranch(branchIndex: number) {
-    return hasDepartment(userDepartments, flowStops[viewedPhase]?.branches[branchIndex]?.dept)
+    const workflowTemplate = getCustomerWorkflowTemplate(selectedCustomer)
+
+    return hasDepartment(userDepartments, workflowTemplate.stops[viewedPhase]?.branches[branchIndex]?.dept)
   }
 
   function handleToggleBranchItem(branchIndex: number, itemIndex: number) {
@@ -584,10 +744,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
-      const branch = customer.branch[viewedPhase][branchIndex]
+      const branch = ensureCustomerBranchState(customer, viewedPhase, branchIndex)
       const isActive = viewedPhase === customer.currentPhase || customer.singleResets[viewedPhase]
 
-      if (branch.done || !isActive) return customer
+      if (!branch || branch.done || !isActive) return customer
 
       branch.live[itemIndex] = !branch.live[itemIndex]
       return customer
@@ -599,7 +759,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!selectedCustomer) return
 
     updateCustomer(selectedCustomer.id, (customer) => {
-      const branch = customer.branch[viewedPhase][branchIndex]
+      const branch = ensureCustomerBranchState(customer, viewedPhase, branchIndex)
+      if (!branch) return customer
+
       branch.live = [...branch.saved]
       return customer
     })
@@ -609,8 +771,8 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     if (!canManageViewedBranch(branchIndex)) return
     if (!selectedCustomer || savingBranchAction) return
 
-    const branch = selectedCustomer.branch[viewedPhase][branchIndex]
-    if (!branch.live.some(Boolean)) {
+    const branch = selectedCustomer.branch[viewedPhase]?.[branchIndex]
+    if (!branch || !branch.live.some(Boolean)) {
       toast.error('Please tick at least one item before saving.')
       return
     }
@@ -643,11 +805,13 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
 
     updateCustomer(selectedCustomer.id, (customer) => {
-      const branch = customer.branch[viewedPhase][branchIndex]
+      const branch = ensureCustomerBranchState(customer, viewedPhase, branchIndex)
+      if (!branch) return customer
 
       branch.saved = [...branch.live]
       branch.done = true
-      addLog(customer, `ฝ่าย ${flowStops[viewedPhase].branches[branchIndex].dept} ทำงานเสร็จแล้ว - ${flowStops[viewedPhase].name}`)
+      const workflowTemplate = getCustomerWorkflowTemplate(customer)
+      addLog(customer, `ฝ่าย ${workflowTemplate.stops[viewedPhase].branches[branchIndex].dept} ทำงานเสร็จแล้ว - ${workflowTemplate.stops[viewedPhase].name}`)
 
       const stopDone = customer.branch[viewedPhase].every((item) => item.done)
       if (customer.singleResets[viewedPhase] && stopDone) delete customer.singleResets[viewedPhase]
@@ -656,10 +820,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         setViewedPhase(customer.currentPhase)
       }
 
-      if (stopDone && viewedPhase === customer.currentPhase && viewedPhase < flowStops.length - 1) {
+      if (stopDone && viewedPhase === customer.currentPhase && viewedPhase < workflowTemplate.stops.length - 1) {
         customer.currentPhase = viewedPhase + 1
         setViewedPhase(viewedPhase + 1)
-        addLog(customer, `ครบทุกฝ่ายใน "${flowStops[viewedPhase].name}" แล้ว - ส่งต่อ ${flowStops[viewedPhase + 1].branches.map((item) => item.dept).join(' + ')}`)
+        addLog(customer, `ครบทุกฝ่ายใน "${workflowTemplate.stops[viewedPhase].name}" แล้ว - ส่งต่อ ${workflowTemplate.stops[viewedPhase + 1].branches.map((item) => item.dept).join(' + ')}`)
       }
 
       return customer
@@ -740,10 +904,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
 
     updateCustomer(selectedCustomer.id, (customer) => {
-      const endPhase = mode === 'all' ? flowStops.length - 1 : modal.phase
+      const workflowTemplate = getCustomerWorkflowTemplate(customer)
+      const endPhase = mode === 'all' ? workflowTemplate.stops.length - 1 : modal.phase
 
       for (let phase = modal.phase; phase <= endPhase; phase += 1) {
-        customer.branch[phase] = flowStops[phase].branches.map((branch) => ({
+        customer.branch[phase] = workflowTemplate.stops[phase].branches.map((branch) => ({
           live: branch.items.map(() => false),
           saved: branch.items.map(() => false),
           done: false,
@@ -759,7 +924,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         customer.singleResets[modal.phase] = true
       }
 
-      addLog(customer, `Reset ${mode === 'all' ? 'ทั้งหมดจาก' : 'เฉพาะ'} "${flowStops[modal.phase].name}" โดยแผนก ${currentDept}`)
+      addLog(customer, `Reset ${mode === 'all' ? 'ทั้งหมดจาก' : 'เฉพาะ'} "${workflowTemplate.stops[modal.phase].name}" โดยแผนก ${currentDept}`)
       return customer
     })
 
@@ -923,6 +1088,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customers={customers}
           customerStatusOptions={customerStatusOptions}
           error={overviewError}
+          getWorkflowTemplate={getCustomerWorkflowTemplate}
           loading={overviewLoading}
           onAddTag={openTagModal}
           onEditTag={openEditTagModal}
@@ -950,6 +1116,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           currentUserName={currentUser.name}
           userDepartments={userDepartments}
           customer={selectedCustomer}
+          workflowTemplate={getCustomerWorkflowTemplate(selectedCustomer)}
           onAddIssue={handleAddIssue}
           onBack={() => navigate('/flow')}
           onCancelBranch={handleCancelBranch}
@@ -999,18 +1166,36 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           currentDept={currentDept}
           departments={userDepartments}
           customers={customers}
+          getWorkflowTemplate={getCustomerWorkflowTemplate}
           onOpenCustomer={openCustomer}
         />
       )}
 
       {activeView === 'config' && (
         currentUser.role === 'admin'
-          ? <AdminDashboard configSection={configSection} mode="config" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+          ? <AdminDashboard
+              configSection={configSection}
+              mode="config"
+              onCustomerStatusesChange={loadCustomerStatuses}
+              onFlowStructureChange={async () => {
+                setFlowTemplates({})
+                await Promise.all([loadOverview(), loadFlows()])
+              }}
+              token={accessToken}
+            />
           : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
       )}
 
       {activeView === 'admin' && currentUser.role === 'admin' && (
-        <AdminDashboard mode="admin" onCustomerStatusesChange={loadCustomerStatuses} token={accessToken} />
+        <AdminDashboard
+          mode="admin"
+          onCustomerStatusesChange={loadCustomerStatuses}
+          onFlowStructureChange={async () => {
+            setFlowTemplates({})
+            await Promise.all([loadOverview(), loadFlows()])
+          }}
+          token={accessToken}
+        />
       )}
 
       {modal?.type === 'customer-info' && infoCustomer && (
@@ -1019,6 +1204,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customer={infoCustomer}
           customerStatusOptions={customerStatusOptions}
           deleting={customerDeleting}
+          workflowTemplate={getCustomerWorkflowTemplate(infoCustomer)}
           onClose={() => setModal(null)}
           onDelete={() => void handleDeleteInfoCustomer()}
           onEdit={() => openCustomerEditor(infoCustomer.id)}

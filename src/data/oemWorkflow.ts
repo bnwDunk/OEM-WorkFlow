@@ -58,6 +58,8 @@ export type Customer = {
   id: string
   databaseId?: number
   dueDate?: string
+  flowId?: number | null
+  flowName?: string | null
   name: string
   salesperson?: string
   status?: CustomerStatus
@@ -280,8 +282,91 @@ export const stageRanges = stages.reduce<{ start: number; end: number }[]>((rang
   return ranges
 }, [])
 
-export function seedBranchState(currentPhase: number, doneSeed: Record<number, number[]> = {}) {
-  return flowStops.map((stop, stopIndex) =>
+export type CustomerWorkflowTemplate = {
+  stages: StageTemplate[]
+  stops: FlowStop[]
+}
+
+export const defaultWorkflowTemplate: CustomerWorkflowTemplate = {
+  stages,
+  stops: flowStops,
+}
+
+export function createWorkflowTemplateFromStages(templateStages: StageTemplate[]): CustomerWorkflowTemplate {
+  const stops = templateStages.flatMap((stage, stageIndex) =>
+    stage.stops.map((stop, stopIndex) => {
+      const globalIndex = stage.stops
+        .slice(0, stopIndex)
+        .reduce((total) => total + 1, templateStages.slice(0, stageIndex).reduce((sum, item) => sum + item.stops.length, 0))
+      const autoGlobalLabel = /^\d+$/.test(stop.label) && Number(stop.label) === globalIndex + 1
+
+      return {
+        ...stop,
+        label: autoGlobalLabel ? String(stopIndex + 1) : stop.label,
+        stageIndex,
+        stageName: stage.name,
+        globalIndex,
+      }
+    }),
+  )
+
+  return {
+    stages: templateStages.map((stage, stageIndex) => ({
+      ...stage,
+      stops: stage.stops.map((stop, stopIndex) => {
+        const globalIndex = stage.stops
+          .slice(0, stopIndex)
+          .reduce((total) => total + 1, templateStages.slice(0, stageIndex).reduce((sum, item) => sum + item.stops.length, 0))
+        const autoGlobalLabel = /^\d+$/.test(stop.label) && Number(stop.label) === globalIndex + 1
+
+        return {
+          ...stop,
+          label: autoGlobalLabel ? String(stopIndex + 1) : stop.label,
+        }
+      }),
+    })),
+    stops,
+  }
+}
+
+export function createWorkflowTemplateFromBranches(workflowBranches: BranchTemplate[][] | undefined): CustomerWorkflowTemplate {
+  if (!workflowBranches?.length) return defaultWorkflowTemplate
+
+  const stops = workflowBranches.map((branches, index) => {
+    const fallback = flowStops[index]
+    const stageIndex = fallback?.stageIndex ?? Math.floor(index / 4)
+    const stageName = fallback?.stageName ?? `Stage ${stageIndex + 1}`
+
+    return {
+      branches,
+      globalIndex: index,
+      label: fallback?.label ?? String(index + 1),
+      name: fallback?.name ?? `Phase ${index + 1}`,
+      stageIndex,
+      stageName,
+    }
+  })
+  const stageMap = new Map<number, StageTemplate>()
+  stops.forEach((stop) => {
+    const stage = stageMap.get(stop.stageIndex) || { name: stop.stageName, stops: [] }
+    stage.stops.push({
+      branches: stop.branches,
+      label: stop.label,
+      name: stop.name,
+    })
+    stageMap.set(stop.stageIndex, stage)
+  })
+
+  return {
+    stages: Array.from(stageMap.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([, stage]) => stage),
+    stops,
+  }
+}
+
+export function seedBranchState(currentPhase: number, doneSeed: Record<number, number[]> = {}, stops: FlowStop[] = flowStops) {
+  return stops.map((stop, stopIndex) =>
     stop.branches.map((branch, branchIndex) => {
       const done = stopIndex < currentPhase || doneSeed[stopIndex]?.includes(branchIndex) || false
       const items = branch.items.map(() => done)
