@@ -56,6 +56,7 @@ export type CustomerTag = {
 
 export type Customer = {
   id: string
+  customerCode?: string | null
   databaseId?: number
   dueDate?: string
   flowId?: number | null

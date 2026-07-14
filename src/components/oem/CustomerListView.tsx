@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { customerStatusOptions as fallbackCustomerStatusOptions, flowStops, getCustomerStatusLabel } from '../../data/oemWorkflow'
+import { customerStatusOptions as fallbackCustomerStatusOptions, getCustomerStatusLabel } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatusOption } from '../../data/oemWorkflow'
 import { formatDate } from '../../lib/dateFormat'
 import Pagination from './Pagination'
@@ -58,12 +58,11 @@ function CustomerListView({ customers, customerStatusOptions = fallbackCustomerS
       customers.filter((customer) => {
         if (!normalizedQuery) return true
 
-        const currentStop = flowStops[customer.currentPhase]
         const searchable = [
           customer.name,
+          customer.customerCode || '',
           customer.salesperson || '',
           getCustomerStatusLabel(customer.status, customerStatusOptions),
-          currentStop?.name || '',
           customer.dueDate || '',
           customer.info.costSyrup,
           customer.info.costPackage,
@@ -166,7 +165,6 @@ function CustomerListView({ customers, customerStatusOptions = fallbackCustomerS
                   </tr>
                 )}
                 {paginatedCustomers.map((customer) => {
-                  const currentStop = flowStops[customer.currentPhase]
                   const productText = customer.tags.map((tag) => tag.name).join(', ') || '-'
 
                   return (
@@ -178,7 +176,7 @@ function CustomerListView({ customers, customerStatusOptions = fallbackCustomerS
                       <td className="border-b border-slate-100 px-4 py-3">
                         <div className="grid gap-1">
                           <strong className="text-sm font-black text-slate-800 group-hover:text-teal-800">{customer.name}</strong>
-                          <span className="text-xs font-semibold text-slate-400">{currentStop ? `Phase ${currentStop.label}` : '-'}</span>
+                          <span className="font-mono text-xs font-semibold text-slate-400">{customer.customerCode || '-'}</span>
                         </div>
                       </td>
                       <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{productText}</td>

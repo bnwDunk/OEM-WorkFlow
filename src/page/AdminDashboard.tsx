@@ -22,6 +22,7 @@ import type { ConfigSection } from '../data/configSections'
 import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
   AppRole,
+  CustomerCodeSettings,
   ManagedCustomerStatus,
   ManagedDepartment,
   ManagedCustomerProject,
@@ -55,6 +56,19 @@ function formatAdminDate(value: string) {
   return formatDate(value)
 }
 
+function getCustomerCodePreview(settings: CustomerCodeSettings) {
+  const now = new Date()
+  const yy = String(now.getFullYear()).slice(-2)
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  return `${settings.fixedPrefix || 'OEM'}${yy}${mm}${'1'.padStart(settings.suffixLength || 4, '0')}`
+}
+
+function isCustomerCodeValidForSettings(value: string, settings: CustomerCodeSettings) {
+  const fixedPrefix = settings.fixedPrefix || 'OEM'
+  const suffixLength = settings.suffixLength || 4
+  return new RegExp(`^${fixedPrefix}\\d{4}\\d{${suffixLength}}$`).test(value)
+}
+
 type AdminDashboardProps = {
   configSection?: ConfigSection
   mode?: 'admin' | 'config'
@@ -66,6 +80,8 @@ type AdminDashboardProps = {
 type FlowDraft = Pick<ManagedFlow, 'name' | 'status'>
 type TagDraft = Pick<ManagedTag, 'color' | 'name'>
 type CustomerStatusDraft = Pick<ManagedCustomerStatus, 'label' | 'sortOrder' | 'status' | 'value'>
+type CustomerDraft = { customerCode: string }
+type CustomerCodeSettingsDraft = CustomerCodeSettings
 
 type DepartmentDetailState = {
   department: ManagedDepartment
@@ -93,6 +109,9 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
   const [flowDrafts, setFlowDrafts] = useState<Record<number, FlowDraft>>({})
   const [tagDrafts, setTagDrafts] = useState<Record<number, TagDraft>>({})
   const [statusDrafts, setStatusDrafts] = useState<Record<number, CustomerStatusDraft>>({})
+  const [customerDrafts, setCustomerDrafts] = useState<Record<number, CustomerDraft>>({})
+  const [customerCodeSettings, setCustomerCodeSettings] = useState<CustomerCodeSettings>({ datePattern: 'YYMM', fixedPrefix: 'OEM', suffixLength: 4 })
+  const [customerCodeSettingsDraft, setCustomerCodeSettingsDraft] = useState<CustomerCodeSettingsDraft>({ datePattern: 'YYMM', fixedPrefix: 'OEM', suffixLength: 4 })
   const [newDepartmentName, setNewDepartmentName] = useState('')
   const [newFlowName, setNewFlowName] = useState('')
   const [newStatusLabel, setNewStatusLabel] = useState('')
@@ -163,13 +182,14 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     try {
       setError('')
       setLoading(true)
-      const [usersResponse, departmentsResponse, flowsResponse, tagsResponse, customersResponse, statusesResponse] = await Promise.all([
+      const [usersResponse, departmentsResponse, flowsResponse, tagsResponse, customersResponse, statusesResponse, customerCodeSettingsResponse] = await Promise.all([
         apiRequest<{ users: ManagedUser[] }>('/admin/users', { token }),
         apiRequest<{ departments: ManagedDepartment[] }>('/admin/departments', { token }),
         apiRequest<{ flows: ManagedFlow[] }>('/admin/flows', { token }),
         apiRequest<{ tags: ManagedTag[] }>('/admin/tags', { token }),
         apiRequest<{ customers: ManagedCustomerProject[] }>('/admin/customers', { token }),
         apiRequest<{ statuses: ManagedCustomerStatus[] }>('/admin/customer-statuses', { token }),
+        apiRequest<{ settings: CustomerCodeSettings }>('/admin/customer-code-settings', { token }),
       ])
 
       setUsers(usersResponse.users)
@@ -178,6 +198,8 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       setDepartments(departmentsResponse.departments)
       setFlows(flowsResponse.flows)
       setTags(tagsResponse.tags)
+      setCustomerCodeSettings(customerCodeSettingsResponse.settings)
+      setCustomerCodeSettingsDraft(customerCodeSettingsResponse.settings)
       setFlowDrafts(
         Object.fromEntries(
           flowsResponse.flows.map((flow) => [
@@ -213,6 +235,16 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
           ]),
         ),
       )
+      setCustomerDrafts(
+        Object.fromEntries(
+          customersResponse.customers.map((customer) => [
+            customer.id,
+            {
+              customerCode: customer.customerCode || '',
+            },
+          ]),
+        ),
+      )
       setSourceFlowId(flowsResponse.flows[0]?.id || 0)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load admin data.')
@@ -225,6 +257,9 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       setFlowDrafts({})
       setTagDrafts({})
       setStatusDrafts({})
+      setCustomerDrafts({})
+      setCustomerCodeSettings({ datePattern: 'YYMM', fixedPrefix: 'OEM', suffixLength: 4 })
+      setCustomerCodeSettingsDraft({ datePattern: 'YYMM', fixedPrefix: 'OEM', suffixLength: 4 })
       setSourceFlowId(0)
     } finally {
       setLoading(false)
@@ -1097,6 +1132,64 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     }
   }
 
+  function updateCustomerDraft(customerId: number, patch: Partial<CustomerDraft>) {
+    setCustomerDrafts((current) => ({
+      ...current,
+      [customerId]: {
+        ...current[customerId],
+        ...patch,
+      },
+    }))
+  }
+
+  async function saveCustomer(customerId: number) {
+    const draft = customerDrafts[customerId]
+    if (!draft) return
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction(`customer-update-${customerId}`)
+      await apiRequest(`/admin/customers/${customerId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({
+          customerCode: draft.customerCode.trim().toUpperCase(),
+        }),
+      })
+      await loadAdminData()
+      setActionMessage('Updated customer.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update customer.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  async function saveCustomerCodeSettings() {
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction('customer-code-settings-update')
+      const settings = await apiRequest<{ settings: CustomerCodeSettings }>('/admin/customer-code-settings', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({
+          datePattern: customerCodeSettingsDraft.datePattern,
+          fixedPrefix: customerCodeSettingsDraft.fixedPrefix.trim().toUpperCase(),
+          suffixLength: Number(customerCodeSettingsDraft.suffixLength || 4),
+        }),
+      })
+      setCustomerCodeSettings(settings.settings)
+      setCustomerCodeSettingsDraft(settings.settings)
+      setActionMessage('Updated customer code sequence.')
+    } catch (updateError) {
+      setActionError(updateError instanceof Error ? updateError.message : 'Failed to update customer code sequence.')
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function deleteCustomer(customerId: number) {
     const customer = customers.find((item) => item.id === customerId)
     if (!(await confirmToast({
@@ -1114,6 +1207,11 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         token,
       })
       setCustomers((current) => current.filter((item) => item.id !== customerId))
+      setCustomerDrafts((current) => {
+        const next = { ...current }
+        delete next[customerId]
+        return next
+      })
       setActionMessage('Deleted customer.')
     } catch (deleteError) {
       setActionError(deleteError instanceof Error ? deleteError.message : 'Failed to delete customer.')
@@ -1441,8 +1539,70 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
           <div>
             <h2 className="m-0 text-xl font-black text-slate-950">Customers</h2>
             <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
-              Review customer projects and delete records that should no longer appear in the workflow.
+              Review customer projects, edit OEM customer codes, and delete records that should no longer appear in the workflow.
             </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 border-b border-slate-100 px-6 py-5">
+          <div>
+            <h3 className="m-0 text-base font-black text-slate-950">Customer Code Sequence</h3>
+            <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+              Set the generated customer code format
+            </p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+            <label className="grid gap-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Fixed Prefix</span>
+              <input
+                className={inputClass}
+                onChange={(event) => setCustomerCodeSettingsDraft((current) => ({ ...current, fixedPrefix: event.target.value.toUpperCase() }))}
+                placeholder="OEM"
+                value={customerCodeSettingsDraft.fixedPrefix}
+              />
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Date Prefix</span>
+              <select
+                className={selectClass}
+                onChange={(event) => setCustomerCodeSettingsDraft((current) => ({ ...current, datePattern: event.target.value as CustomerCodeSettings['datePattern'] }))}
+                value={customerCodeSettingsDraft.datePattern}
+              >
+                <option value="YYMM">YYMM</option>
+                <option value="MMYY">MMYY</option>
+              </select>
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Suffix Digits</span>
+              <input
+                className={inputClass}
+                max={8}
+                min={1}
+                onChange={(event) => setCustomerCodeSettingsDraft((current) => ({ ...current, suffixLength: Number(event.target.value || 4) }))}
+                type="number"
+                value={customerCodeSettingsDraft.suffixLength}
+              />
+            </label>
+            <div className="flex items-end gap-2">
+              <div className="grid min-h-12 content-center rounded-xl border border-slate-200 bg-slate-50 px-4">
+                <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">Preview</span>
+                <strong className="font-mono text-sm text-slate-800">{getCustomerCodePreview(customerCodeSettingsDraft)}</strong>
+              </div>
+              <button
+                className={primaryButtonClass}
+                disabled={
+                  Boolean(busyAction) ||
+                  !customerCodeSettingsDraft.fixedPrefix.startsWith('OEM') ||
+                  customerCodeSettingsDraft.suffixLength < 1 ||
+                  customerCodeSettingsDraft.suffixLength > 8 ||
+                  customerCodeSettingsDraft.fixedPrefix.length + 4 + customerCodeSettingsDraft.suffixLength > 20
+                }
+                onClick={saveCustomerCodeSettings}
+                type="button"
+              >
+                {busyAction === 'customer-code-settings-update' ? 'Saving...' : 'Save Sequence'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1458,10 +1618,11 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
               totalItems={customers.length}
             />
           )}
-          <table className={`${tableClass} min-w-[900px]`}>
+          <table className={`${tableClass} min-w-[1080px]`}>
             <thead>
               <tr>
                 <th className={thClass}>Customer</th>
+                <th className={thClass}>Customer Code</th>
                 <th className={thClass}>Flow</th>
                 <th className={thClass}>Current phase</th>
                 <th className={thClass}>Status</th>
@@ -1472,32 +1633,57 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
             <tbody>
               {!loading && customers.length === 0 && (
                 <tr>
-                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No customers found in database.</td>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={7}>No customers found in database.</td>
                 </tr>
               )}
-              {paginatedCustomers.map((customer) => (
-                <tr className="group" key={customer.id}>
-                  <td className={tdClass}>
-                    <strong className="block text-base font-black text-slate-950">{customer.name}</strong>
-                  </td>
-                  <td className={tdClass}>{customer.flowName || '-'}</td>
-                  <td className={tdClass}>{customer.currentPhaseName || '-'}</td>
-                  <td className={tdClass}>
-                    <span className={getStatusBadgeClass(customer.status)}>{getCustomerStatusLabel(customer.status, customerStatuses)}</span>
-                  </td>
-                  <td className={`${tdClass} text-slate-500`}>{formatAdminDate(customer.updatedAt)}</td>
-                  <td className={tdClass}>
-                    <button
-                      className={dangerButtonClass}
-                      disabled={Boolean(busyAction)}
-                      onClick={() => deleteCustomer(customer.id)}
-                      type="button"
-                    >
-                      {busyAction === `customer-delete-${customer.id}` ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {paginatedCustomers.map((customer) => {
+                const draft = customerDrafts[customer.id] || { customerCode: customer.customerCode || '' }
+                const normalizedDraftCode = draft.customerCode.trim().toUpperCase()
+                const hasCustomerChanges = normalizedDraftCode !== (customer.customerCode || '')
+                const isValidCustomerCode = isCustomerCodeValidForSettings(normalizedDraftCode, customerCodeSettings)
+
+                return (
+                  <tr className="group" key={customer.id}>
+                    <td className={tdClass}>
+                      <strong className="block text-base font-black text-slate-950">{customer.name}</strong>
+                    </td>
+                    <td className={tdClass}>
+                      <div className="flex min-w-[210px] items-center gap-2">
+                        <input
+                          className={`${inputClass} h-10 font-mono text-sm`}
+                          onChange={(event) => updateCustomerDraft(customer.id, { customerCode: event.target.value })}
+                          placeholder={getCustomerCodePreview(customerCodeSettings)}
+                          value={draft.customerCode}
+                        />
+                        <button
+                          className={primaryButtonClass}
+                          disabled={Boolean(busyAction) || !hasCustomerChanges || !isValidCustomerCode}
+                          onClick={() => saveCustomer(customer.id)}
+                          type="button"
+                        >
+                          {busyAction === `customer-update-${customer.id}` ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className={tdClass}>{customer.flowName || '-'}</td>
+                    <td className={tdClass}>{customer.currentPhaseName || '-'}</td>
+                    <td className={tdClass}>
+                      <span className={getStatusBadgeClass(customer.status)}>{getCustomerStatusLabel(customer.status, customerStatuses)}</span>
+                    </td>
+                    <td className={`${tdClass} text-slate-500`}>{formatAdminDate(customer.updatedAt)}</td>
+                    <td className={tdClass}>
+                      <button
+                        className={dangerButtonClass}
+                        disabled={Boolean(busyAction)}
+                        onClick={() => deleteCustomer(customer.id)}
+                        type="button"
+                      >
+                        {busyAction === `customer-delete-${customer.id}` ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           {shouldShowCustomerPagination && (

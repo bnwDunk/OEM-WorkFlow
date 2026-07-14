@@ -34,6 +34,7 @@ function CustomerInfoModal({ canDelete = true, customer, customerStatusOptions =
   const daysLeft = getDaysLeft(customer.dueDate || '')
 
   const infoItems = [
+    { label: 'Customer Code', value: customer.customerCode || '-' },
     { label: 'Due Date', value: formatDate(customer.dueDate) },
     { label: 'Days Left', value: daysLeft || '-' },
     { label: 'Cost (Syrup)', value: customer.info.costSyrup },
