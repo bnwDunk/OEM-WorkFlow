@@ -951,7 +951,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       setOverviewError('')
       setCustomerSaving(true)
       if (selectedCustomer.databaseId) {
-        await apiRequest(`/admin/customers/${selectedCustomer.databaseId}`, {
+        const customerUpdatePath = currentUser.role === 'admin'
+          ? `/admin/customers/${selectedCustomer.databaseId}`
+          : `/workflow/customers/${selectedCustomer.databaseId}`
+
+        await apiRequest(customerUpdatePath, {
           method: 'PATCH',
           token: accessToken,
           body: JSON.stringify({
