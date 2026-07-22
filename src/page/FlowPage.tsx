@@ -417,7 +417,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }, [loadUsers])
 
   useEffect(() => {
-    if ((activeView === 'admin' || activeView === 'create-customer') && currentUser.role !== 'admin') {
+    if (activeView === 'admin' && currentUser.role !== 'admin') {
       navigate('/flow', { replace: true })
     }
   }, [activeView, currentUser.role, navigate])
@@ -449,7 +449,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     try {
       setOverviewError('')
       setCreateCustomerLoading(true)
-      const createdCustomer = await apiRequest<{ id: number; name: string; slug: string }>('/admin/customers', {
+      const createdCustomer = await apiRequest<{ id: number; name: string; slug: string }>('/workflow/customers', {
         method: 'POST',
         token: accessToken,
         body: JSON.stringify({
@@ -458,7 +458,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         }),
       })
 
-      await apiRequest(`/admin/customers/${createdCustomer.id}`, {
+      await apiRequest(`/workflow/customers/${createdCustomer.id}`, {
         method: 'PATCH',
         token: accessToken,
         body: JSON.stringify({
@@ -1098,7 +1098,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           loading={overviewLoading}
           onAddTag={openTagModal}
           onEditTag={openEditTagModal}
-          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerPage : undefined}
+          onCreateCustomer={openCreateCustomerPage}
           onOpenCompany={openCustomerEditor}
           onOpenCustomer={openCustomer}
           onOpenInfo={(customerId) => setModal({ type: 'customer-info', customerId })}
@@ -1111,7 +1111,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customers={customers}
           customerStatusOptions={customerStatusOptions}
           loading={overviewLoading}
-          onCreateCustomer={currentUser.role === 'admin' ? openCreateCustomerPage : undefined}
+          onCreateCustomer={openCreateCustomerPage}
           onOpenCustomer={openCustomer}
         />
       )}
@@ -1154,7 +1154,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         />
       )}
 
-      {activeView === 'create-customer' && currentUser.role === 'admin' && (
+      {activeView === 'create-customer' && (
         <CustomerCreateView
           customerStatusOptions={customerStatusOptions}
           customers={customers}
