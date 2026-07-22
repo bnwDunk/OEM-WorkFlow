@@ -73,7 +73,7 @@ export type Customer = {
     volume: string
   }
   branch: BranchState[][]
-  workflowBranches?: BranchTemplate[][]
+  workflowBranches?: (BranchTemplate[] | null)[]
   singleResets: Record<number, boolean>
   notifications: NotificationItem[]
   issues: IssueItem[]
@@ -330,16 +330,17 @@ export function createWorkflowTemplateFromStages(templateStages: StageTemplate[]
   }
 }
 
-export function createWorkflowTemplateFromBranches(workflowBranches: BranchTemplate[][] | undefined): CustomerWorkflowTemplate {
+export function createWorkflowTemplateFromBranches(workflowBranches: (BranchTemplate[] | null)[] | undefined): CustomerWorkflowTemplate {
   if (!workflowBranches?.length) return defaultWorkflowTemplate
 
   const stops = workflowBranches.map((branches, index) => {
     const fallback = flowStops[index]
     const stageIndex = fallback?.stageIndex ?? Math.floor(index / 4)
     const stageName = fallback?.stageName ?? `Stage ${stageIndex + 1}`
+    const normalizedBranches = Array.isArray(branches) ? branches : []
 
     return {
-      branches,
+      branches: normalizedBranches,
       globalIndex: index,
       label: fallback?.label ?? String(index + 1),
       name: fallback?.name ?? `Phase ${index + 1}`,
