@@ -6,12 +6,15 @@ import type { AuthUser } from '../../data/adminDashboard'
 type ProfileModalProps = {
   currentUser: AuthUser
   onClose: () => void
-  onSave: (payload: { email: string; name: string }) => Promise<void>
+  onSave: (payload: { currentPassword?: string; email: string; name: string; newPassword?: string }) => Promise<void>
 }
 
 function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
   const [name, setName] = useState(currentUser.name)
   const [email, setEmail] = useState(currentUser.email)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -25,11 +28,33 @@ function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
       return
     }
 
+    const changingPassword = Boolean(currentPassword || newPassword || confirmPassword)
+    if (changingPassword && (!currentPassword || !newPassword || !confirmPassword)) {
+      setError('Complete all password fields.')
+      toast.error('Complete all password fields.')
+      return
+    }
+    if (changingPassword && newPassword.length < 8) {
+      setError('New password must be at least 8 characters.')
+      toast.error('New password must be at least 8 characters.')
+      return
+    }
+    if (changingPassword && newPassword !== confirmPassword) {
+      setError('New password and confirmation do not match.')
+      toast.error('New password and confirmation do not match.')
+      return
+    }
+
     try {
       setError('')
       setSaving(true)
-      await onSave({ email: nextEmail, name: nextName })
-      toast.success('Updated profile.')
+      await onSave({
+        currentPassword: changingPassword ? currentPassword : undefined,
+        email: nextEmail,
+        name: nextName,
+        newPassword: changingPassword ? newPassword : undefined,
+      })
+      toast.success(changingPassword ? 'Updated profile and password.' : 'Updated profile.')
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : 'Unable to update profile.'
       setError(message)
@@ -68,6 +93,40 @@ function ProfileModal({ currentUser, onClose, onSave }: ProfileModalProps) {
             value={email}
           />
         </label>
+        <div className="profile-password-section">
+          <strong>Change password</strong>
+          <label>
+            Current password
+            <input
+              autoComplete="current-password"
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              type="password"
+              value={currentPassword}
+            />
+          </label>
+          <div className="profile-password-grid">
+            <label>
+              New password
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                onChange={(event) => setNewPassword(event.target.value)}
+                type="password"
+                value={newPassword}
+              />
+            </label>
+            <label>
+              Confirm new password
+              <input
+                autoComplete="new-password"
+                minLength={8}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                type="password"
+                value={confirmPassword}
+              />
+            </label>
+          </div>
+        </div>
         <div className="profile-readonly-grid">
           <div>
             <span>Role</span>
