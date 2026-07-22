@@ -17,7 +17,7 @@ import type {
 import { apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import { formatDate } from '../lib/dateFormat'
-import { getCustomerStatusLabel } from '../data/oemWorkflow'
+import { getCustomerStatusLabel, normalizeStagePhaseLabels } from '../data/oemWorkflow'
 import type { ConfigSection } from '../data/configSections'
 import { getRoleDisplayName } from '../data/adminDashboard'
 import type {
@@ -565,9 +565,8 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         ...response,
         stages: response.stages.map((stage) => ({
           ...stage,
-          phases: stage.phases.map((phase, phaseIndex) => ({
+          phases: normalizeStagePhaseLabels(stage.phases).map((phase) => ({
             ...phase,
-            label: /^\d+$/.test(phase.label) ? String(phaseIndex + 1) : phase.label,
             branches: phase.branches || [],
             departmentIds: phase.departments?.map((department) => department.id)
               || phase.branches?.map((branch) => branch.departmentId || branch.department?.id).filter((departmentId): departmentId is number => Boolean(departmentId))
@@ -675,7 +674,7 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
                   ...stage.phases,
                   {
                     branches: defaultDepartmentId ? [createDraftBranch(defaultDepartmentId)] : [],
-                    label: String(stage.phases.length + 1),
+                    label: String(stage.phases.filter((phase) => /^\d+$/.test(phase.label.trim())).length + 1),
                     name: 'New phase',
                     departmentIds: defaultDepartmentId ? [defaultDepartmentId] : [],
                   },
@@ -859,9 +858,9 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       )
       const stages = structureEditor.stages.map((stage) => ({
         ...stage,
-        phases: stage.phases.map((phase, phaseIndex) => ({
+        phases: normalizeStagePhaseLabels(stage.phases).map((phase) => ({
           id: phase.id,
-          label: /^\d+$/.test(phase.label) ? String(phaseIndex + 1) : phase.label,
+          label: phase.label,
           name: phase.name,
           departmentIds: phase.departmentIds || [],
         })),
