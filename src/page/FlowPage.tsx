@@ -699,7 +699,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     navigate('/login', { replace: true })
   }
 
-  async function handleSaveProfile(payload: { email: string; name: string }) {
+  async function handleSaveProfile(payload: { currentPassword?: string; email: string; name: string; newPassword?: string }) {
     const response = await apiRequest<{
       user: {
         id: number
