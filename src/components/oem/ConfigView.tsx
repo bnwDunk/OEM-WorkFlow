@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
+import { normalizeStagePhaseLabels } from '../../data/oemWorkflow'
 import { apiRequest } from '../../lib/api'
 
 type ConfigViewProps = {
@@ -78,7 +79,7 @@ function mapStructureToTemplate(structure: FlowStructureResponse) {
   return structure.stages.map((stage) => ({
     id: stage.id,
     name: stage.name,
-    stops: stage.phases.map((phase) => ({
+    stops: normalizeStagePhaseLabels(stage.phases).map((phase) => ({
       id: phase.id,
       branches: (phase.branches || []).map((branch) => ({
         departmentId: branch.departmentId || branch.department?.id,

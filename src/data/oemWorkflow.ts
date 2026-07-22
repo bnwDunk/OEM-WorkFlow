@@ -73,7 +73,7 @@ export type Customer = {
     volume: string
   }
   branch: BranchState[][]
-  workflowBranches?: BranchTemplate[][]
+  workflowBranches?: (BranchTemplate[] | null)[]
   singleResets: Record<number, boolean>
   notifications: NotificationItem[]
   issues: IssueItem[]
@@ -293,17 +293,30 @@ export const defaultWorkflowTemplate: CustomerWorkflowTemplate = {
   stops: flowStops,
 }
 
+export function normalizeStagePhaseLabels<T extends { label: string }>(phases: T[]): T[] {
+  let mainPhaseNumber = 0
+
+  return phases.map((phase) => {
+    if (!/^\d+$/.test(phase.label.trim())) return phase
+
+    mainPhaseNumber += 1
+    return { ...phase, label: String(mainPhaseNumber) }
+  })
+}
+
 export function createWorkflowTemplateFromStages(templateStages: StageTemplate[]): CustomerWorkflowTemplate {
-  const stops = templateStages.flatMap((stage, stageIndex) =>
+  const normalizedStages = templateStages.map((stage) => ({
+    ...stage,
+    stops: normalizeStagePhaseLabels(stage.stops),
+  }))
+  const stops = normalizedStages.flatMap((stage, stageIndex) =>
     stage.stops.map((stop, stopIndex) => {
       const globalIndex = stage.stops
         .slice(0, stopIndex)
-        .reduce((total) => total + 1, templateStages.slice(0, stageIndex).reduce((sum, item) => sum + item.stops.length, 0))
-      const autoGlobalLabel = /^\d+$/.test(stop.label) && Number(stop.label) === globalIndex + 1
+        .reduce((total) => total + 1, normalizedStages.slice(0, stageIndex).reduce((sum, item) => sum + item.stops.length, 0))
 
       return {
         ...stop,
-        label: autoGlobalLabel ? String(stopIndex + 1) : stop.label,
         stageIndex,
         stageName: stage.name,
         globalIndex,
@@ -312,34 +325,22 @@ export function createWorkflowTemplateFromStages(templateStages: StageTemplate[]
   )
 
   return {
-    stages: templateStages.map((stage, stageIndex) => ({
-      ...stage,
-      stops: stage.stops.map((stop, stopIndex) => {
-        const globalIndex = stage.stops
-          .slice(0, stopIndex)
-          .reduce((total) => total + 1, templateStages.slice(0, stageIndex).reduce((sum, item) => sum + item.stops.length, 0))
-        const autoGlobalLabel = /^\d+$/.test(stop.label) && Number(stop.label) === globalIndex + 1
-
-        return {
-          ...stop,
-          label: autoGlobalLabel ? String(stopIndex + 1) : stop.label,
-        }
-      }),
-    })),
+    stages: normalizedStages,
     stops,
   }
 }
 
-export function createWorkflowTemplateFromBranches(workflowBranches: BranchTemplate[][] | undefined): CustomerWorkflowTemplate {
+export function createWorkflowTemplateFromBranches(workflowBranches: (BranchTemplate[] | null)[] | undefined): CustomerWorkflowTemplate {
   if (!workflowBranches?.length) return defaultWorkflowTemplate
 
   const stops = workflowBranches.map((branches, index) => {
     const fallback = flowStops[index]
     const stageIndex = fallback?.stageIndex ?? Math.floor(index / 4)
     const stageName = fallback?.stageName ?? `Stage ${stageIndex + 1}`
+    const normalizedBranches = Array.isArray(branches) ? branches : []
 
     return {
-      branches,
+      branches: normalizedBranches,
       globalIndex: index,
       label: fallback?.label ?? String(index + 1),
       name: fallback?.name ?? `Phase ${index + 1}`,
