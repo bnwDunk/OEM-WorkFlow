@@ -1,13 +1,14 @@
 import { IoCloudUpload } from 'react-icons/io5'
 import { MdCancel } from 'react-icons/md'
 import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
-import type { Customer, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
+import type { Customer, CustomerWorkflowTemplate, IssueItem } from '../../data/oemWorkflow'
 import ActivityPanel from './ActivityPanel'
 import BranchCard from './BranchCard'
 import IssuePanel from './IssuePanel'
 import PhaseRail from './PhaseRail'
 
 type CustomerDetailViewProps = {
+  canCloseAllIssues?: boolean
   currentDept: string
   currentUserName: string
   userDepartments: string[]
@@ -17,7 +18,7 @@ type CustomerDetailViewProps = {
   onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
   onBack: () => void
   onCancelBranch: (branchIndex: number) => void
-  onCloseIssue: (issueIndex: number) => void
+  onCloseIssue: (issue: IssueItem) => Promise<void> | void
   onDoneBranch: (branchIndex: number) => void
   onOpenReset: () => void
   onToggleBranchItem: (branchIndex: number, itemIndex: number) => void
@@ -35,6 +36,7 @@ function hasDepartment(departments: string[], department: string) {
 }
 
 function CustomerDetailView({
+  canCloseAllIssues = false,
   currentDept,
   currentUserName,
   userDepartments,
@@ -174,6 +176,7 @@ function CustomerDetailView({
         <div className="grid gap-4 xl:grid-cols-2">
           <ActivityPanel notifications={customer.notifications} />
           <IssuePanel
+            canCloseAll={canCloseAllIssues}
             currentDept={currentDept}
             currentUserName={currentUserName}
             userDepartments={userDepartments}

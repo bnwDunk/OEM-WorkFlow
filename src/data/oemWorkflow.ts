@@ -39,6 +39,7 @@ export type NotificationItem = {
 }
 
 export type IssueItem = {
+  id?: number
   openedBy: string
   openedByDept: string
   targetDept: string

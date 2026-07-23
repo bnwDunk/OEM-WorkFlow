@@ -22,7 +22,7 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerFile, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate, StageTemplate } from '../data/oemWorkflow'
+import type { BranchState, Customer, CustomerFile, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate, IssueItem, StageTemplate } from '../data/oemWorkflow'
 import { apiBlobRequest, apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import type { ConfigSection } from '../data/configSections'
@@ -912,11 +912,35 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     toast.success('Opened ticket.')
   }
 
-  function handleCloseIssue(issueIndex: number) {
+  async function handleCloseIssue(issueToClose: IssueItem) {
     if (!selectedCustomer) return
 
+    if (selectedCustomer.databaseId) {
+      if (!issueToClose.id) {
+        setOverviewError('Ticket id is unavailable. Please reload the page and try again.')
+        return
+      }
+
+      try {
+        setOverviewError('')
+        await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/issues/${issueToClose.id}/close`, {
+          method: 'PATCH',
+          token: accessToken,
+        })
+        await loadOverview()
+        toast.success('Closed ticket.')
+        return
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to close ticket.'
+        setOverviewError(message)
+        return
+      }
+    }
+
     updateCustomer(selectedCustomer.id, (customer) => {
-      const issue = customer.issues[issueIndex]
+      const issue = customer.issues.find((item) => item === issueToClose || (
+        issueToClose.id && item.id === issueToClose.id
+      ))
       if (!issue || ![issue.openedByDept, issue.targetDept].some((department) => hasDepartment(userDepartments, department))) return customer
 
       issue.closed = true
@@ -1022,9 +1046,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
             .filter(Boolean)
             .map((tag) => ({ name: tag }))
           addLog(customer, `แก้ไขข้อมูลบริษัทโดย ${currentDept}`)
-          return customer
-        })
-      }
+      return customer
+    })
+    toast.success('Closed ticket.')
+  }
       navigate('/flow')
       toast.success('Saved customer.')
     } catch (error) {
@@ -1157,6 +1182,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
 
       {activeView === 'detail' && selectedCustomer && (
         <CustomerDetailView
+          canCloseAllIssues={currentUser.role === 'admin'}
           currentDept={currentDept}
           currentUserName={currentUser.name}
           userDepartments={userDepartments}

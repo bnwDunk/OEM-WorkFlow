@@ -1,19 +1,32 @@
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { IoWarning } from 'react-icons/io5'
 import { departments } from '../../data/oemWorkflow'
 import type { IssueItem } from '../../data/oemWorkflow'
 
 type IssuePanelProps = {
+  canCloseAll?: boolean
   currentDept: string
   currentUserName: string
   userDepartments: string[]
   issues: IssueItem[]
   onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
-  onCloseIssue: (issueIndex: number) => void
+  onCloseIssue: (issue: IssueItem) => Promise<void> | void
 }
 
-function IssuePanel({ currentDept, currentUserName, userDepartments, issues, onAddIssue, onCloseIssue }: IssuePanelProps) {
+function IssuePanel({ canCloseAll = false, currentDept, currentUserName, userDepartments, issues, onAddIssue, onCloseIssue }: IssuePanelProps) {
   const openIssueCount = issues.filter((issue) => !issue.closed).length
+  const [closingIssueKey, setClosingIssueKey] = useState('')
+  const normalizedUserDepartments = new Set(userDepartments.map((department) => department.trim().toLowerCase()))
+
+  async function closeIssue(issue: IssueItem, issueKey: string) {
+    try {
+      setClosingIssueKey(issueKey)
+      await onCloseIssue(issue)
+    } finally {
+      setClosingIssueKey('')
+    }
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -49,12 +62,15 @@ function IssuePanel({ currentDept, currentUserName, userDepartments, issues, onA
           </div>
         ) : (
           issues.map((issue, index) => {
-            const canClose = !issue.closed && [issue.openedByDept, issue.targetDept].some((department) => userDepartments.includes(department))
+            const issueKey = String(issue.id || `${issue.text}-${issue.time}-${index}`)
+            const canClose = !issue.closed && (canCloseAll || [issue.openedByDept, issue.targetDept]
+              .some((department) => normalizedUserDepartments.has(department.trim().toLowerCase())))
+            const isClosing = closingIssueKey === issueKey
 
             return (
               <article
                 className={`rounded-xl border p-3.5 transition ${issue.closed ? 'border-slate-200 bg-slate-50 opacity-70' : 'border-amber-200 bg-amber-50/80 shadow-sm'}`}
-                key={`${issue.text}-${issue.time}-${index}`}
+                key={issueKey}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -69,10 +85,11 @@ function IssuePanel({ currentDept, currentUserName, userDepartments, issues, onA
                   {canClose && (
                     <button
                       className="min-h-9 rounded-xl !border-0 !bg-white px-3 text-xs font-black !text-slate-700 shadow-sm transition hover:!bg-slate-100"
-                      onClick={() => onCloseIssue(index)}
+                      disabled={isClosing}
+                      onClick={() => void closeIssue(issue, issueKey)}
                       type="button"
                     >
-                      Close
+                      {isClosing ? 'Closing...' : 'Close'}
                     </button>
                   )}
                 </div>
