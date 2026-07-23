@@ -54,6 +54,14 @@ export type CustomerTag = {
   color?: string | null
 }
 
+export type CustomerFile = {
+  createdAt: string
+  id: number
+  mimeType: string
+  name: string
+  size: number
+}
+
 export type Customer = {
   id: string
   customerCode?: string | null
@@ -66,6 +74,7 @@ export type Customer = {
   status?: CustomerStatus
   currentPhase: number
   tags: CustomerTag[]
+  files?: CustomerFile[]
   info: {
     costSyrup: string
     costPackage: string

@@ -1,5 +1,6 @@
 import { FaEdit } from 'react-icons/fa'
 import { IoWarning } from 'react-icons/io5'
+import { TbPaperclip } from 'react-icons/tb'
 import type { KeyboardEvent, MouseEvent } from 'react'
 import { customerStatusOptions as fallbackCustomerStatusOptions, defaultWorkflowTemplate, getCustomerStatusLabel } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
@@ -14,6 +15,7 @@ type CustomerCardProps = {
   onOpen: (customerId: string) => void
   onOpenCompany: (customerId: string) => void
   onOpenInfo: (customerId: string) => void
+  onOpenFiles: (customer: Customer) => void
 }
 
 const customerStatusStyles: Record<string, string> = {
@@ -28,7 +30,7 @@ const customerStatusStyles: Record<string, string> = {
 
 const defaultCustomerStatusStyle = 'border-slate-200 bg-slate-50 text-slate-800 shadow-slate-100/70'
 
-function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatusOptions, workflowTemplate = defaultWorkflowTemplate, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenInfo }: CustomerCardProps) {
+function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatusOptions, workflowTemplate = defaultWorkflowTemplate, onAddTag, onEditTag, onOpen, onOpenCompany, onOpenFiles, onOpenInfo }: CustomerCardProps) {
   const currentStop = workflowTemplate.stops[customer.currentPhase] || workflowTemplate.stops[0] || defaultWorkflowTemplate.stops[0]
   const currentStage = workflowTemplate.stages[currentStop.stageIndex]
   const openIssues = customer.issues.filter((issue) => !issue.closed).length
@@ -85,7 +87,7 @@ function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatus
           {customer.customerCode && (
             <div className="mt-1 font-mono text-xs font-bold text-slate-400">{customer.customerCode}</div>
           )}
-          <div className="mt-3 flex max-w-full items-start">
+          <div className="mt-3 flex max-w-full flex-wrap items-center gap-2">
             <div
               className={`inline-flex min-h-9 max-w-full items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs font-black leading-tight shadow-sm ring-1 ring-white/70 ${customerStatusStyles[status] || defaultCustomerStatusStyle}`}
             >
@@ -97,6 +99,21 @@ function CustomerCard({ customer, customerStatusOptions = fallbackCustomerStatus
               </span>
               <strong className="min-w-0 text-[12px] [overflow-wrap:anywhere]">{getCustomerStatusLabel(status, customerStatusOptions)}</strong>
             </div>
+            <button
+              className="inline-flex min-h-9 items-center gap-2 rounded-full !border !border-slate-200 !bg-white px-3 py-1.5 text-xs font-black !text-slate-600 shadow-sm transition hover:!border-teal-300 hover:!bg-teal-50 hover:!text-teal-800"
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpenFiles(customer)
+              }}
+              title="View customer files"
+              type="button"
+            >
+              <TbPaperclip aria-hidden="true" className="h-4 w-4" />
+              Files
+              <span className="grid min-w-5 place-items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                {customer.files?.length || 0}
+              </span>
+            </button>
           </div>
           <div className="tag-row">
             {customer.tags.map((tag) => (
