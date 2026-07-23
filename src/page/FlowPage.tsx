@@ -1144,6 +1144,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customerStatusOptions={customerStatusOptions}
           customers={customers}
           deleting={customerDeleting}
+          key={selectedCustomer.id}
           loading={customerSaving}
           onBack={() => navigate('/flow')}
           onDelete={() => void handleDeleteSelectedCustomer()}
