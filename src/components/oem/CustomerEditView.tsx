@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { TbCalendarDue } from 'react-icons/tb'
 import { customerStatusOptions as fallbackCustomerStatusOptions } from '../../data/oemWorkflow'
@@ -97,15 +97,6 @@ function CustomerEditView({
   const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false)
   const [removingTagKey, setRemovingTagKey] = useState('')
   const datePickerRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    setName(customer.name)
-    setSalesperson(customer.salesperson || salespersonName)
-    setDueDate(formatDateForInput(customer.dueDate || ''))
-    setTags(customer.tags)
-    setTagDraft('')
-    setRemovingTagKey('')
-  }, [customer.dueDate, customer.id, customer.name, customer.salesperson, customer.tags, salespersonName])
 
   const typedName = name.trim()
   const parsedDueDate = parseInputDate(dueDate)
