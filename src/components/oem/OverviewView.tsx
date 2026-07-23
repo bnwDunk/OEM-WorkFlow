@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { TbEye, TbFileTypePdf, TbPaperclip, TbPhoto, TbX } from 'react-icons/tb'
 import { customerStatusOptions as fallbackCustomerStatusOptions, getCustomerStatusLabel } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
+import type { Customer, CustomerFile, CustomerStatus, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import CustomerCard from './CustomerCard'
 import Pagination from './Pagination'
 
@@ -18,6 +19,7 @@ type OverviewViewProps = {
   onOpenCompany: (customerId: string) => void
   onOpenCustomer: (customerId: string) => void
   onOpenInfo: (customerId: string) => void
+  onLoadFile: (customer: Customer, file: CustomerFile) => Promise<Blob>
   onReload: () => void
 }
 
@@ -32,11 +34,49 @@ function OverviewView({
   onCreateCustomer,
   onOpenCompany,
   onOpenCustomer,
+  onLoadFile,
   onOpenInfo,
 }: OverviewViewProps) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | 'all'>('all')
   const [page, setPage] = useState(1)
+  const [fileCustomer, setFileCustomer] = useState<Customer | null>(null)
+  const [previewFile, setPreviewFile] = useState<CustomerFile | null>(null)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const previewUrlRef = useRef('')
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+  }, [])
+
+  function closeFiles() {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = ''
+    setPreviewUrl('')
+    setPreviewFile(null)
+    setPreviewError('')
+    setFileCustomer(null)
+  }
+
+  async function openPreview(file: CustomerFile) {
+    if (!fileCustomer) return
+    setPreviewFile(file)
+    setPreviewLoading(true)
+    setPreviewError('')
+    try {
+      const blob = await onLoadFile(fileCustomer, file)
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+      const url = URL.createObjectURL(blob)
+      previewUrlRef.current = url
+      setPreviewUrl(url)
+    } catch (loadError) {
+      setPreviewError(loadError instanceof Error ? loadError.message : 'ไม่สามารถเปิดไฟล์ได้')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   const normalizedQuery = query.trim().toLowerCase()
   const statusCounts = useMemo(
@@ -176,6 +216,7 @@ function OverviewView({
             onEditTag={onEditTag}
             onOpen={onOpenCustomer}
             onOpenCompany={onOpenCompany}
+            onOpenFiles={setFileCustomer}
             onOpenInfo={onOpenInfo}
           />
         ))}
@@ -190,6 +231,102 @@ function OverviewView({
           />
         )}
       </div>
+
+      {fileCustomer && (
+        <div
+          aria-label={`Files for ${fileCustomer.name}`}
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeFiles()
+          }}
+          role="dialog"
+        >
+          <div className="flex h-[min(86vh,820px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-5">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-50 text-teal-700">
+                <TbPaperclip className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="m-0 truncate text-sm font-black text-slate-900">Customer files</p>
+                <p className="m-0 mt-0.5 truncate text-xs font-semibold text-slate-500">{fileCustomer.name} · {fileCustomer.files?.length || 0} files</p>
+              </div>
+              <button
+                aria-label="Close files"
+                className="grid h-10 w-10 place-items-center rounded-xl !border !border-slate-200 !bg-white !text-slate-600 transition hover:!bg-slate-100"
+                onClick={closeFiles}
+                type="button"
+              >
+                <TbX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid min-h-0 flex-1 md:grid-cols-[300px_minmax(0,1fr)]">
+              <div className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-3 md:border-b-0 md:border-r">
+                {(fileCustomer.files || []).length === 0 ? (
+                  <div className="grid min-h-44 place-items-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-5 text-center">
+                    <div>
+                      <TbPaperclip className="mx-auto h-7 w-7 text-slate-300" />
+                      <p className="m-0 mt-2 text-sm font-black text-slate-600">ยังไม่มีไฟล์</p>
+                      <button
+                        className="mt-3 rounded-lg !border-0 !bg-teal-700 px-3 py-2 text-xs font-black !text-white hover:!bg-teal-800"
+                        onClick={() => {
+                          const customerId = fileCustomer.id
+                          closeFiles()
+                          onOpenCompany(customerId)
+                        }}
+                        type="button"
+                      >
+                        ไปหน้าอัปโหลด
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {(fileCustomer.files || []).map((file) => {
+                      const isPdf = file.mimeType === 'application/pdf'
+                      return (
+                        <button
+                          className={`flex min-w-0 items-center gap-3 rounded-xl !border p-3 text-left transition ${previewFile?.id === file.id ? '!border-teal-300 !bg-teal-50' : '!border-slate-200 !bg-white hover:!border-teal-200'}`}
+                          key={file.id}
+                          onClick={() => void openPreview(file)}
+                          type="button"
+                        >
+                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${isPdf ? 'bg-rose-50 text-rose-600' : 'bg-sky-50 text-sky-600'}`}>
+                            {isPdf ? <TbFileTypePdf className="h-5 w-5" /> : <TbPhoto className="h-5 w-5" />}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-xs font-black text-slate-700">{file.name}</span>
+                          <TbEye className="h-4 w-4 shrink-0 text-slate-400" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative min-h-[320px] overflow-auto bg-slate-900 p-3 sm:p-5">
+                {!previewFile && (
+                  <div className="grid h-full min-h-[300px] place-items-center text-center text-sm font-bold text-slate-400">เลือกไฟล์เพื่อดูตัวอย่าง</div>
+                )}
+                {previewLoading && (
+                  <div className="absolute inset-0 z-10 grid place-items-center bg-slate-900 text-sm font-black text-slate-300">กำลังเปิดไฟล์...</div>
+                )}
+                {previewError && (
+                  <div className="grid h-full min-h-[300px] place-items-center text-center text-sm font-bold text-rose-300">{previewError}</div>
+                )}
+                {!previewLoading && !previewError && previewUrl && previewFile?.mimeType === 'application/pdf' && (
+                  <iframe className="h-full min-h-[60vh] w-full rounded-xl border-0 bg-white" src={previewUrl} title={previewFile.name} />
+                )}
+                {!previewLoading && !previewError && previewUrl && previewFile?.mimeType !== 'application/pdf' && (
+                  <div className="grid min-h-full place-items-center">
+                    <img alt={previewFile?.name || 'Customer file'} className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" src={previewUrl} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

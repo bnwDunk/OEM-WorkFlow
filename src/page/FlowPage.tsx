@@ -22,8 +22,8 @@ import {
 } from '../data/oemWorkflow'
 import type { AuthUser } from '../data/adminDashboard'
 import type { ManagedFlow, ManagedUser } from '../data/adminDashboard'
-import type { BranchState, Customer, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate, StageTemplate } from '../data/oemWorkflow'
-import { apiRequest } from '../lib/api'
+import type { BranchState, Customer, CustomerFile, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate, StageTemplate } from '../data/oemWorkflow'
+import { apiBlobRequest, apiRequest } from '../lib/api'
 import { confirmToast } from '../lib/confirmToast'
 import type { ConfigSection } from '../data/configSections'
 import type { CustomerEditPayload } from '../components/oem/CustomerEditView'
@@ -65,6 +65,18 @@ type CustomerFlowReference = {
   id?: number
   name?: string
   slug?: string
+}
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Unable to read the selected file.'))
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      resolve(result.includes(',') ? result.slice(result.indexOf(',') + 1) : result)
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
 function mapOverviewCustomer(customer: OverviewCustomerResponse): Customer {
@@ -577,6 +589,32 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       setOverviewError(error instanceof Error ? error.message : 'Unable to delete tag.')
       throw error
     }
+  }
+
+  async function handleUploadCustomerFile(file: File) {
+    if (!selectedCustomer?.databaseId) throw new Error('Please save the customer before uploading a file.')
+
+    const data = await readFileAsBase64(file)
+    await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/files`, {
+      method: 'POST',
+      token: accessToken,
+      body: JSON.stringify({ data, mimeType: file.type, name: file.name }),
+    })
+    await loadOverview()
+    toast.success('Uploaded file.')
+  }
+
+  async function loadCustomerFile(customer: Customer, file: CustomerFile) {
+    if (!customer.databaseId) throw new Error('Customer file is unavailable.')
+
+    return apiBlobRequest(`/workflow/customers/${customer.databaseId}/files/${file.id}`, {
+      token: accessToken,
+    })
+  }
+
+  async function handleLoadCustomerFile(file: CustomerFile) {
+    if (!selectedCustomer) throw new Error('Customer file is unavailable.')
+    return loadCustomerFile(selectedCustomer, file)
   }
 
   function updateCustomer(customerId: string, updater: (customer: Customer) => Customer) {
@@ -1096,6 +1134,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           error={overviewError}
           getWorkflowTemplate={getCustomerWorkflowTemplate}
           loading={overviewLoading}
+          onLoadFile={loadCustomerFile}
           onAddTag={openTagModal}
           onEditTag={openEditTagModal}
           onCreateCustomer={openCreateCustomerPage}
@@ -1149,7 +1188,9 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onBack={() => navigate('/flow')}
           onDelete={() => void handleDeleteSelectedCustomer()}
           onRemoveTag={handleRemoveCustomerEditTag}
+          onLoadFile={handleLoadCustomerFile}
           onSave={handleSaveCustomerEdit}
+          onUploadFile={handleUploadCustomerFile}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
         />

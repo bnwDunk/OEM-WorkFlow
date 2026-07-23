@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { TbCalendarDue } from 'react-icons/tb'
+import { TbCalendarDue, TbEye, TbFileTypePdf, TbPhoto, TbUpload, TbX } from 'react-icons/tb'
 import { customerStatusOptions as fallbackCustomerStatusOptions } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
+import type { Customer, CustomerFile, CustomerStatus, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
 import CustomerNameCombobox from './CustomerNameCombobox'
 import type { CustomerNameOption } from './CustomerNameCombobox'
 import SalespersonCombobox from './SalespersonCombobox'
@@ -29,8 +29,19 @@ type CustomerEditViewProps = {
   salespersonOptions?: SalespersonOption[]
   onBack: () => void
   onDelete?: () => void
+  onLoadFile?: (file: CustomerFile) => Promise<Blob>
   onRemoveTag?: (tag: CustomerTag) => Promise<void>
   onSave: (payload: CustomerEditPayload) => void
+  onUploadFile?: (file: File) => Promise<void>
+}
+
+const allowedFileTypes = new Set(['application/pdf', 'image/gif', 'image/jpeg', 'image/png', 'image/webp'])
+const maxFileSize = 10 * 1024 * 1024
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function getDaysLeft(dueDate: string) {
@@ -86,8 +97,10 @@ function CustomerEditView({
   salespersonOptions = [],
   onBack,
   onDelete,
+  onLoadFile,
   onRemoveTag,
   onSave,
+  onUploadFile,
 }: CustomerEditViewProps) {
   const [dueDate, setDueDate] = useState(formatDateForInput(customer.dueDate || ''))
   const [name, setName] = useState(customer.name)
@@ -96,7 +109,18 @@ function CustomerEditView({
   const [tagDraft, setTagDraft] = useState('')
   const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false)
   const [removingTagKey, setRemovingTagKey] = useState('')
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileError, setFileError] = useState('')
+  const [previewFile, setPreviewFile] = useState<CustomerFile | null>(null)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
   const datePickerRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewUrlRef = useRef('')
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+  }, [])
 
   const typedName = name.trim()
   const parsedDueDate = parseInputDate(dueDate)
@@ -204,6 +228,59 @@ function CustomerEditView({
     }
 
     picker.click()
+  }
+
+  async function uploadFile(file: File) {
+    setFileError('')
+    if (!allowedFileTypes.has(file.type)) {
+      setFileError('รองรับเฉพาะไฟล์ JPG, PNG, GIF, WEBP และ PDF เท่านั้น')
+      return
+    }
+    if (file.size > maxFileSize) {
+      setFileError('ไฟล์ต้องมีขนาดไม่เกิน 10 MB')
+      return
+    }
+    if (!onUploadFile) {
+      setFileError('กรุณาบันทึกลูกค้าก่อนอัปโหลดไฟล์')
+      return
+    }
+
+    try {
+      setUploadingFile(true)
+      await onUploadFile(file)
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : 'ไม่สามารถอัปโหลดไฟล์ได้')
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function openFile(file: CustomerFile) {
+    if (!onLoadFile) return
+    setFileError('')
+    setPreviewFile(file)
+    setPreviewLoading(true)
+
+    try {
+      const blob = await onLoadFile(file)
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+      const url = URL.createObjectURL(blob)
+      previewUrlRef.current = url
+      setPreviewUrl(url)
+    } catch (error) {
+      setPreviewFile(null)
+      setFileError(error instanceof Error ? error.message : 'ไม่สามารถเปิดไฟล์ได้')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  function closePreview() {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = ''
+    setPreviewUrl('')
+    setPreviewFile(null)
   }
 
   return (
@@ -431,9 +508,7 @@ function CustomerEditView({
                 )}
               </div>
             </div>
-          </div>
-
-          <label className="mt-5 grid max-w-md gap-2 text-sm font-black text-slate-700">
+          <label className="grid gap-2 text-sm font-black text-slate-700">
             <span>Status</span>
             <select
               className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
@@ -445,7 +520,66 @@ function CustomerEditView({
               ))}
             </select>
           </label>
+
+          <div className="grid gap-2 text-sm font-black text-slate-700">
+            <div className="flex items-center justify-between gap-3">
+              <span>Files</span>
+              <span className="text-[11px] font-bold text-slate-400">รูป / PDF · สูงสุด 10 MB</span>
+            </div>
+            <input
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,application/pdf,image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void uploadFile(file)
+              }}
+              ref={fileInputRef}
+              type="file"
+            />
+            {fileError && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                {fileError}
+              </div>
+            )}
+
+            <div className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 transition focus-within:border-teal-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-teal-100">
+              {(customer.files || []).length === 0 ? (
+                <span className="min-w-0 flex-1 px-2 text-xs font-semibold text-slate-400">ยังไม่มีไฟล์</span>
+              ) : (
+                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5">
+                  {(customer.files || []).map((file) => {
+                    const isPdf = file.mimeType === 'application/pdf'
+                    return (
+                      <button
+                        className="group inline-flex h-8 max-w-[170px] shrink-0 items-center gap-1.5 rounded-lg !border !border-slate-200 !bg-white px-2.5 text-left shadow-sm transition hover:!border-teal-300 hover:!bg-teal-50"
+                        key={file.id}
+                        onClick={() => void openFile(file)}
+                        title={`${file.name} · ${formatFileSize(file.size)}`}
+                        type="button"
+                      >
+                        {isPdf ? <TbFileTypePdf className="h-4 w-4 shrink-0 text-rose-500" /> : <TbPhoto className="h-4 w-4 shrink-0 text-sky-500" />}
+                        <span className="truncate text-xs font-bold text-slate-700">{file.name}</span>
+                        <TbEye className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-teal-700" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <button
+                aria-label="Upload customer file"
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg !border-0 !bg-teal-700 px-3 text-xs font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-wait disabled:opacity-60"
+                disabled={uploadingFile || busy || !onUploadFile}
+                onClick={() => fileInputRef.current?.click()}
+                type="button"
+              >
+                <TbUpload aria-hidden="true" className="h-4 w-4" />
+                {uploadingFile ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+          </div>
+          </div>
         </div>
+
         {onDelete && (
           <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-5 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
             <div>
@@ -465,6 +599,51 @@ function CustomerEditView({
           </div>
         )}
       </form>
+
+      {previewFile && (
+        <div
+          aria-label={`Preview ${previewFile.name}`}
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closePreview()
+          }}
+          role="dialog"
+        >
+          <div className="flex h-[min(90vh,900px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-[0_30px_100px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center gap-3 border-b border-white/10 bg-slate-900 px-4 py-3 sm:px-5">
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${previewFile.mimeType === 'application/pdf' ? 'bg-rose-500/15 text-rose-300' : 'bg-sky-500/15 text-sky-300'}`}>
+                {previewFile.mimeType === 'application/pdf' ? <TbFileTypePdf className="h-5 w-5" /> : <TbPhoto className="h-5 w-5" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="m-0 truncate text-sm font-black text-white">{previewFile.name}</p>
+                <p className="m-0 mt-0.5 text-xs font-semibold text-slate-400">{formatFileSize(previewFile.size)}</p>
+              </div>
+              <button
+                aria-label="Close file preview"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl !border !border-white/10 !bg-white/5 !text-white transition hover:!bg-white/15"
+                onClick={closePreview}
+                type="button"
+              >
+                <TbX aria-hidden="true" className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="relative min-h-0 flex-1 overflow-auto bg-slate-950/70 p-3 sm:p-5">
+              {previewLoading && (
+                <div className="absolute inset-0 grid place-items-center text-sm font-black text-slate-300">กำลังเปิดไฟล์...</div>
+              )}
+              {!previewLoading && previewUrl && previewFile.mimeType === 'application/pdf' && (
+                <iframe className="h-full min-h-[60vh] w-full rounded-xl border-0 bg-white" src={previewUrl} title={previewFile.name} />
+              )}
+              {!previewLoading && previewUrl && previewFile.mimeType !== 'application/pdf' && (
+                <div className="grid min-h-full place-items-center">
+                  <img alt={previewFile.name} className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" src={previewUrl} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

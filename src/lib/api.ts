@@ -149,4 +149,27 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
   return normalizeTextEncoding(body)
 }
 
+export async function apiBlobRequest(path: string, options: ApiOptions = {}): Promise<Blob> {
+  let response = await sendRequest(path, options)
+
+  if (response.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
+    const newToken = await refreshAccessToken()
+
+    if (newToken) {
+      response = await sendRequest(path, { ...options, token: newToken })
+    } else {
+      clearStoredSession()
+      notifySessionExpired()
+      throw new Error('Session expired. Please log in again.')
+    }
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new Error(body.message || `Request failed with status ${response.status}`)
+  }
+
+  return response.blob()
+}
+
 export { API_BASE_URL }
