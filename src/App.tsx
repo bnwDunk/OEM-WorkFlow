@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import type { AuthUser } from './data/adminDashboard'
 import FlowPage from './page/FlowPage'
@@ -74,6 +74,7 @@ function readStoredUser() {
 }
 
 function AppRoutes() {
+  const location = useLocation()
   const navigate = useNavigate()
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => readStoredUser())
   const [accessToken, setAccessToken] = useState<string | null>(() => readStoredToken())
@@ -139,6 +140,10 @@ function AppRoutes() {
 
   const isLoggedIn = Boolean(currentUser && accessToken)
   const user = currentUser || fallbackUser
+  const requestedNextPath = new URLSearchParams(location.search).get('next') || ''
+  const safeNextPath = requestedNextPath === '/flow' || requestedNextPath.startsWith('/flow/')
+    ? requestedNextPath
+    : '/flow'
 
   return (
     <Routes>
@@ -146,7 +151,7 @@ function AppRoutes() {
         path="/login"
         element={
           isLoggedIn ? (
-            <Navigate to="/flow" replace />
+            <Navigate to={safeNextPath} replace />
           ) : (
             <LoginPage onLogin={handleLogin} />
           )
@@ -163,7 +168,10 @@ function AppRoutes() {
               onUserChange={handleUserChange}
             />
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate
+              to={`/login?next=${encodeURIComponent(`${location.pathname}${location.search}`)}`}
+              replace
+            />
           )
         }
       />

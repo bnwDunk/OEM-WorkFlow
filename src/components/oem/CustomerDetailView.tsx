@@ -1,7 +1,7 @@
 import { IoCloudUpload } from 'react-icons/io5'
 import { MdCancel } from 'react-icons/md'
 import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
-import type { Customer, CustomerWorkflowTemplate, IssueItem } from '../../data/oemWorkflow'
+import type { Customer, CustomerFile, CustomerWorkflowTemplate, IssueItem } from '../../data/oemWorkflow'
 import ActivityPanel from './ActivityPanel'
 import BranchCard from './BranchCard'
 import IssuePanel from './IssuePanel'
@@ -15,10 +15,11 @@ type CustomerDetailViewProps = {
   customer: Customer
   workflowTemplate?: CustomerWorkflowTemplate
   viewedPhase: number
-  onAddIssue: (payload: { openedBy: string; targetDept: string; text: string }) => void
+  onAddIssue: (payload: { attachments: File[]; openedBy: string; targetDept: string; text: string }) => Promise<void> | void
   onBack: () => void
   onCancelBranch: (branchIndex: number) => void
   onCloseIssue: (issue: IssueItem) => Promise<void> | void
+  onLoadIssueFile: (file: CustomerFile) => Promise<Blob>
   onDoneBranch: (branchIndex: number) => void
   onOpenReset: () => void
   onToggleBranchItem: (branchIndex: number, itemIndex: number) => void
@@ -46,6 +47,7 @@ function CustomerDetailView({
   onBack,
   onCancelBranch,
   onCloseIssue,
+  onLoadIssueFile,
   onDoneBranch,
   onOpenReset,
   onToggleBranchItem,
@@ -183,6 +185,7 @@ function CustomerDetailView({
             issues={customer.issues}
             onAddIssue={onAddIssue}
             onCloseIssue={onCloseIssue}
+            onLoadFile={onLoadIssueFile}
           />
         </div>
       </div>

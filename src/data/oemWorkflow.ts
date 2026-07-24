@@ -39,6 +39,7 @@ export type NotificationItem = {
 }
 
 export type IssueItem = {
+  attachments?: CustomerFile[]
   id?: number
   openedBy: string
   openedByDept: string

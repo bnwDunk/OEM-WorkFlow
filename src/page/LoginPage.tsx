@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import BrandBlock from '../components/BrandBlock'
 import type { AuthUser } from '../data/adminDashboard'
 import { apiRequest } from '../lib/api'
@@ -30,6 +30,7 @@ function normalizeRole(role: unknown): AuthUser['role'] {
 
 function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -60,7 +61,11 @@ function LoginPage({ onLogin }: LoginPageProps) {
         response.access_token,
         response.refresh_token,
       )
-      navigate('/flow', { replace: true })
+      const requestedNextPath = searchParams.get('next') || ''
+      const safeNextPath = requestedNextPath === '/flow' || requestedNextPath.startsWith('/flow/')
+        ? requestedNextPath
+        : '/flow'
+      navigate(safeNextPath, { replace: true })
     } catch (loginError) {
       const message = loginError instanceof Error ? loginError.message : 'Login failed.'
       setError(message)
