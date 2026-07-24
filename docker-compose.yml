@@ -1,6 +1,7 @@
 services:
   mysql:
     image: mysql:8.4
+    command: ["--max-allowed-packet=16M"]
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}

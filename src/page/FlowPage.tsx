@@ -875,17 +875,25 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     toast.success('Completed branch.')
   }
 
-  async function handleAddIssue(payload: { openedBy: string; targetDept: string; text: string }) {
+  async function handleAddIssue(payload: { attachments: File[]; openedBy: string; targetDept: string; text: string }) {
     if (!selectedCustomer) return
 
     if (selectedCustomer.databaseId) {
       try {
         setOverviewError('')
+        const attachments = await Promise.all(payload.attachments.map(async (file) => ({
+          data: await readFileAsBase64(file),
+          mimeType: file.type,
+          name: file.name,
+        })))
         await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/issues`, {
           method: 'POST',
           token: accessToken,
           body: JSON.stringify({
-            ...payload,
+            openedBy: payload.openedBy,
+            targetDept: payload.targetDept,
+            text: payload.text,
+            attachments,
             phase: viewedPhase,
           }),
         })
@@ -894,13 +902,15 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         return
       } catch (error) {
         setOverviewError(error instanceof Error ? error.message : 'Unable to open ticket.')
-        return
+        throw error
       }
     }
 
     updateCustomer(selectedCustomer.id, (customer) => {
       customer.issues.unshift({
-        ...payload,
+        openedBy: payload.openedBy,
+        targetDept: payload.targetDept,
+        text: payload.text,
         openedByDept: currentDept,
         closed: false,
         phase: viewedPhase,
@@ -1192,6 +1202,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onBack={() => navigate('/flow')}
           onCancelBranch={handleCancelBranch}
           onCloseIssue={handleCloseIssue}
+          onLoadIssueFile={handleLoadCustomerFile}
           onDoneBranch={handleDoneBranch}
           onOpenReset={() => setModal({ type: 'reset', customerId: selectedCustomer.id, phase: viewedPhase })}
           onToggleBranchItem={handleToggleBranchItem}
