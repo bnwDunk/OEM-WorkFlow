@@ -114,13 +114,13 @@ function AddUserModal({
               </span>
             )
           })}
-          {draft.departmentIds.length === 0 && <span className="self-center text-xs font-extrabold text-slate-500">Optional: choose departments</span>}
+          {draft.departmentIds.length === 0 && <span className="self-center text-xs font-extrabold text-rose-600">Please assign at least one department</span>}
         </div>
         <div className="modal-actions">
           <button className="ghost" disabled={busy} onClick={onClose} type="button">
             Cancel
           </button>
-          <button className="primary" disabled={busy || !draft.name.trim() || !draft.email.trim()} type="submit">
+          <button className="primary" disabled={busy || !draft.name.trim() || !draft.email.trim() || draft.departmentIds.length === 0} type="submit">
             {busy ? 'Adding...' : 'Add user'}
           </button>
         </div>

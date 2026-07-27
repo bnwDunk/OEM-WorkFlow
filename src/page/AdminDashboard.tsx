@@ -331,7 +331,7 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
   async function createUser() {
     const name = newUser.name.trim()
     const email = newUser.email.trim().toLowerCase()
-    if (!name || !email) return
+    if (!name || !email || newUser.departmentIds.length === 0) return
 
     try {
       setActionError('')
