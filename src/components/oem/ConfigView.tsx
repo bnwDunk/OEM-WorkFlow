@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import toast from 'react-hot-toast'
 import { normalizeStagePhaseLabels } from '../../data/oemWorkflow'
 import { apiRequest } from '../../lib/api'
 
@@ -101,11 +102,17 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
   const [workflowOptions, setWorkflowOptions] = useState<WorkflowOption[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [addPhaseOpen, setAddPhaseOpen] = useState(false)
+  const [newPhaseLabel, setNewPhaseLabel] = useState('')
+  const [newPhaseName, setNewPhaseName] = useState('')
+  const [newPhaseStageId, setNewPhaseStageId] = useState<number | null>(null)
+  const [savingPhase, setSavingPhase] = useState(false)
   const [loadingWorkflows, setLoadingWorkflows] = useState(false)
   const [savingBranchId, setSavingBranchId] = useState<number | null>(null)
   const [dirtyBranchIds, setDirtyBranchIds] = useState<Set<number>>(() => new Set())
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set())
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(() => new Set())
+  const [collapsePendingWorkflowId, setCollapsePendingWorkflowId] = useState<number | null>(null)
   const [workflowError, setWorkflowError] = useState('')
   const workflowStages = useMemo(
     () => selectedWorkflowId === null ? [] : workflowTemplates[String(selectedWorkflowId)] || [],
@@ -115,7 +122,7 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
 
   const editableDept = useMemo(() => {
     const current = departments.find((department) => normalizeDept(department) === normalizeDept(currentDept))
-    return current || departments[0] || currentDept
+    return current || currentDept || ''
   }, [currentDept, departments])
 
   const templateSummary = useMemo(() => {
@@ -237,6 +244,72 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
     })
   }
 
+  useEffect(() => {
+    if (!editorOpen || selectedWorkflowId === null || collapsePendingWorkflowId !== selectedWorkflowId) return
+    if (!Object.prototype.hasOwnProperty.call(workflowTemplates, String(selectedWorkflowId))) return
+
+    const stageKeys = new Set<string>()
+    const phaseKeys = new Set<string>()
+
+    workflowStages.forEach((stage, stageIndex) => {
+      const stageKey = `${selectedWorkflowId}-stage-${stage.id || stageIndex}`
+      stageKeys.add(stageKey)
+      stage.stops.forEach((stop, stopIndex) => {
+        phaseKeys.add(`${stageKey}-phase-${stop.id || stopIndex}`)
+      })
+    })
+
+    setCollapsedStages(stageKeys)
+    setCollapsedPhases(phaseKeys)
+    setCollapsePendingWorkflowId(null)
+  }, [collapsePendingWorkflowId, editorOpen, selectedWorkflowId, workflowStages, workflowTemplates])
+
+  async function addDepartmentPhase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (selectedWorkflowId === null || newPhaseStageId === null) return
+
+    try {
+      setSavingPhase(true)
+      setWorkflowError('')
+      const response = await apiRequest<{ affectedActiveCustomers: number }>(
+        `/workflow/flows/${selectedWorkflowId}/stages/${newPhaseStageId}/phases`,
+        {
+          method: 'POST',
+          token: accessToken,
+          body: JSON.stringify({
+            departmentName: editableDept,
+            label: newPhaseLabel,
+            name: newPhaseName,
+          }),
+        },
+      )
+      const structure = await apiRequest<FlowStructureResponse>(
+        `/workflow/flows/${selectedWorkflowId}/structure`,
+        { token: accessToken },
+      )
+      setWorkflowTemplates((current) => ({
+        ...current,
+        [String(selectedWorkflowId)]: mapStructureToTemplate(structure),
+      }))
+      setWorkflowOptions((current) => current.map((flow) =>
+        flow.id === selectedWorkflowId
+          ? { ...flow, phaseCount: Number(flow.phaseCount || 0) + 1 }
+          : flow,
+      ))
+      setNewPhaseLabel('')
+      setNewPhaseName('')
+      setAddPhaseOpen(false)
+      await onWorkflowTemplateChange?.()
+      if (response.affectedActiveCustomers > 0) {
+        setWorkflowError(`เพิ่ม Phase สำเร็จและอัปเดตลูกค้าเดิม ${response.affectedActiveCustomers} รายแล้ว`)
+      }
+    } catch (error) {
+      setWorkflowError(error instanceof Error ? error.message : 'Unable to add phase.')
+    } finally {
+      setSavingPhase(false)
+    }
+  }
+
   async function saveBranch(stageIndex: number, stopIndex: number, branchIndex: number, nextItems?: ConfigWorkItem[]) {
     if (selectedWorkflowId === null) return
 
@@ -286,8 +359,11 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
         return next
       })
       await onWorkflowTemplateChange?.()
+      toast.success(`Updated ${branch.dept} checklist successfully.`)
     } catch (error) {
-      setWorkflowError(error instanceof Error ? error.message : 'Unable to save workflow work.')
+      const message = error instanceof Error ? error.message : 'Unable to save workflow work.'
+      setWorkflowError(message)
+      toast.error(message)
     } finally {
       setSavingBranchId(null)
     }
@@ -457,6 +533,7 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                         className="config-btn config-btn-secondary config-btn-sm"
                         onClick={() => {
                           setSelectedWorkflowId(flow.id)
+                          setCollapsePendingWorkflowId(flow.id)
                           setEditorOpen(true)
                         }}
                         type="button"
@@ -482,16 +559,80 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
               <div>
                 <h2 className="m-0 text-[17px] font-bold text-slate-950">{selectedWorkflow?.name || 'Workflow'}</h2>
                 <p className="mt-0.5 text-[12.5px] font-medium text-slate-500">
-                  Edit checklist items for {editableDept}. Other departments are read-only.
+                  {editableDept
+                    ? `Edit checklist items for ${editableDept}. Other departments are read-only.`
+                    : 'No department is assigned to this account. Please contact an administrator.'}
                   <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-[11.5px] font-semibold text-[#00a99d]">
                     {templateSummary.phaseCount} phases
                   </span>
                 </p>
               </div>
-              <button className="border-0 bg-transparent p-0 text-xl leading-none text-slate-500" onClick={() => setEditorOpen(false)} type="button">×</button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="min-h-9 rounded-lg border-0 bg-[#00a99d] px-4 text-xs font-black text-white shadow-sm transition hover:bg-teal-700"
+                  disabled={!editableDept}
+                  onClick={() => {
+                    setNewPhaseStageId((current) => current || workflowStages[0]?.id || null)
+                    setAddPhaseOpen((open) => !open)
+                  }}
+                  type="button"
+                >
+                  + Add Phase
+                </button>
+                <button className="border-0 bg-transparent p-0 text-xl leading-none text-slate-500" onClick={() => setEditorOpen(false)} type="button">×</button>
+              </div>
             </div>
 
             <div className="overflow-auto py-3">
+              {addPhaseOpen && (
+                <form className="mx-4 mb-4 rounded-xl border border-teal-200 bg-teal-50/70 p-4" onSubmit={addDepartmentPhase}>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="m-0 text-sm font-black text-slate-950">เพิ่ม Phase สำหรับ {editableDept}</h3>
+                      <p className="m-0 mt-1 text-xs font-semibold text-slate-500">Phase นี้จะผูกกับแผนกของคุณและเพิ่มให้ลูกค้าเดิมทุกคนใน Flow</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-teal-700 shadow-sm">{editableDept}</span>
+                  </div>
+                  <div className="grid gap-2.5 md:grid-cols-[minmax(140px,180px)_minmax(100px,130px)_minmax(0,1fr)_auto]">
+                    <select
+                      aria-label="Stage"
+                      className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-teal-500"
+                      onChange={(event) => setNewPhaseStageId(Number(event.target.value) || null)}
+                      required
+                      value={newPhaseStageId || ''}
+                    >
+                      <option value="">เลือก Stage</option>
+                      {workflowStages.map((stage, index) => (
+                        <option key={stage.id || index} value={stage.id}>Stage {index + 1}: {stage.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400 focus:border-teal-500"
+                      maxLength={20}
+                      onChange={(event) => setNewPhaseLabel(event.target.value)}
+                      placeholder="Phase เช่น 5.1"
+                      required
+                      value={newPhaseLabel}
+                    />
+                    <input
+                      className="min-h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-teal-500"
+                      maxLength={190}
+                      onChange={(event) => setNewPhaseName(event.target.value)}
+                      placeholder="ชื่อ Phase"
+                      required
+                      value={newPhaseName}
+                    />
+                    <button
+                      className="min-h-10 rounded-lg border-0 bg-teal-600 px-4 text-sm font-black text-white transition hover:bg-teal-700 disabled:opacity-50"
+                      disabled={savingPhase}
+                      type="submit"
+                    >
+                      {savingPhase ? 'กำลังเพิ่ม...' : 'เพิ่ม Phase'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {loadingWorkflows && workflowStages.length === 0 && (
                 <p className="mx-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">Loading workflow structure...</p>
               )}
@@ -558,24 +699,32 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                         </div>
                       </div>
 
-                      {!phaseCollapsed && <div className="border-t border-slate-100 bg-slate-50/60 px-4 pb-3 pl-[52px] pt-1 max-[900px]:pl-4">
+                      {!phaseCollapsed && <div className="config-checklist-panel">
                         {stop.branches.map((branch, branchIndex) => {
                           const editable = normalizeDept(branch.dept) === normalizeDept(editableDept)
                           const branchIsDirty = branch.id ? dirtyBranchIds.has(branch.id) : false
 
                           return (
-                            <div className="mt-3" key={`${branch.dept}-${branchIndex}`}>
-                              <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-teal-50 px-3 py-1 text-[11.5px] font-semibold text-[#00a99d]">{branch.dept}</span>
-                                {!editable && <span className="text-[11.5px] font-medium text-slate-400">Locked to assigned department</span>}
+                            <div className={`config-department-card ${editable ? 'is-editable' : 'is-locked'}`} key={`${branch.dept}-${branchIndex}`}>
+                              <div className="config-department-head">
+                                <div className="config-department-title">
+                                  <span className="config-department-icon" aria-hidden="true">{branch.dept.slice(0, 1).toUpperCase()}</span>
+                                  <div>
+                                    <strong>{branch.dept}</strong>
+                                    <p>{branch.items.length} checklist {branch.items.length === 1 ? 'item' : 'items'}</p>
+                                  </div>
+                                </div>
+                                <span className={`config-edit-status ${editable ? 'is-editable' : 'is-locked'}`}>
+                                  {editable ? 'Editable by your department' : 'View only'}
+                                </span>
                               </div>
-                              <div>
+                              <div className="config-checklist-list">
                                 {branch.items.map((item, itemIndex) => (
-                                  <div className="flex items-center gap-2 border-b border-slate-100 py-1 last:border-b-0" key={`${branch.dept}-${itemIndex}`}>
-                                    <span className="text-xs text-slate-400">☐</span>
+                                  <div className="config-checklist-item" key={`${branch.dept}-${itemIndex}`}>
+                                    <span className="config-checklist-number" aria-hidden="true">{itemIndex + 1}</span>
                                     <input
                                       aria-label={`Checklist ${itemIndex + 1} for ${branch.dept}`}
-                                      className="h-8 flex-1 rounded border border-transparent bg-transparent px-2 text-[12.5px] font-medium text-slate-800 outline-none transition hover:border-slate-200 hover:bg-white focus:border-[#00a99d] focus:bg-white disabled:text-slate-500"
+                                      className="config-checklist-input"
                                       disabled={!editable || savingBranchId === branch.id}
                                       onChange={(event) => updateWork(stageIndex, stopIndex, branchIndex, itemIndex, event.target.value)}
                                       readOnly={!editable}
@@ -583,7 +732,8 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                                     />
                                     {editable && (
                                       <button
-                                        className="border-0 bg-transparent px-1 text-sm text-slate-300 transition hover:text-rose-600"
+                                        aria-label={`Delete checklist ${itemIndex + 1}`}
+                                        className="config-checklist-delete"
                                         disabled={savingBranchId === branch.id}
                                         onClick={() => deleteWork(stageIndex, stopIndex, branchIndex, itemIndex)}
                                         type="button"
@@ -593,14 +743,17 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                                     )}
                                   </div>
                                 ))}
+                                {branch.items.length === 0 && (
+                                  <div className="config-checklist-empty">No checklist items yet.</div>
+                                )}
                               </div>
                               {editable && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  <button className="min-h-7 rounded border border-slate-200 bg-slate-50 px-2.5 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100" disabled={savingBranchId === branch.id} onClick={() => addWork(stageIndex, stopIndex, branchIndex)} type="button">
+                                <div className="config-checklist-actions">
+                                  <button className="config-checklist-add" disabled={savingBranchId === branch.id} onClick={() => addWork(stageIndex, stopIndex, branchIndex)} type="button">
                                     + Add checklist
                                   </button>
-                                  <button className="min-h-7 rounded border-0 bg-[#00a99d] px-2.5 text-[11.5px] font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={savingBranchId === branch.id || !branchIsDirty} onClick={() => saveBranch(stageIndex, stopIndex, branchIndex)} type="button">
-                                    {savingBranchId === branch.id ? 'Saving...' : 'Update'}
+                                  <button className="config-checklist-save" disabled={savingBranchId === branch.id || !branchIsDirty} onClick={() => saveBranch(stageIndex, stopIndex, branchIndex)} type="button">
+                                    {savingBranchId === branch.id ? 'Saving...' : 'Update checklist'}
                                   </button>
                                 </div>
                               )}

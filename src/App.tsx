@@ -48,8 +48,8 @@ function normalizeUser(user: unknown): AuthUser | null {
     : []
   const department =
     typeof value.department === 'object' && value.department
-      ? value.department.name || 'Sales'
-      : value.department || departments[0]?.name || 'Sales'
+      ? value.department.name || ''
+      : value.department || departments[0]?.name || ''
 
   return {
     id: value.id,
@@ -57,7 +57,7 @@ function normalizeUser(user: unknown): AuthUser | null {
     email: value.email,
     role: normalizeRole(value.role),
     department,
-    departments: departments.length ? departments : [{ id: 0, name: department }],
+    departments: departments.length ? departments : department ? [{ id: 0, name: department }] : [],
     departmentIds: departments.length ? departments.map((item) => item.id) : value.departmentIds || [],
   }
 }
