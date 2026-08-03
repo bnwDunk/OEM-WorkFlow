@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { Dispatch, FormEvent, SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Dispatch, DragEvent, FormEvent, SetStateAction } from 'react'
 import toast from 'react-hot-toast'
 import { normalizeStagePhaseLabels } from '../../data/oemWorkflow'
 import { apiRequest } from '../../lib/api'
+import { confirmToast } from '../../lib/confirmToast'
 
 type ConfigViewProps = {
   accessToken: string
+  canDeleteFlow?: boolean
   currentDept: string
   departments: string[]
   onWorkflowTemplateChange?: () => Promise<void> | void
@@ -97,7 +99,8 @@ function mapStructureToTemplate(structure: FlowStructureResponse) {
   }))
 }
 
-function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
+function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
+  const canReorder = true
   const [workflowTemplates, setWorkflowTemplates] = useState<Record<string, ConfigStage[]>>({})
   const [workflowOptions, setWorkflowOptions] = useState<WorkflowOption[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
@@ -107,8 +110,21 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
   const [newPhaseName, setNewPhaseName] = useState('')
   const [newPhaseStageId, setNewPhaseStageId] = useState<number | null>(null)
   const [savingPhase, setSavingPhase] = useState(false)
+  const [deletingFlowId, setDeletingFlowId] = useState<number | null>(null)
   const [loadingWorkflows, setLoadingWorkflows] = useState(false)
   const [savingBranchId, setSavingBranchId] = useState<number | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [orderDirty, setOrderDirty] = useState(false)
+  const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null)
+  const [draggedPhase, setDraggedPhase] = useState<{ stageIndex: number; stopIndex: number } | null>(null)
+  const [stageDropIndex, setStageDropIndex] = useState<number | null>(null)
+  const [phaseDropIndex, setPhaseDropIndex] = useState<{ stageIndex: number; stopIndex: number } | null>(null)
+  const [recentMove, setRecentMove] = useState<{ direction: 'down' | 'up'; key: string } | null>(null)
+  const moveFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const draggedStageIndexRef = useRef<number | null>(null)
+  const draggedStageKeyRef = useRef<string | null>(null)
+  const draggedPhaseRef = useRef<{ stageIndex: number; stopIndex: number } | null>(null)
+  const draggedPhaseKeyRef = useRef<string | null>(null)
   const [dirtyBranchIds, setDirtyBranchIds] = useState<Set<number>>(() => new Set())
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set())
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(() => new Set())
@@ -218,6 +234,18 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
     }
   }, [accessToken, selectedWorkflowId, workflowTemplates])
 
+  useEffect(() => {
+    setOrderDirty(false)
+    draggedStageIndexRef.current = null
+    draggedStageKeyRef.current = null
+    draggedPhaseRef.current = null
+    draggedPhaseKeyRef.current = null
+    setDraggedStageIndex(null)
+    setDraggedPhase(null)
+    setStageDropIndex(null)
+    setPhaseDropIndex(null)
+  }, [selectedWorkflowId])
+
   function setSelectedWorkflowStages(updater: (current: ConfigStage[]) => ConfigStage[]) {
     if (selectedWorkflowId === null) return
 
@@ -242,6 +270,114 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
       }
       return next
     })
+  }
+
+  useEffect(() => () => {
+    if (moveFeedbackTimer.current) clearTimeout(moveFeedbackTimer.current)
+  }, [])
+
+  function showMoveFeedback(key: string, direction: 'down' | 'up') {
+    if (moveFeedbackTimer.current) clearTimeout(moveFeedbackTimer.current)
+    setRecentMove(null)
+    window.requestAnimationFrame(() => setRecentMove({ direction, key }))
+    moveFeedbackTimer.current = setTimeout(() => setRecentMove(null), 900)
+  }
+
+  function reorderStage(fromIndex: number, toIndex: number, movedKey?: string) {
+    if (fromIndex === toIndex || toIndex < 0 || toIndex >= workflowStages.length) return
+    const movedStage = workflowStages[fromIndex]
+    showMoveFeedback(movedKey || `stage-${movedStage.id || movedStage.name}`, toIndex < fromIndex ? 'up' : 'down')
+    setSelectedWorkflowStages((current) => {
+      const stages = [...current]
+      const [movedStage] = stages.splice(fromIndex, 1)
+      stages.splice(toIndex, 0, movedStage)
+      return stages
+    })
+    setOrderDirty(true)
+  }
+
+  function reorderPhase(stageIndex: number, fromIndex: number, toIndex: number, movedKey?: string) {
+    const stage = workflowStages[stageIndex]
+    if (!stage || fromIndex === toIndex || toIndex < 0 || toIndex >= stage.stops.length) return
+    const movedStop = stage.stops[fromIndex]
+    showMoveFeedback(movedKey || `phase-${movedStop.id || `${movedStop.label}-${movedStop.name}`}`, toIndex < fromIndex ? 'up' : 'down')
+    setSelectedWorkflowStages((current) => current.map((item, index) => {
+      if (index !== stageIndex) return item
+      const stops = [...item.stops]
+      const [movedStop] = stops.splice(fromIndex, 1)
+      stops.splice(toIndex, 0, movedStop)
+      return { ...item, stops }
+    }))
+    setOrderDirty(true)
+  }
+
+  function finishOrderDrag() {
+    draggedStageIndexRef.current = null
+    draggedStageKeyRef.current = null
+    draggedPhaseRef.current = null
+    draggedPhaseKeyRef.current = null
+    setDraggedStageIndex(null)
+    setDraggedPhase(null)
+    setStageDropIndex(null)
+    setPhaseDropIndex(null)
+  }
+
+  function startStageDrag(event: DragEvent<HTMLButtonElement>, stageIndex: number) {
+    event.stopPropagation()
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `stage:${stageIndex}`)
+    draggedStageIndexRef.current = stageIndex
+    draggedStageKeyRef.current = `stage-${workflowStages[stageIndex].id || workflowStages[stageIndex].name}`
+    setDraggedStageIndex(stageIndex)
+  }
+
+  function previewStageMove(toIndex: number) {
+    const fromIndex = draggedStageIndexRef.current
+    if (fromIndex === null || fromIndex === toIndex) return
+    reorderStage(fromIndex, toIndex, draggedStageKeyRef.current || undefined)
+    draggedStageIndexRef.current = toIndex
+    setDraggedStageIndex(toIndex)
+  }
+
+  function previewPhaseMove(stageIndex: number, toIndex: number) {
+    const dragged = draggedPhaseRef.current
+    if (!dragged || dragged.stageIndex !== stageIndex || dragged.stopIndex === toIndex) return
+    reorderPhase(stageIndex, dragged.stopIndex, toIndex, draggedPhaseKeyRef.current || undefined)
+    draggedPhaseRef.current = { stageIndex, stopIndex: toIndex }
+    setDraggedPhase({ stageIndex, stopIndex: toIndex })
+  }
+
+  async function saveWorkflowOrder() {
+    if (selectedWorkflowId === null || !orderDirty) return
+
+    try {
+      setSavingOrder(true)
+      setWorkflowError('')
+      await apiRequest(`/workflow/flows/${selectedWorkflowId}/order`, {
+        method: 'PUT',
+        token: accessToken,
+        body: JSON.stringify({
+          stages: workflowStages.map((stage) => ({
+            id: stage.id,
+            phaseIds: stage.stops.map((stop) => stop.id),
+          })),
+        }),
+      })
+      const structure = await apiRequest<FlowStructureResponse>(`/workflow/flows/${selectedWorkflowId}/structure`, { token: accessToken })
+      setWorkflowTemplates((current) => ({
+        ...current,
+        [String(selectedWorkflowId)]: mapStructureToTemplate(structure),
+      }))
+      setOrderDirty(false)
+      await onWorkflowTemplateChange?.()
+      toast.success('บันทึกลำดับ Stage และ Phase แล้ว')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save workflow order.'
+      setWorkflowError(message)
+      toast.error(message)
+    } finally {
+      setSavingOrder(false)
+    }
   }
 
   useEffect(() => {
@@ -307,6 +443,43 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
       setWorkflowError(error instanceof Error ? error.message : 'Unable to add phase.')
     } finally {
       setSavingPhase(false)
+    }
+  }
+
+  async function deleteFlow(flow: WorkflowOption) {
+    const confirmed = await confirmToast({
+      confirmLabel: 'Delete',
+      dangerNote: 'A flow already used by customers cannot be deleted.',
+      message: `Delete flow ${flow.name}?`,
+      title: 'Delete flow',
+    })
+    if (!confirmed) return
+
+    try {
+      setWorkflowError('')
+      setDeletingFlowId(flow.id)
+      await apiRequest(`/admin/flows/${flow.id}`, {
+        method: 'DELETE',
+        token: accessToken,
+      })
+      setWorkflowOptions((current) => current.filter((item) => item.id !== flow.id))
+      setWorkflowTemplates((current) => {
+        const next = { ...current }
+        delete next[String(flow.id)]
+        return next
+      })
+      if (selectedWorkflowId === flow.id) {
+        setEditorOpen(false)
+        setSelectedWorkflowId(null)
+      }
+      await onWorkflowTemplateChange?.()
+      toast.success(`Deleted flow ${flow.name}.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to delete flow.'
+      setWorkflowError(message)
+      toast.error(message)
+    } finally {
+      setDeletingFlowId(null)
     }
   }
 
@@ -529,17 +702,30 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                       <span className="text-[11.5px] font-semibold text-emerald-600">● {flow.status || 'active'}</span>
                     </td>
                     <td className="border-b border-slate-100 px-3.5 py-2.5 align-middle">
-                      <button
-                        className="config-btn config-btn-secondary config-btn-sm"
-                        onClick={() => {
-                          setSelectedWorkflowId(flow.id)
-                          setCollapsePendingWorkflowId(flow.id)
-                          setEditorOpen(true)
-                        }}
-                        type="button"
-                      >
-                        Edit checklist
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          className="config-btn config-btn-secondary config-btn-sm"
+                          disabled={deletingFlowId === flow.id}
+                          onClick={() => {
+                            setSelectedWorkflowId(flow.id)
+                            setCollapsePendingWorkflowId(flow.id)
+                            setEditorOpen(true)
+                          }}
+                          type="button"
+                        >
+                          Edit checklist
+                        </button>
+                        {canDeleteFlow === true && (
+                          <button
+                            className="config-btn config-btn-sm border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={deletingFlowId !== null}
+                            onClick={() => void deleteFlow(flow)}
+                            type="button"
+                          >
+                            {deletingFlowId === flow.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -579,7 +765,14 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                 >
                   + Add Phase
                 </button>
-                <button className="border-0 bg-transparent p-0 text-xl leading-none text-slate-500" onClick={() => setEditorOpen(false)} type="button">×</button>
+                <button
+                  aria-label="Close flow editor"
+                  className="config-editor-close border-0 bg-transparent p-0 text-xl leading-none text-slate-500"
+                  onClick={() => setEditorOpen(false)}
+                  type="button"
+                >
+                  ×
+                </button>
               </div>
             </div>
 
@@ -639,14 +832,35 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
 
               {workflowStages.map((stage, stageIndex) => {
                 const stageKey = `${selectedWorkflowId || 'flow'}-stage-${stage.id || stageIndex}`
+                const stageMoveKey = `stage-${stage.id || stage.name}`
                 const stageCollapsed = collapsedStages.has(stageKey)
 
                 return (
-                <section className="border-b border-slate-200 last:border-b-0" key={`${stage.name}-${stageIndex}`}>
+                <section
+                  className={`config-order-stage border-b border-slate-200 last:border-b-0 ${draggedStageIndex === stageIndex ? 'is-dragging' : ''} ${stageDropIndex === stageIndex && draggedStageIndex !== stageIndex ? 'is-drop-target' : ''} ${recentMove?.key === stageMoveKey ? `is-reordered moved-${recentMove.direction}` : ''}`}
+                  key={stage.id || stage.name}
+                  onDragOver={(event) => {
+                    if (draggedStageIndex === null) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                    setStageDropIndex(stageIndex)
+                    previewStageMove(stageIndex)
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    finishOrderDrag()
+                  }}
+                >
                   <div
-                    className="config-collapse-row grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-0 bg-slate-50 px-4 py-2.5"
+                    className="config-collapse-row flex min-h-[52px] items-center gap-2 bg-slate-50 px-5 py-2.5"
                     onClick={() => toggleCollapsed(setCollapsedStages, stageKey)}
                   >
+                    {canReorder && (
+                      <button aria-label={`ลาก Stage ${stageIndex + 1} เพื่อจัดลำดับ`} className="admin-flow-drag-handle" draggable onClick={(event) => event.stopPropagation()} onDragEnd={finishOrderDrag} onDragStart={(event) => startStageDrag(event, stageIndex)} title="ลากเพื่อจัดลำดับ Stage" type="button">
+                        <span aria-hidden="true">⠿</span>
+                      </button>
+                    )}
                     <button
                       aria-expanded={!stageCollapsed}
                       aria-label={`${stageCollapsed ? 'Open' : 'Close'} ${stage.name}`}
@@ -660,21 +874,66 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                       {stageCollapsed ? '▶' : '▼'}
                     </button>
                     <span className="text-[15px] font-bold leading-none text-slate-700">▾</span>
-                    <span className="mr-2 rounded bg-slate-800 px-2 py-0.5 text-[11px] font-bold text-white">S{stageIndex + 1}</span>
-                    <strong className="min-w-0 text-[13.5px] font-semibold text-slate-950">{stage.name}</strong>
-                    <span className="text-xs font-medium text-slate-500">{stage.stops.length} phases</span>
+                    <span className="mr-1 shrink-0 rounded-md bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">S{stageIndex + 1}</span>
+                    <strong className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-slate-950">{stage.name}</strong>
+                    {canReorder && (
+                      <div className="admin-flow-order-actions ml-auto shrink-0" onClick={(event) => event.stopPropagation()}>
+                        <button aria-label={`เลื่อน Stage ${stageIndex + 1} ขึ้น`} disabled={stageIndex === 0} onClick={() => reorderStage(stageIndex, stageIndex - 1)} title="เลื่อนขึ้น" type="button">↑</button>
+                        <button aria-label={`เลื่อน Stage ${stageIndex + 1} ลง`} disabled={stageIndex === workflowStages.length - 1} onClick={() => reorderStage(stageIndex, stageIndex + 1)} title="เลื่อนลง" type="button">↓</button>
+                      </div>
+                    )}
+                    <span className="ml-2 w-[68px] shrink-0 text-right text-xs font-semibold text-slate-500">{stage.stops.length} phases</span>
                   </div>
 
                   {!stageCollapsed && stage.stops.map((stop, stopIndex) => {
                     const phaseKey = `${stageKey}-phase-${stop.id || stopIndex}`
+                    const phaseMoveKey = `phase-${stop.id || `${stop.label}-${stop.name}`}`
                     const phaseCollapsed = collapsedPhases.has(phaseKey)
 
                     return (
-                    <div className="border-t border-slate-100" key={`${stage.name}-${stop.label}-${stopIndex}`}>
+                    <div
+                      className={`config-order-phase border-t border-slate-100 ${draggedPhase?.stageIndex === stageIndex && draggedPhase.stopIndex === stopIndex ? 'is-dragging' : ''} ${phaseDropIndex?.stageIndex === stageIndex && phaseDropIndex.stopIndex === stopIndex && draggedPhase?.stopIndex !== stopIndex ? 'is-drop-target' : ''} ${recentMove?.key === phaseMoveKey ? `is-reordered moved-${recentMove.direction}` : ''}`}
+                      key={stop.id || `${stage.id || stage.name}-${stop.label}-${stop.name}`}
+                      onDragOver={(event) => {
+                        if (!draggedPhase || draggedPhase.stageIndex !== stageIndex) return
+                        event.preventDefault()
+                        event.stopPropagation()
+                        event.dataTransfer.dropEffect = 'move'
+                        setPhaseDropIndex({ stageIndex, stopIndex })
+                        previewPhaseMove(stageIndex, stopIndex)
+                      }}
+                      onDrop={(event) => {
+                        if (!draggedPhase || draggedPhase.stageIndex !== stageIndex) return
+                        event.preventDefault()
+                        event.stopPropagation()
+                        finishOrderDrag()
+                      }}
+                    >
                       <div
-                        className="config-collapse-row grid grid-cols-[58px_76px_minmax(240px,1fr)_minmax(180px,auto)] items-center gap-2 px-4 py-2 pl-9 max-[900px]:grid-cols-1 max-[900px]:pl-4"
+                        className="config-collapse-row flex min-h-[54px] items-center gap-2 px-5 py-2 pl-12 max-[900px]:flex-wrap max-[900px]:pl-5"
                         onClick={() => toggleCollapsed(setCollapsedPhases, phaseKey)}
                       >
+                        {canReorder && (
+                          <button
+                            aria-label={`ลาก Phase ${stop.label} เพื่อจัดลำดับ`}
+                            className="admin-flow-drag-handle"
+                            draggable
+                            onClick={(event) => event.stopPropagation()}
+                            onDragEnd={finishOrderDrag}
+                            onDragStart={(event) => {
+                              event.stopPropagation()
+                              event.dataTransfer.effectAllowed = 'move'
+                              event.dataTransfer.setData('text/plain', `phase:${stageIndex}:${stopIndex}`)
+                              draggedPhaseRef.current = { stageIndex, stopIndex }
+                              draggedPhaseKeyRef.current = `phase-${stop.id || `${stop.label}-${stop.name}`}`
+                              setDraggedPhase({ stageIndex, stopIndex })
+                            }}
+                            title="ลากเพื่อจัดลำดับ Phase"
+                            type="button"
+                          >
+                            <span aria-hidden="true">⠿</span>
+                          </button>
+                        )}
                         <button
                           aria-expanded={!phaseCollapsed}
                           aria-label={`${phaseCollapsed ? 'Open' : 'Close'} ${stop.name}`}
@@ -688,15 +947,21 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
                           {phaseCollapsed ? '▶' : '▼'}
                         </button>
                         <span className="text-[15px] font-bold leading-none text-slate-500 max-[900px]:hidden">▾</span>
-                        <span className="rounded bg-teal-50 px-2 py-1 text-center text-[11px] font-bold text-[#00a99d]">{stop.label}</span>
-                        <strong className="min-w-0 text-[13px] font-medium text-slate-900">{stop.name}</strong>
-                        <div className="flex flex-wrap gap-1.5">
+                        <span className="w-[70px] shrink-0 rounded-md bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-[#00a99d]">{stop.label}</span>
+                        <strong className="min-w-[180px] flex-1 text-[13px] font-medium text-slate-900">{stop.name}</strong>
+                        <div className="flex max-w-[280px] flex-wrap justify-end gap-1.5 max-[900px]:ml-[70px] max-[900px]:max-w-none max-[900px]:flex-1">
                           {stop.branches.map((branch) => (
                             <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700" key={`${stop.id}-${branch.id}-${branch.dept}`}>
                               {branch.dept}
                             </span>
                           ))}
                         </div>
+                        {canReorder && (
+                          <div className="admin-flow-order-actions ml-2 shrink-0" onClick={(event) => event.stopPropagation()}>
+                            <button aria-label={`เลื่อน Phase ${stop.label} ขึ้น`} disabled={stopIndex === 0} onClick={() => reorderPhase(stageIndex, stopIndex, stopIndex - 1)} title="เลื่อนขึ้น" type="button">↑</button>
+                            <button aria-label={`เลื่อน Phase ${stop.label} ลง`} disabled={stopIndex === stage.stops.length - 1} onClick={() => reorderPhase(stageIndex, stopIndex, stopIndex + 1)} title="เลื่อนลง" type="button">↓</button>
+                          </div>
+                        )}
                       </div>
 
                       {!phaseCollapsed && <div className="config-checklist-panel">
@@ -769,8 +1034,18 @@ function ConfigView({ accessToken, currentDept, departments, onWorkflowTemplateC
               })}
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4">
+              <span className="text-xs font-bold text-amber-600">
+                {canReorder && orderDirty ? 'มีการเปลี่ยนลำดับที่ยังไม่ได้บันทึก' : ''}
+              </span>
+              <div className="flex justify-end gap-2">
+                {canReorder && orderDirty && (
+                  <button className="min-h-9 rounded-md border-0 bg-[#00a99d] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={!orderDirty || savingOrder} onClick={saveWorkflowOrder} type="button">
+                    {savingOrder ? 'กำลังบันทึก...' : 'Save order'}
+                  </button>
+                )}
               <button className="min-h-9 rounded-md border border-slate-200 bg-slate-50 px-4 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100" onClick={() => setEditorOpen(false)} type="button">Close</button>
+              </div>
             </div>
           </section>
         </div>

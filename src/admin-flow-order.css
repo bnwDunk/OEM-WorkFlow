@@ -1,0 +1,340 @@
+.admin-flow-drag-handle {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: grab;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.admin-flow-drag-handle:hover,
+.admin-flow-drag-handle:focus-visible {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  color: #0f766e;
+  outline: none;
+}
+
+.admin-flow-drag-handle:active { cursor: grabbing; transform: scale(.94); }
+
+.admin-flow-order-actions {
+  display: inline-flex;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.admin-flow-order-actions button {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.admin-flow-order-actions button:hover:not(:disabled),
+.admin-flow-order-actions button:focus-visible {
+  background: transparent;
+  color: #0f766e;
+  outline: none;
+}
+
+.admin-flow-order-actions button:active:not(:disabled) { transform: translateY(1px); }
+.admin-flow-order-actions button:disabled { color: #cbd5e1; cursor: not-allowed; }
+.admin-flow-stage, .admin-flow-phase, .config-order-stage, .config-order-phase { position: relative; transition: opacity 150ms ease; }
+.admin-flow-stage.is-dragging, .admin-flow-phase.is-dragging, .config-order-stage.is-dragging, .config-order-phase.is-dragging { opacity: .42; }
+
+.config-order-stage > .config-collapse-row > span:first-of-type,
+.config-order-phase > .config-collapse-row > span:first-of-type {
+  display: none;
+}
+
+.config-order-stage > .config-collapse-row {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 22px auto minmax(0, 1fr) auto 76px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 54px;
+  padding: 8px 20px 8px 44px !important;
+  transition: background 150ms ease;
+}
+
+.config-order-stage > .config-collapse-row:hover {
+  background: #f1f5f9;
+}
+
+.config-order-phase > .config-collapse-row {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 22px 76px minmax(200px, 1fr) minmax(140px, auto) auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 56px;
+  padding: 8px 20px 8px 64px !important;
+  transition: background 150ms ease;
+}
+
+.config-order-stage > .config-collapse-row > strong,
+.config-order-phase > .config-collapse-row > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.config-order-stage > .config-collapse-row > span:last-child {
+  grid-column: 5 !important;
+  grid-row: 1 !important;
+  width: auto !important;
+  margin-left: 0 !important;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.config-order-stage > .config-collapse-row > .config-toggle-btn {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-stage > .config-collapse-row > span:nth-of-type(2) {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-stage > .config-collapse-row > strong {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-stage > .config-collapse-row > .admin-flow-order-actions {
+  grid-column: 4 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > .config-toggle-btn {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > span:nth-of-type(2) {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > strong {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > div:not(.admin-flow-order-actions) {
+  grid-column: 4 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > .admin-flow-order-actions {
+  grid-column: 5 !important;
+  grid-row: 1 !important;
+}
+
+.config-order-phase > .config-collapse-row > div:not(.admin-flow-order-actions) {
+  display: flex;
+  max-width: 300px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.config-order-phase > .config-collapse-row > div:not(.admin-flow-order-actions) > span {
+  flex: 0 0 auto;
+}
+
+.config-order-phase > .config-collapse-row:hover {
+  background: rgba(240, 253, 250, .72);
+}
+
+.config-order-stage > .config-collapse-row > .admin-flow-drag-handle,
+.config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+  position: absolute;
+  top: 50%;
+  opacity: .55;
+  transform: translateY(-50%);
+  transition: opacity 150ms ease, transform 150ms ease, color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.config-order-stage > .config-collapse-row > .admin-flow-drag-handle {
+  left: 8px;
+}
+
+.config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+  left: 28px;
+}
+
+/* Keep the reorder affordance clear of the legacy modal spacing rules. */
+#root .config-page .config-order-stage > .config-collapse-row {
+  padding-left: 48px !important;
+}
+
+#root .config-page .config-order-stage > .config-collapse-row > .admin-flow-drag-handle {
+  left: 8px !important;
+}
+
+#root .config-page .config-order-phase > .config-collapse-row {
+  padding-left: 68px !important;
+}
+
+#root .config-page .config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+  left: 28px !important;
+}
+
+.config-order-stage > .config-collapse-row:hover > .admin-flow-drag-handle,
+.config-order-stage > .config-collapse-row:focus-within > .admin-flow-drag-handle,
+.config-order-phase > .config-collapse-row:hover > .admin-flow-drag-handle,
+.config-order-phase > .config-collapse-row:focus-within > .admin-flow-drag-handle {
+  opacity: 1;
+  transform: translateY(-50%);
+}
+
+.config-order-stage > .config-collapse-row > .admin-flow-order-actions,
+.config-order-phase > .config-collapse-row > .admin-flow-order-actions {
+  opacity: 1;
+  transform: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.config-order-stage > .config-collapse-row:hover > .admin-flow-order-actions,
+.config-order-stage > .config-collapse-row:focus-within > .admin-flow-order-actions,
+.config-order-phase > .config-collapse-row:hover > .admin-flow-order-actions,
+.config-order-phase > .config-collapse-row:focus-within > .admin-flow-order-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (hover: none) {
+  .config-order-stage > .config-collapse-row > .admin-flow-drag-handle,
+  .config-order-phase > .config-collapse-row > .admin-flow-drag-handle,
+  .config-order-stage > .config-collapse-row > .admin-flow-order-actions,
+  .config-order-phase > .config-collapse-row > .admin-flow-order-actions {
+    opacity: 1;
+    transform: none;
+  }
+
+  .config-order-stage > .config-collapse-row > .admin-flow-drag-handle,
+  .config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+    transform: translateY(-50%);
+  }
+}
+
+@media (max-width: 760px) {
+  .config-order-stage > .config-collapse-row {
+    grid-template-columns: 22px auto minmax(90px, 1fr) auto 62px !important;
+    gap: 6px !important;
+    padding-right: 12px !important;
+  }
+
+  .config-order-stage > .config-collapse-row > span:last-child {
+    grid-column: 5 !important;
+    grid-row: 1 !important;
+  }
+
+  .config-order-phase > .config-collapse-row {
+    grid-template-columns: 22px 58px minmax(120px, 1fr) minmax(80px, auto) auto !important;
+    gap: 6px !important;
+    padding: 8px 12px 8px 54px !important;
+  }
+
+  .config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+    left: 18px;
+  }
+
+  #root .config-page .config-order-stage > .config-collapse-row {
+    padding-left: 48px !important;
+  }
+
+  #root .config-page .config-order-phase > .config-collapse-row {
+    padding-left: 58px !important;
+  }
+
+  #root .config-page .config-order-phase > .config-collapse-row > .admin-flow-drag-handle {
+    left: 18px !important;
+  }
+
+  .config-order-phase > .config-collapse-row > span:not(:first-of-type) {
+    width: 58px !important;
+  }
+
+  .config-order-phase > .config-collapse-row > div:not(.admin-flow-order-actions) {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+    margin-left: 0 !important;
+  }
+
+  .config-order-phase > .config-collapse-row > .admin-flow-order-actions {
+    grid-column: 5 !important;
+    grid-row: 1 !important;
+  }
+}
+
+.admin-flow-stage.is-drop-target::before,
+.admin-flow-phase.is-drop-target::before,
+.config-order-stage.is-drop-target::before,
+.config-order-phase.is-drop-target::before {
+  position: absolute;
+  z-index: 5;
+  top: -2px;
+  right: 16px;
+  left: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: #14b8a6;
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, .12);
+  content: '';
+  pointer-events: none;
+}
+
+@keyframes reorder-from-below {
+  0% { transform: translateY(14px); background: #ccfbf1; box-shadow: inset 4px 0 #0d9488, 0 8px 20px rgba(13, 148, 136, .18); }
+  55% { transform: translateY(-2px); background: #e6fffb; box-shadow: inset 4px 0 #14b8a6, 0 4px 12px rgba(13, 148, 136, .1); }
+  100% { transform: translateY(0); background: transparent; box-shadow: inset 0 0 transparent, 0 0 transparent; }
+}
+
+@keyframes reorder-from-above {
+  0% { transform: translateY(-14px); background: #ccfbf1; box-shadow: inset 4px 0 #0d9488, 0 8px 20px rgba(13, 148, 136, .18); }
+  55% { transform: translateY(2px); background: #e6fffb; box-shadow: inset 4px 0 #14b8a6, 0 4px 12px rgba(13, 148, 136, .1); }
+  100% { transform: translateY(0); background: transparent; box-shadow: inset 0 0 transparent, 0 0 transparent; }
+}
+
+.config-order-stage.is-reordered.moved-up > .config-collapse-row,
+.config-order-phase.is-reordered.moved-up > .config-collapse-row {
+  animation: reorder-from-below 700ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.config-order-stage.is-reordered.moved-down > .config-collapse-row,
+.config-order-phase.is-reordered.moved-down > .config-collapse-row {
+  animation: reorder-from-above 700ms cubic-bezier(.22, 1, .36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .config-order-stage.is-reordered > .config-collapse-row,
+  .config-order-phase.is-reordered > .config-collapse-row {
+    animation: none;
+    background: #ecfdf5 !important;
+    box-shadow: inset 4px 0 #14b8a6;
+  }
+}

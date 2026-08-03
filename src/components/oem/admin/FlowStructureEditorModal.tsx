@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, DragEvent, SetStateAction } from 'react'
 import type { ManagedDepartment, ManagedFlow } from '../../../data/adminDashboard'
 
 export type FlowWorkItemDraft = {
@@ -48,6 +48,8 @@ type FlowStructureEditorModalProps = {
   onRemovePhase: (stageIndex: number, phaseIndex: number) => void
   onRemovePhaseDepartment: (stageIndex: number, phaseIndex: number, departmentId: number) => void
   onRemoveStage: (stageIndex: number) => void
+  onReorderPhase: (stageIndex: number, fromIndex: number, toIndex: number) => void
+  onReorderStage: (fromIndex: number, toIndex: number) => void
   onSave: () => void
   onSaveBranchItems: (stageIndex: number, phaseIndex: number, branchIndex: number) => void
   onUpdateBranchItem: (stageIndex: number, phaseIndex: number, branchIndex: number, itemIndex: number, label: string) => void
@@ -77,6 +79,8 @@ function FlowStructureEditorModal({
   onRemovePhase,
   onRemovePhaseDepartment,
   onRemoveStage,
+  onReorderPhase,
+  onReorderStage,
   onSave,
   onSaveBranchItems,
   onUpdateBranchItem,
@@ -84,8 +88,33 @@ function FlowStructureEditorModal({
   onUpdateStage,
 }: FlowStructureEditorModalProps) {
   const busy = Boolean(busyAction)
-  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set())
-  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(() => new Set())
+  const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null)
+  const [draggedPhase, setDraggedPhase] = useState<{ phaseIndex: number; stageIndex: number } | null>(null)
+  const [stageDropIndex, setStageDropIndex] = useState<number | null>(null)
+  const [phaseDropIndex, setPhaseDropIndex] = useState<{ phaseIndex: number; stageIndex: number } | null>(null)
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(() => new Set(
+    structure.stages.flatMap((stage, stageIndex) => {
+      const stageKey = `${structure.flow.id}-stage-${stage.id || stageIndex}`
+      return stage.phases.map((phase, phaseIndex) => `${stageKey}-phase-${phase.id || phaseIndex}`)
+    }),
+  ))
+  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(() => new Set(
+    structure.stages.map((stage, stageIndex) => `${structure.flow.id}-stage-${stage.id || stageIndex}`),
+  ))
+
+  function startStageDrag(event: DragEvent<HTMLButtonElement>, stageIndex: number) {
+    event.stopPropagation()
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `stage:${stageIndex}`)
+    setDraggedStageIndex(stageIndex)
+  }
+
+  function finishDrag() {
+    setDraggedStageIndex(null)
+    setDraggedPhase(null)
+    setStageDropIndex(null)
+    setPhaseDropIndex(null)
+  }
 
   return (
     <div
@@ -109,11 +138,29 @@ function FlowStructureEditorModal({
             const stageCollapsed = collapsedStages.has(stageKey)
 
             return (
-              <section className="admin-flow-stage border-b border-slate-200 last:border-b-0" key={stage.id || `stage-${stageIndex}`}>
+              <section
+                className={`admin-flow-stage border-b border-slate-200 last:border-b-0 ${draggedStageIndex === stageIndex ? 'is-dragging' : ''} ${stageDropIndex === stageIndex && draggedStageIndex !== stageIndex ? 'is-drop-target' : ''}`}
+                key={stage.id || `stage-${stageIndex}`}
+                onDragOver={(event) => {
+                  if (draggedStageIndex === null) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'move'
+                  setStageDropIndex(stageIndex)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  if (draggedStageIndex !== null && draggedStageIndex !== stageIndex) onReorderStage(draggedStageIndex, stageIndex)
+                  finishDrag()
+                }}
+              >
                 <div
-                  className="admin-flow-collapse-row admin-flow-stage-head grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-0 bg-slate-50 px-4 py-2.5 transition hover:bg-slate-100"
+                  className="admin-flow-collapse-row admin-flow-stage-head grid grid-cols-[32px_22px_auto_minmax(0,1fr)_auto_auto] items-center gap-0 bg-slate-50 px-4 py-2.5 transition hover:bg-slate-100"
                   onClick={() => toggleCollapsed(setCollapsedStages, stageKey)}
                 >
+                  <button aria-label={`Drag Stage ${stageIndex + 1} to reorder`} className="admin-flow-drag-handle" draggable onClick={(event) => event.stopPropagation()} onDragEnd={finishDrag} onDragStart={(event) => startStageDrag(event, stageIndex)} title="Drag to reorder stage" type="button">
+                    <span aria-hidden="true">⠿</span>
+                  </button>
                   <button
                     aria-expanded={!stageCollapsed}
                     aria-label={`${stageCollapsed ? 'Open' : 'Close'} ${stage.name}`}
@@ -137,6 +184,10 @@ function FlowStructureEditorModal({
                       value={stage.name}
                     />
                   </label>
+                  <div className="admin-flow-order-actions" onClick={(event) => event.stopPropagation()}>
+                    <button aria-label={`Move Stage ${stageIndex + 1} up`} disabled={stageIndex === 0} onClick={() => onReorderStage(stageIndex, stageIndex - 1)} title="Move up" type="button">↑</button>
+                    <button aria-label={`Move Stage ${stageIndex + 1} down`} disabled={stageIndex === structure.stages.length - 1} onClick={() => onReorderStage(stageIndex, stageIndex + 1)} title="Move down" type="button">↓</button>
+                  </div>
                   <button
                     className="admin-flow-btn admin-flow-btn-danger ml-3 min-h-7 rounded border border-rose-200 bg-rose-50 px-2.5 text-[11.5px] font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={structure.stages.length <= 1}
@@ -157,11 +208,45 @@ function FlowStructureEditorModal({
                       const phaseCollapsed = collapsedPhases.has(phaseKey)
 
                       return (
-                        <div className="admin-flow-phase border-t border-slate-100" key={phase.id || `phase-${phaseIndex}`}>
+                        <div
+                          className={`admin-flow-phase border-t border-slate-100 ${draggedPhase?.stageIndex === stageIndex && draggedPhase.phaseIndex === phaseIndex ? 'is-dragging' : ''} ${phaseDropIndex?.stageIndex === stageIndex && phaseDropIndex.phaseIndex === phaseIndex && draggedPhase?.phaseIndex !== phaseIndex ? 'is-drop-target' : ''}`}
+                          key={phase.id || `phase-${phaseIndex}`}
+                          onDragOver={(event) => {
+                            if (!draggedPhase || draggedPhase.stageIndex !== stageIndex) return
+                            event.preventDefault()
+                            event.stopPropagation()
+                            event.dataTransfer.dropEffect = 'move'
+                            setPhaseDropIndex({ phaseIndex, stageIndex })
+                          }}
+                          onDrop={(event) => {
+                            if (!draggedPhase || draggedPhase.stageIndex !== stageIndex) return
+                            event.preventDefault()
+                            event.stopPropagation()
+                            if (draggedPhase.phaseIndex !== phaseIndex) onReorderPhase(stageIndex, draggedPhase.phaseIndex, phaseIndex)
+                            finishDrag()
+                          }}
+                        >
                           <div
-                            className="admin-flow-collapse-row admin-flow-phase-head grid grid-cols-[58px_76px_minmax(240px,1fr)_minmax(180px,auto)_auto] items-center gap-2 px-4 py-2 pl-9 transition hover:bg-teal-50/40 max-[900px]:grid-cols-1 max-[900px]:pl-4"
+                            className="admin-flow-collapse-row admin-flow-phase-head grid grid-cols-[32px_32px_76px_minmax(210px,1fr)_minmax(170px,auto)_auto_auto] items-center gap-2 px-4 py-2 pl-9 transition hover:bg-teal-50/40 max-[900px]:grid-cols-1 max-[900px]:pl-4"
                             onClick={() => toggleCollapsed(setCollapsedPhases, phaseKey)}
                           >
+                            <button
+                              aria-label={`Drag Phase ${phase.label} to reorder`}
+                              className="admin-flow-drag-handle"
+                              draggable
+                              onClick={(event) => event.stopPropagation()}
+                              onDragEnd={finishDrag}
+                              onDragStart={(event) => {
+                                event.stopPropagation()
+                                event.dataTransfer.effectAllowed = 'move'
+                                event.dataTransfer.setData('text/plain', `phase:${stageIndex}:${phaseIndex}`)
+                                setDraggedPhase({ phaseIndex, stageIndex })
+                              }}
+                              title="Drag to reorder phase"
+                              type="button"
+                            >
+                              <span aria-hidden="true">⠿</span>
+                            </button>
                             <button
                               aria-expanded={!phaseCollapsed}
                               aria-label={`${phaseCollapsed ? 'Open' : 'Close'} ${phase.name}`}
@@ -232,6 +317,10 @@ function FlowStructureEditorModal({
                                 <span className="text-[11.5px] font-medium text-slate-400">No department</span>
                               )}
                             </div>
+                            <div className="admin-flow-order-actions" onClick={(event) => event.stopPropagation()}>
+                              <button aria-label={`Move Phase ${phase.label} up`} disabled={phaseIndex === 0} onClick={() => onReorderPhase(stageIndex, phaseIndex, phaseIndex - 1)} title="Move up" type="button">↑</button>
+                              <button aria-label={`Move Phase ${phase.label} down`} disabled={phaseIndex === stage.phases.length - 1} onClick={() => onReorderPhase(stageIndex, phaseIndex, phaseIndex + 1)} title="Move down" type="button">↓</button>
+                            </div>
                             <button
                               className="admin-flow-btn admin-flow-btn-danger min-h-7 rounded border border-rose-200 bg-rose-50 px-2.5 text-[11.5px] font-semibold text-rose-700 transition hover:bg-rose-100"
                               onClick={(event) => {
@@ -245,47 +334,55 @@ function FlowStructureEditorModal({
                           </div>
 
                           {!phaseCollapsed && (
-                            <div className="admin-flow-checklist border-t border-slate-100 bg-slate-50/60 px-4 pb-3 pl-[52px] pt-1 max-[900px]:pl-4">
+                            <div className="admin-flow-checklist config-checklist-panel">
                               {(phase.branches || []).map((branch, branchIndex) => {
                                 const branchDepartmentId = branch.departmentId || branch.department?.id
                                 const branchDepartmentName = branch.departmentName || branch.department?.name || departments.find((department) => department.id === branchDepartmentId)?.name || 'Department'
                                 const branchBusy = busyAction === `flow-branch-items-${branch.id}`
 
                                 return (
-                                  <div className="admin-flow-branch mt-3" key={branch.id || `${branchDepartmentName}-${branchIndex}`}>
-                                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                      <span className="admin-flow-branch-chip rounded-full bg-teal-50 px-3 py-1 text-[11.5px] font-semibold text-[#00a99d]">{branchDepartmentName}</span>
+                                  <div className="admin-flow-branch config-department-card is-editable" key={branch.id || `${branchDepartmentName}-${branchIndex}`}>
+                                    <div className="config-department-head">
+                                      <div className="config-department-title">
+                                        <span className="config-department-icon" aria-hidden="true">{branchDepartmentName.slice(0, 1).toUpperCase()}</span>
+                                        <div>
+                                          <strong>{branchDepartmentName}</strong>
+                                          <p>{(branch.items || []).length} checklist {(branch.items || []).length === 1 ? 'item' : 'items'}</p>
+                                        </div>
+                                      </div>
+                                      <span className="config-edit-status is-editable">Admin access</span>
                                     </div>
-                                    <div>
+                                    <div className="config-checklist-list">
                                       {(branch.items || []).map((item, itemIndex) => (
-                                        <div className="admin-flow-check-item flex items-center gap-2 border-b border-slate-100 py-1 last:border-b-0" key={item.id || `${branchDepartmentName}-item-${itemIndex}`}>
-                                          <span className="text-xs text-slate-400">□</span>
+                                        <div className="admin-flow-check-item config-checklist-item" key={item.id || `${branchDepartmentName}-item-${itemIndex}`}>
+                                          <span className="config-checklist-number" aria-hidden="true">{itemIndex + 1}</span>
                                           <input
                                             aria-label={`Checklist ${itemIndex + 1} for ${branchDepartmentName}`}
-                                            className="h-8 flex-1 rounded border border-transparent bg-transparent px-2 text-[12.5px] font-medium text-slate-800 outline-none transition hover:border-slate-200 hover:bg-white focus:border-[#00a99d] focus:bg-white"
+                                            className="config-checklist-input"
                                             disabled={branchBusy}
                                             onChange={(event) => onUpdateBranchItem(stageIndex, phaseIndex, branchIndex, itemIndex, event.target.value)}
                                             value={item.label}
                                           />
                                           <button
-                                            className="border-0 bg-transparent px-1 text-sm text-slate-300 transition hover:text-rose-600"
+                                            aria-label={`Delete checklist ${itemIndex + 1}`}
+                                            className="config-checklist-delete"
                                             disabled={branchBusy}
                                             onClick={() => onRemoveBranchItem(stageIndex, phaseIndex, branchIndex, itemIndex)}
                                             type="button"
                                           >
-                                            x
+                                            ×
                                           </button>
                                         </div>
                                       ))}
                                       {(branch.items || []).length === 0 && (
-                                        <p className="m-0 py-2 text-[12px] font-semibold text-slate-400">No checklist yet.</p>
+                                        <div className="config-checklist-empty">No checklist items yet.</div>
                                       )}
                                     </div>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      <button className="admin-flow-btn admin-flow-btn-secondary min-h-7 rounded border border-slate-200 bg-slate-50 px-2.5 text-[11.5px] font-semibold text-slate-700 transition hover:bg-slate-100" disabled={branchBusy} onClick={() => onAddBranchItem(stageIndex, phaseIndex, branchIndex)} type="button">
+                                    <div className="config-checklist-actions">
+                                      <button className="admin-flow-btn config-checklist-add" disabled={branchBusy} onClick={() => onAddBranchItem(stageIndex, phaseIndex, branchIndex)} type="button">
                                         + Add checklist
                                       </button>
-                                      <button className="admin-flow-btn admin-flow-btn-primary min-h-7 rounded border-0 bg-[#00a99d] px-2.5 text-[11.5px] font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!branch.id || branchBusy} onClick={() => onSaveBranchItems(stageIndex, phaseIndex, branchIndex)} type="button">
+                                      <button className="admin-flow-btn config-checklist-save" disabled={!branch.id || branchBusy} onClick={() => onSaveBranchItems(stageIndex, phaseIndex, branchIndex)} type="button">
                                         {branchBusy ? 'Saving...' : 'Update checklist'}
                                       </button>
                                     </div>
