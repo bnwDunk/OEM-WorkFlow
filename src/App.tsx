@@ -6,6 +6,7 @@ import FlowPage from './page/FlowPage'
 import LoginPage from './page/LoginPage'
 import { apiRequest, SESSION_EXPIRED_EVENT } from './lib/api'
 import './App.css'
+import './admin-flow-order.css'
 
 const fallbackUser: AuthUser = {
   id: 2,

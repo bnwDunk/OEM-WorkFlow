@@ -1257,8 +1257,19 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
       )}
 
       {activeView === 'config' && (
-        currentUser.role === 'admin'
-          ? <AdminDashboard
+        configSection === 'flows'
+          ? <ConfigView
+              accessToken={accessToken}
+              canDeleteFlow={currentUser.role === 'admin'}
+              currentDept={currentDept}
+              departments={userDepartments}
+              onWorkflowTemplateChange={async () => {
+                setFlowTemplates({})
+                await Promise.all([loadOverview(), loadFlows()])
+              }}
+            />
+          : currentUser.role === 'admin'
+            ? <AdminDashboard
               configSection={configSection}
               mode="config"
               onCustomerStatusesChange={loadCustomerStatuses}
@@ -1268,7 +1279,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
               }}
               token={accessToken}
             />
-          : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
+            : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
       )}
 
       {activeView === 'admin' && currentUser.role === 'admin' && (

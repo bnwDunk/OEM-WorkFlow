@@ -659,6 +659,16 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     })
   }
 
+  function reorderStage(fromIndex: number, toIndex: number) {
+    setStructureEditor((current) => {
+      if (!current || fromIndex === toIndex || toIndex < 0 || toIndex >= current.stages.length) return current
+      const stages = [...current.stages]
+      const [movedStage] = stages.splice(fromIndex, 1)
+      stages.splice(toIndex, 0, movedStage)
+      return { ...current, stages }
+    })
+  }
+
   function addPhase(stageIndex: number) {
     setStructureEditor((current) => {
       if (!current) return current
@@ -697,6 +707,21 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
             ? { ...stage, phases: stage.phases.filter((_, itemIndex) => itemIndex !== phaseIndex) }
             : stage,
         ),
+      }
+    })
+  }
+
+  function reorderPhase(stageIndex: number, fromIndex: number, toIndex: number) {
+    setStructureEditor((current) => {
+      if (!current || fromIndex === toIndex) return current
+      const stage = current.stages[stageIndex]
+      if (!stage || toIndex < 0 || toIndex >= stage.phases.length) return current
+      const phases = [...stage.phases]
+      const [movedPhase] = phases.splice(fromIndex, 1)
+      phases.splice(toIndex, 0, movedPhase)
+      return {
+        ...current,
+        stages: current.stages.map((item, index) => index === stageIndex ? { ...item, phases } : item),
       }
     })
   }
@@ -2069,6 +2094,8 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
           onRemovePhase={removePhase}
           onRemovePhaseDepartment={removePhaseDepartment}
           onRemoveStage={removeStage}
+          onReorderPhase={reorderPhase}
+          onReorderStage={reorderStage}
           onSave={saveStructure}
           onSaveBranchItems={saveBranchItems}
           onUpdateBranchItem={updateBranchItem}

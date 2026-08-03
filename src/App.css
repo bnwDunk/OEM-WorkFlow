@@ -2006,7 +2006,7 @@ button:disabled {
 }
 
 /* Checklist editor inside the workflow configuration modal */
-.config-page .config-checklist-panel {
+:is(.config-page, .admin-flow-modal) .config-checklist-panel {
   display: grid;
   gap: 14px;
   padding: 16px 24px 20px 52px !important;
@@ -2014,7 +2014,7 @@ button:disabled {
   background: linear-gradient(180deg, #f8fbfc 0%, #f3f7f9 100%) !important;
 }
 
-.config-page .config-department-card {
+:is(.config-page, .admin-flow-modal) .config-department-card {
   overflow: hidden;
   margin: 0 !important;
   border: 1px solid #dce6ec;
@@ -2023,12 +2023,12 @@ button:disabled {
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.045);
 }
 
-.config-page .config-department-card.is-editable {
+:is(.config-page, .admin-flow-modal) .config-department-card.is-editable {
   border-color: #bde6e2;
   box-shadow: 0 5px 18px rgba(0, 169, 157, 0.07);
 }
 
-.config-page .config-department-head {
+:is(.config-page, .admin-flow-modal) .config-department-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2038,18 +2038,18 @@ button:disabled {
   background: #fbfdfe;
 }
 
-.config-page .config-department-card.is-editable .config-department-head {
+:is(.config-page, .admin-flow-modal) .config-department-card.is-editable .config-department-head {
   background: linear-gradient(90deg, #f0fbf9 0%, #fbfefd 72%);
 }
 
-.config-page .config-department-title {
+:is(.config-page, .admin-flow-modal) .config-department-title {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 11px;
 }
 
-.config-page .config-department-icon {
+:is(.config-page, .admin-flow-modal) .config-department-icon {
   display: grid;
   width: 34px;
   height: 34px;
@@ -2062,7 +2062,7 @@ button:disabled {
   font-weight: 900;
 }
 
-.config-page .config-department-title strong {
+:is(.config-page, .admin-flow-modal) .config-department-title strong {
   display: block;
   overflow: hidden;
   color: #172033 !important;
@@ -2072,14 +2072,14 @@ button:disabled {
   white-space: nowrap;
 }
 
-.config-page .config-department-title p {
+:is(.config-page, .admin-flow-modal) .config-department-title p {
   margin: 2px 0 0;
   color: #8491a3;
   font-size: 11px;
   font-weight: 600;
 }
 
-.config-page .config-edit-status {
+:is(.config-page, .admin-flow-modal) .config-edit-status {
   flex: 0 0 auto;
   padding: 5px 9px;
   border: 1px solid #e0e7ec;
@@ -2090,26 +2090,26 @@ button:disabled {
   font-weight: 700;
 }
 
-.config-page .config-edit-status.is-editable {
+:is(.config-page, .admin-flow-modal) .config-edit-status.is-editable {
   border-color: #bce8e3;
   background: #eaf9f7;
   color: #008f86;
 }
 
-.config-page .config-checklist-list {
+:is(.config-page, .admin-flow-modal) .config-checklist-list {
   display: grid;
   gap: 8px;
   padding: 13px 16px;
 }
 
-.config-page .config-checklist-item {
+:is(.config-page, .admin-flow-modal) .config-checklist-item {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 32px;
   align-items: center;
   gap: 9px;
 }
 
-.config-page .config-checklist-number {
+:is(.config-page, .admin-flow-modal) .config-checklist-number {
   display: grid;
   width: 26px;
   height: 26px;
@@ -2122,7 +2122,7 @@ button:disabled {
   font-weight: 800;
 }
 
-.config-page .config-checklist-input {
+:is(.config-page, .admin-flow-modal) .config-checklist-input {
   width: 100%;
   min-height: 38px !important;
   padding: 7px 11px;
@@ -2137,16 +2137,16 @@ button:disabled {
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
-.config-page .config-checklist-input:hover:not(:disabled) {
+:is(.config-page, .admin-flow-modal) .config-checklist-input:hover:not(:disabled) {
   border-color: #b6d8d5 !important;
 }
 
-.config-page .config-checklist-input:focus {
+:is(.config-page, .admin-flow-modal) .config-checklist-input:focus {
   border-color: #00a99d !important;
   box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.11) !important;
 }
 
-.config-page .config-checklist-input:disabled {
+:is(.config-page, .admin-flow-modal) .config-checklist-input:disabled {
   opacity: 1;
   border-color: transparent !important;
   background: #f7f9fb;
@@ -2154,7 +2154,7 @@ button:disabled {
   cursor: default;
 }
 
-.config-page .config-checklist-delete {
+:is(.config-page, .admin-flow-modal) .config-checklist-delete {
   display: grid;
   width: 30px;
   height: 30px;
@@ -2170,13 +2170,13 @@ button:disabled {
   transition: 160ms ease;
 }
 
-.config-page .config-checklist-delete:hover:not(:disabled) {
+:is(.config-page, .admin-flow-modal) .config-checklist-delete:hover:not(:disabled) {
   border-color: #fecdd3;
   background: #fff1f2;
   color: #e11d48;
 }
 
-.config-page .config-checklist-empty {
+:is(.config-page, .admin-flow-modal) .config-checklist-empty {
   padding: 18px;
   border: 1px dashed #d7e1e7;
   border-radius: 9px;
@@ -2187,7 +2187,7 @@ button:disabled {
   text-align: center;
 }
 
-.config-page .config-checklist-actions {
+:is(.config-page, .admin-flow-modal) .config-checklist-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -2197,8 +2197,8 @@ button:disabled {
   background: #fcfdfd;
 }
 
-.config-page .config-checklist-add,
-.config-page .config-checklist-save {
+:is(.config-page, .admin-flow-modal) .config-checklist-add,
+:is(.config-page, .admin-flow-modal) .config-checklist-save {
   min-height: 34px;
   padding: 7px 13px;
   border-radius: 9px;
@@ -2208,53 +2208,53 @@ button:disabled {
   transition: 160ms ease;
 }
 
-.config-page .config-checklist-add {
+:is(.config-page, .admin-flow-modal) .config-checklist-add {
   border: 1px solid #d8e2e8;
   background: #fff;
   color: #435066;
 }
 
-.config-page .config-checklist-add:hover:not(:disabled) {
+:is(.config-page, .admin-flow-modal) .config-checklist-add:hover:not(:disabled) {
   border-color: #aacdca;
   background: #f0faf9;
   color: #008f86;
 }
 
-.config-page .config-checklist-save {
+:is(.config-page, .admin-flow-modal) .config-checklist-save {
   border: 1px solid #00a99d;
   background: #00a99d;
   color: #fff;
   box-shadow: 0 3px 8px rgba(0, 169, 157, 0.18);
 }
 
-.config-page .config-checklist-save:hover:not(:disabled) {
+:is(.config-page, .admin-flow-modal) .config-checklist-save:hover:not(:disabled) {
   border-color: #008f86;
   background: #008f86;
 }
 
-.config-page .config-checklist-add:disabled,
-.config-page .config-checklist-save:disabled,
-.config-page .config-checklist-delete:disabled {
+:is(.config-page, .admin-flow-modal) .config-checklist-add:disabled,
+:is(.config-page, .admin-flow-modal) .config-checklist-save:disabled,
+:is(.config-page, .admin-flow-modal) .config-checklist-delete:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 @media (max-width: 760px) {
-  .config-page .config-checklist-panel {
+  :is(.config-page, .admin-flow-modal) .config-checklist-panel {
     padding: 12px !important;
   }
 
-  .config-page .config-department-head,
-  .config-page .config-checklist-actions {
+  :is(.config-page, .admin-flow-modal) .config-department-head,
+  :is(.config-page, .admin-flow-modal) .config-checklist-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .config-page .config-edit-status {
+  :is(.config-page, .admin-flow-modal) .config-edit-status {
     align-self: flex-start;
   }
 
-  .config-page .config-checklist-actions button {
+  :is(.config-page, .admin-flow-modal) .config-checklist-actions button {
     width: 100%;
   }
 }
@@ -2816,24 +2816,21 @@ button:disabled {
   font-weight: 600;
 }
 
-.config-page > div + div > section > div:first-child button {
+.config-page > div + div > section > div:first-child .config-editor-close {
+  display: grid;
   width: 30px;
   min-height: 30px;
+  place-items: center;
   padding: 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: #6b7280;
-  font-size: 0;
-}
-
-.config-page > div + div > section > div:first-child button::before {
-  content: "x";
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
 }
 
-.config-page > div + div > section > div:first-child button:hover {
+.config-page > div + div > section > div:first-child .config-editor-close:hover {
   background: #f3f4f6;
   color: #111827;
 }
@@ -3031,12 +3028,12 @@ button:disabled {
   font-size: 13px !important;
 }
 
-.admin-flow-checklist {
+.admin-flow-checklist:not(.config-checklist-panel) {
   padding: 16px 28px 18px 110px !important;
   background: #f8fafc !important;
 }
 
-.admin-flow-branch {
+.admin-flow-branch:not(.config-department-card) {
   margin-top: 12px !important;
   padding: 12px 14px;
   border: 1px solid #edf2f7;
@@ -3044,16 +3041,16 @@ button:disabled {
   background: #fff;
 }
 
-.admin-flow-branch:first-child {
+.admin-flow-branch:not(.config-department-card):first-child {
   margin-top: 0 !important;
 }
 
-.admin-flow-check-item {
+.admin-flow-check-item:not(.config-checklist-item) {
   min-height: 42px;
   border-bottom-color: #edf2f7 !important;
 }
 
-.admin-flow-check-item input {
+.admin-flow-check-item:not(.config-checklist-item) input {
   height: 36px !important;
   border-radius: 5px !important;
   color: #475569 !important;
@@ -3061,7 +3058,7 @@ button:disabled {
   font-weight: 700 !important;
 }
 
-.admin-flow-check-item input:focus,
+.admin-flow-check-item:not(.config-checklist-item) input:focus,
 .admin-flow-stage-head input:focus,
 .admin-flow-phase-head input:focus {
   border-color: #00a99d !important;
@@ -3376,7 +3373,7 @@ button:disabled {
     justify-self: start;
   }
 
-  .admin-flow-checklist {
+  .admin-flow-checklist:not(.config-checklist-panel) {
     padding: 12px 14px !important;
   }
 
