@@ -1,6 +1,8 @@
 import { IoWarning } from 'react-icons/io5'
+import { TbCalendarDue } from 'react-icons/tb'
 import { defaultWorkflowTemplate } from '../../data/oemWorkflow'
 import type { Customer, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
+import { formatDate } from '../../lib/dateFormat'
 
 type PhaseRailProps = {
   customer: Customer
@@ -45,6 +47,40 @@ const statusLabels: Record<PhaseStatus, string> = {
   locked: 'Waiting',
 }
 
+function getStageDueDateState(dueDate: string) {
+  if (!dueDate) {
+    return {
+      className: 'border-slate-200 bg-white text-slate-400',
+      detail: 'Not set',
+    }
+  }
+
+  const due = new Date(`${dueDate}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const daysLeft = Math.ceil((due.getTime() - today.getTime()) / 86_400_000)
+
+  if (daysLeft < 0) {
+    return {
+      className: 'border-rose-200 bg-rose-50 text-rose-700',
+      detail: `${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? '' : 's'} overdue`,
+    }
+  }
+  if (daysLeft === 0) {
+    return {
+      className: 'border-amber-200 bg-amber-50 text-amber-800',
+      detail: 'Due today',
+    }
+  }
+
+  return {
+    className: daysLeft <= 7
+      ? 'border-amber-200 bg-amber-50 text-amber-800'
+      : 'border-teal-200 bg-teal-50 text-teal-800',
+    detail: `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+  }
+}
+
 function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, viewedPhase, workflowTemplate = defaultWorkflowTemplate }: PhaseRailProps) {
   const stageGroups = workflowTemplate.stages.map((stage, stageIndex) => ({
     stage,
@@ -71,11 +107,23 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
       </div>
 
       <div className="grid gap-3 xl:grid-cols-5">
-        {stageGroups.map(({ stage, stops }, stageIndex) => (
-          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3" key={stage.name}>
-            <div className="mb-2.5 flex items-center gap-2">
+        {stageGroups.map(({ stage, stops }, stageIndex) => {
+          const stageDueDate = customer.stageDueDates?.find((item) => item.stageId === stage.id)?.dueDate || ''
+          const dueDateState = getStageDueDateState(stageDueDate)
+
+          return (
+          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3" key={stage.id || stage.name}>
+            <div className="mb-2.5 flex items-start gap-2">
               <strong className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-950 text-[11px] font-black text-white shadow-sm">S{stageIndex + 1}</strong>
-              <span className="min-w-0 text-sm font-black leading-snug text-slate-800">{stage.name}</span>
+              <span className="min-w-0 pt-1 text-sm font-black leading-snug text-slate-800">{stage.name}</span>
+            </div>
+
+            <div className={`mb-3 flex items-center gap-2 rounded-lg border px-2.5 py-2 ${dueDateState.className}`}>
+              <TbCalendarDue aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="m-0 text-[11px] font-black leading-tight">{stageDueDate ? formatDate(stageDueDate) : 'Due date'}</p>
+                <p className="m-0 mt-0.5 text-[10px] font-bold leading-tight opacity-80">{dueDateState.detail}</p>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -107,7 +155,8 @@ function PhaseRail({ customer, issuePhaseSet = new Set<number>(), onViewPhase, v
               })}
             </div>
           </section>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

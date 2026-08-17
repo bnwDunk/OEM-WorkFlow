@@ -8,6 +8,7 @@ import { confirmToast } from '../../lib/confirmToast'
 type ConfigViewProps = {
   accessToken: string
   canDeleteFlow?: boolean
+  canReorder?: boolean
   currentDept: string
   departments: string[]
   onWorkflowTemplateChange?: () => Promise<void> | void
@@ -19,6 +20,7 @@ type WorkflowOption = {
   name: string
   phaseCount?: number
   stageCount?: number
+  
   status?: string
 }
 
@@ -102,8 +104,7 @@ function mapStructureToTemplate(structure: FlowStructureResponse) {
   }))
 }
 
-function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
-  const canReorder = true
+function ConfigView({ accessToken, canDeleteFlow = false, canReorder = false, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
   const [workflowTemplates, setWorkflowTemplates] = useState<Record<string, ConfigStage[]>>({})
   const [workflowOptions, setWorkflowOptions] = useState<WorkflowOption[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
@@ -121,7 +122,6 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   const [loadingWorkflows, setLoadingWorkflows] = useState(false)
   const [savingBranchId, setSavingBranchId] = useState<number | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
-  const [savingDueStageId, setSavingDueStageId] = useState<number | null>(null)
   const [orderDirty, setOrderDirty] = useState(false)
   const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null)
   const [draggedPhase, setDraggedPhase] = useState<{ stageIndex: number; stopIndex: number } | null>(null)
@@ -294,6 +294,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function reorderStage(fromIndex: number, toIndex: number, movedKey?: string) {
+    if (!canReorder) return
     if (fromIndex === toIndex || toIndex < 0 || toIndex >= workflowStages.length) return
     const movedStage = workflowStages[fromIndex]
     showMoveFeedback(movedKey || `stage-${movedStage.id || movedStage.name}`, toIndex < fromIndex ? 'up' : 'down')
@@ -307,6 +308,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function reorderPhase(stageIndex: number, fromIndex: number, toIndex: number, movedKey?: string) {
+    if (!canReorder) return
     const stage = workflowStages[stageIndex]
     if (!stage || fromIndex === toIndex || toIndex < 0 || toIndex >= stage.stops.length) return
     const movedStop = stage.stops[fromIndex]
@@ -333,6 +335,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function startStageDrag(event: DragEvent<HTMLButtonElement>, stageIndex: number) {
+    if (!canReorder) return
     event.stopPropagation()
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', `stage:${stageIndex}`)
@@ -358,7 +361,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   async function saveWorkflowOrder() {
-    if (selectedWorkflowId === null || !orderDirty) return
+    if (!canReorder || selectedWorkflowId === null || !orderDirty) return
 
     try {
       setSavingOrder(true)
@@ -387,38 +390,6 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
       toast.error(message)
     } finally {
       setSavingOrder(false)
-    }
-  }
-
-  function updateStageDueDays(stageIndex: number, dueDays: number | null) {
-    setSelectedWorkflowStages((current) => current.map((stage, index) => (
-      index === stageIndex ? { ...stage, dueDays } : stage
-    )))
-  }
-
-  async function saveStageDueDays(stageIndex: number) {
-    const stage = workflowStages[stageIndex]
-    if (!canDeleteFlow || selectedWorkflowId === null || !stage?.id) return
-    const dueDays = stage.dueDays === null || stage.dueDays === undefined
-      ? null
-      : Math.min(3650, Math.max(1, Math.round(stage.dueDays)))
-
-    try {
-      setSavingDueStageId(stage.id)
-      setWorkflowError('')
-      await apiRequest(`/admin/flows/${selectedWorkflowId}/stages/${stage.id}/due-date`, {
-        method: 'PATCH',
-        token: accessToken,
-        body: JSON.stringify({ dueDays }),
-      })
-      updateStageDueDays(stageIndex, dueDays)
-      toast.success(`Updated due date for Stage ${stageIndex + 1}.`)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to update stage due date.'
-      setWorkflowError(message)
-      toast.error(message)
-    } finally {
-      setSavingDueStageId(null)
     }
   }
 
@@ -1005,30 +976,6 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
                     <span className="text-[15px] font-bold leading-none text-slate-700">▾</span>
                     <span className="mr-1 shrink-0 rounded-md bg-slate-800 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">S{stageIndex + 1}</span>
                     <strong className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-slate-950">{stage.name}</strong>
-                    <div className={`config-stage-due ${canDeleteFlow ? 'is-editable' : ''}`} onClick={(event) => event.stopPropagation()} title="Stage due date">
-                      <span aria-hidden="true" className="config-stage-due-dot" />
-                      <span>Due</span>
-                      {canDeleteFlow ? (
-                        <input
-                          aria-label={`Due days for Stage ${stageIndex + 1}`}
-                          disabled={savingDueStageId === stage.id}
-                          inputMode="numeric"
-                          min="1"
-                          max="3650"
-                          onBlur={() => void saveStageDueDays(stageIndex)}
-                          onChange={(event) => updateStageDueDays(stageIndex, event.target.value ? Number(event.target.value) : null)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') event.currentTarget.blur()
-                          }}
-                          placeholder="—"
-                          type="number"
-                          value={stage.dueDays ?? ''}
-                        />
-                      ) : (
-                        <strong>{stage.dueDays ?? '—'}</strong>
-                      )}
-                      <span>days</span>
-                    </div>
                     {canReorder && (
                       <div className="admin-flow-order-actions ml-auto shrink-0" onClick={(event) => event.stopPropagation()}>
                         <button aria-label={`เลื่อน Stage ${stageIndex + 1} ขึ้น`} disabled={stageIndex === 0} onClick={() => reorderStage(stageIndex, stageIndex - 1)} title="เลื่อนขึ้น" type="button">↑</button>

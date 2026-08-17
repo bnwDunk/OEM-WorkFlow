@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { FaEdit } from 'react-icons/fa'
 import { customerStatusOptions as fallbackCustomerStatusOptions, getCustomerStatusLabel } from '../../data/oemWorkflow'
 import type { Customer, CustomerStatusOption } from '../../data/oemWorkflow'
 import { formatDate } from '../../lib/dateFormat'
@@ -13,6 +14,7 @@ type CustomerListViewProps = {
   customerStatusOptions?: CustomerStatusOption[]
   loading: boolean
   onCreateCustomer?: () => void
+  onEditCustomer: (customerId: string) => void
   onOpenCustomer: (customerId: string) => void
 }
 
@@ -89,7 +91,7 @@ function getCustomerExportRow(customer: Customer, customerStatusOptions: Custome
   ]
 }
 
-function CustomerListView({ customers, customerStatusOptions = fallbackCustomerStatusOptions, loading, onCreateCustomer, onOpenCustomer }: CustomerListViewProps) {
+function CustomerListView({ customers, customerStatusOptions = fallbackCustomerStatusOptions, loading, onCreateCustomer, onEditCustomer, onOpenCustomer }: CustomerListViewProps) {
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
@@ -311,19 +313,22 @@ function CustomerListView({ customers, customerStatusOptions = fallbackCustomerS
                       {column}
                     </th>
                   ))}
+                  <th className="w-20 border-b border-slate-200 px-4 py-3 text-center text-xs font-black text-slate-700">
+                    แก้ไข
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading && customers.length === 0 && (
                   <tr>
-                    <td className="px-4 py-10 text-center text-sm font-bold text-slate-400" colSpan={10}>
+                    <td className="px-4 py-10 text-center text-sm font-bold text-slate-400" colSpan={11}>
                       Loading customers...
                     </td>
                   </tr>
                 )}
                 {!loading && filteredCustomers.length === 0 && (
                   <tr>
-                    <td className="px-4 py-10 text-center text-sm font-bold text-slate-400" colSpan={10}>
+                    <td className="px-4 py-10 text-center text-sm font-bold text-slate-400" colSpan={11}>
                       No customers found.
                     </td>
                   </tr>
@@ -361,6 +366,20 @@ function CustomerListView({ customers, customerStatusOptions = fallbackCustomerS
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(customer.info.costPackage)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatCurrency(customer.info.price)}</td>
                       <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-semibold text-slate-700">{formatNumber(customer.info.volume)}</td>
+                      <td className="border-b border-slate-100 px-4 py-3 text-center">
+                        <button
+                          aria-label={`Edit ${customer.name}`}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-transparent text-[#0f6e66] transition duration-150 ease-out hover:-translate-y-0.5 hover:bg-[#eef8f6] hover:shadow-[0_14px_26px_rgba(15,110,102,0.14)] hover:ring-1 hover:ring-[#9bc7c2] focus-visible:-translate-y-0.5 focus-visible:bg-[#eef8f6] focus-visible:shadow-[0_14px_26px_rgba(15,110,102,0.14)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#9bc7c2]"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onEditCustomer(customer.id)
+                          }}
+                          title="Edit customer"
+                          type="button"
+                        >
+                          <FaEdit aria-hidden="true" className="h-[15px] w-[15px]" />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
