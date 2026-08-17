@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { TbCalendarDue } from 'react-icons/tb'
 import type { ManagedFlow } from '../../data/adminDashboard'
 import { customerStatusOptions as fallbackCustomerStatusOptions } from '../../data/oemWorkflow'
-import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag } from '../../data/oemWorkflow'
+import type { Customer, CustomerStatus, CustomerStatusOption, CustomerTag, CustomerWorkflowTemplate } from '../../data/oemWorkflow'
 import CustomerNameCombobox from './CustomerNameCombobox'
 import type { CustomerNameOption } from './CustomerNameCombobox'
 import SalespersonCombobox from './SalespersonCombobox'
 import type { SalespersonOption } from './SalespersonCombobox'
+import StageDueDateEditor from './StageDueDateEditor'
 
 export type CustomerCreatePayload = {
   dueDate: string
@@ -15,6 +16,7 @@ export type CustomerCreatePayload = {
   info: Customer['info']
   name: string
   salesperson: string
+  stageDueDates: { dueDate: string; stageId: number }[]
   status: CustomerStatus
   tagsText: string
 }
@@ -26,6 +28,7 @@ type CustomerCreateViewProps = {
   loading?: boolean
   salespersonName: string
   salespersonOptions?: SalespersonOption[]
+  workflowTemplates?: Record<number, CustomerWorkflowTemplate>
   onBack: () => void
   onCreate: (payload: CustomerCreatePayload) => void
 }
@@ -78,20 +81,38 @@ function CustomerCreateView({
   loading = false,
   salespersonName,
   salespersonOptions = [],
+  workflowTemplates = {},
   onBack,
   onCreate,
 }: CustomerCreateViewProps) {
   const [dueDate, setDueDate] = useState('')
+  const [flowId, setFlowId] = useState(flows[0]?.id || 0)
   const [name, setName] = useState('')
   const [salesperson, setSalesperson] = useState(salespersonName)
+  const [stageDueDates, setStageDueDates] = useState<Record<number, string>>({})
   const [tags, setTags] = useState<CustomerTag[]>([])
   const [tagDraft, setTagDraft] = useState('')
   const datePickerRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    if (flows.some((flow) => flow.id === flowId)) return
+    setFlowId(flows[0]?.id || 0)
+  }, [flowId, flows])
+
+  const workflowTemplate = workflowTemplates[flowId]
+
+  useEffect(() => {
+    setStageDueDates(Object.fromEntries(
+      (workflowTemplate?.stages || [])
+        .filter((stage) => stage.id)
+        .map((stage) => [stage.id as number, '']),
+    ))
+  }, [flowId, workflowTemplate])
+
   const typedName = name.trim()
   const parsedDueDate = parseInputDate(dueDate)
   const dueDateIsValid = !dueDate.trim() || Boolean(parsedDueDate)
-  const canSubmit = Boolean(typedName) && dueDateIsValid && flows.length > 0 && !loading
+  const canSubmit = Boolean(typedName) && dueDateIsValid && flowId > 0 && !loading
   const activeStatusOptions = customerStatusOptions.filter((option) => option.status !== 'inactive')
 
   function addTagFromDraft() {
@@ -136,7 +157,7 @@ function CustomerCreateView({
 
     onCreate({
       dueDate: parseInputDate(String(data.get('dueDate') || '')),
-      flowId: Number(data.get('flowId') || 0),
+      flowId,
       info: {
         costSyrup: String(data.get('costSyrup') || ''),
         costPackage: String(data.get('costPackage') || ''),
@@ -145,6 +166,9 @@ function CustomerCreateView({
       },
       name: typedName,
       salesperson,
+      stageDueDates: (workflowTemplate?.stages || [])
+        .filter((stage) => stage.id)
+        .map((stage) => ({ dueDate: stageDueDates[stage.id as number] || '', stageId: stage.id as number })),
       status: String(data.get('status') || 'brief_spec') as CustomerStatus,
       tagsText: tags.map((tag) => tag.name.trim()).filter(Boolean).join(', '),
     })
@@ -171,8 +195,9 @@ function CustomerCreateView({
                 <span>Flow</span>
                 <select
                   className="min-h-12 rounded-xl !border !border-slate-200 !bg-slate-50 px-4 text-base font-bold text-slate-900 outline-none transition focus:!border-teal-600 focus:!bg-white focus:ring-4 focus:ring-teal-100 focus-visible:!outline-none"
-                  defaultValue={flows[0]?.id || ''}
+                  onChange={(event) => setFlowId(Number(event.target.value))}
                   name="flowId"
+                  value={flowId || ''}
                 >
                   {flows.map((flow) => (
                     <option key={flow.id} value={flow.id}>
@@ -206,6 +231,15 @@ function CustomerCreateView({
             </button>
           </div>
         </div>
+
+        <StageDueDateEditor
+          className="shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+          description="กำหนดวันครบกำหนดแยกสำหรับแต่ละ Stage ตั้งแต่สร้างลูกค้า"
+          disabled={loading}
+          onChange={(stageId, nextDueDate) => setStageDueDates((current) => ({ ...current, [stageId]: nextDueDate }))}
+          values={stageDueDates}
+          workflowTemplate={workflowTemplate}
+        />
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-7">
           <div className="mb-6">

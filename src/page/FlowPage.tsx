@@ -445,6 +445,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
   }, [activeView, loadFlows])
 
   useEffect(() => {
+    if (activeView !== 'create-customer' || availableFlows.length === 0) return
+    void loadFlowTemplates(availableFlows.map((flow) => flow.id))
+  }, [activeView, availableFlows, loadFlowTemplates])
+
+  useEffect(() => {
     if (!routeCustomerId) return
 
     const routeCustomer = customers.find((customer) => customer.id === routeCustomerId)
@@ -484,6 +489,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           name: payload.name,
           price: payload.info.price || null,
           salesperson: payload.salesperson || null,
+          stageDueDates: payload.stageDueDates,
           status: payload.status,
           tagsText: payload.tagsText,
           volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
@@ -1252,6 +1258,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onCreate={handleCreateCustomer}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
+          workflowTemplates={flowTemplates}
         />
       )}
 
