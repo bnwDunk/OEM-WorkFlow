@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { DragEvent } from 'react'
 import toast from 'react-hot-toast'
 import AddDepartmentModal from '../components/oem/admin/AddDepartmentModal'
 import DepartmentDetailModal from '../components/oem/admin/DepartmentDetailModal'
@@ -115,7 +116,6 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
   const [newDepartmentName, setNewDepartmentName] = useState('')
   const [newFlowName, setNewFlowName] = useState('')
   const [newStatusLabel, setNewStatusLabel] = useState('')
-  const [newStatusValue, setNewStatusValue] = useState('')
   const [newUser, setNewUser] = useState<NewUserDraft>({
     departmentIds: [],
     email: '',
@@ -135,6 +135,8 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
   const [createUserOpen, setCreateUserOpen] = useState(false)
   const [structureEditor, setStructureEditor] = useState<FlowStructure | null>(null)
   const [customerPage, setCustomerPage] = useState(1)
+  const [draggedStatusIndex, setDraggedStatusIndex] = useState<number | null>(null)
+  const [statusDropIndex, setStatusDropIndex] = useState<number | null>(null)
 
   const stats = useMemo(
     () => ({
@@ -1071,9 +1073,52 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
     }))
   }
 
+  function finishStatusDrag() {
+    setDraggedStatusIndex(null)
+    setStatusDropIndex(null)
+  }
+
+  function startStatusDrag(event: DragEvent<HTMLButtonElement>, statusIndex: number) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `customer-status:${statusIndex}`)
+    setDraggedStatusIndex(statusIndex)
+  }
+
+  async function reorderCustomerStatus(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= customerStatuses.length || toIndex >= customerStatuses.length || busyAction) return
+
+    const reordered = [...customerStatuses]
+    const [movedStatus] = reordered.splice(fromIndex, 1)
+    reordered.splice(toIndex, 0, movedStatus)
+    const normalized = reordered.map((status, index) => ({ ...status, sortOrder: (index + 1) * 10 }))
+
+    setCustomerStatuses(normalized)
+    setStatusDrafts((current) => Object.fromEntries(normalized.map((status) => [
+      status.id,
+      { ...current[status.id], sortOrder: status.sortOrder },
+    ])))
+
+    try {
+      setActionError('')
+      setActionMessage('')
+      setBusyAction('status-reorder')
+      await Promise.all(normalized.map((status) => apiRequest(`/admin/customer-statuses/${status.id}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ sortOrder: status.sortOrder }),
+      })))
+      onCustomerStatusesChange?.()
+      setActionMessage('Updated status order.')
+    } catch (reorderError) {
+      setActionError(reorderError instanceof Error ? reorderError.message : 'Failed to update status order.')
+      await loadAdminData()
+    } finally {
+      setBusyAction('')
+    }
+  }
+
   async function createCustomerStatus() {
     const label = newStatusLabel.trim()
-    const value = newStatusValue.trim()
     if (!label) return
 
     try {
@@ -1083,10 +1128,9 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
       await apiRequest('/admin/customer-statuses', {
         method: 'POST',
         token,
-        body: JSON.stringify({ label, value }),
+        body: JSON.stringify({ label }),
       })
       setNewStatusLabel('')
-      setNewStatusValue('')
       await loadAdminData()
       onCustomerStatusesChange?.()
       setActionMessage('Created status.')
@@ -1426,20 +1470,13 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
               Add, edit, disable, or remove statuses used in customer status dropdowns.
             </p>
           </div>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(180px,260px)_minmax(140px,180px)_auto]">
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(220px,320px)_auto]">
             <input
               aria-label="New status label"
               className={inputClass}
               onChange={(event) => setNewStatusLabel(event.target.value)}
               placeholder="Status label"
               value={newStatusLabel}
-            />
-            <input
-              aria-label="New status code"
-              className={inputClass}
-              onChange={(event) => setNewStatusValue(event.target.value)}
-              placeholder="Code (optional)"
-              value={newStatusValue}
             />
             <button
               className={primaryButtonClass}
@@ -1453,12 +1490,10 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
         </div>
 
         <div className={tableWrapClass}>
-          <table className={`${tableClass} min-w-[980px]`}>
+          <table className={`${tableClass} min-w-[760px]`}>
             <thead>
               <tr>
                 <th className={thClass}>Label</th>
-                <th className={thClass}>Code</th>
-                <th className={thClass}>Order</th>
                 <th className={thClass}>Status</th>
                 <th className={thClass}>Used by</th>
                 <th className={thClass}>Action</th>
@@ -1467,10 +1502,10 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
             <tbody>
               {!loading && customerStatuses.length === 0 && (
                 <tr>
-                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={6}>No customer statuses found.</td>
+                  <td className="py-10 text-center text-sm font-bold text-slate-400" colSpan={4}>No customer statuses found.</td>
                 </tr>
               )}
-              {customerStatuses.map((status) => {
+              {customerStatuses.map((status, statusIndex) => {
                 const draft = statusDrafts[status.id] || {
                   label: status.label,
                   sortOrder: status.sortOrder,
@@ -1479,37 +1514,45 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
                 }
                 const hasChanges =
                   draft.label !== status.label ||
-                  draft.sortOrder !== status.sortOrder ||
-                  draft.status !== status.status ||
-                  draft.value !== status.value
+                  draft.status !== status.status
 
                 return (
-                  <tr className="group" key={status.id}>
+                  <tr
+                    className={`group transition ${draggedStatusIndex === statusIndex ? 'opacity-40' : ''} ${statusDropIndex === statusIndex && draggedStatusIndex !== statusIndex ? 'bg-teal-50' : ''}`}
+                    key={status.id}
+                    onDragOver={(event) => {
+                      if (draggedStatusIndex === null) return
+                      event.preventDefault()
+                      event.dataTransfer.dropEffect = 'move'
+                      setStatusDropIndex(statusIndex)
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      if (draggedStatusIndex !== null) void reorderCustomerStatus(draggedStatusIndex, statusIndex)
+                      finishStatusDrag()
+                    }}
+                  >
                     <td className={tdClass}>
-                      <input
-                        aria-label={`Label for ${status.label}`}
-                        className={inputClass}
-                        onChange={(event) => updateStatusDraft(status.id, { label: event.target.value })}
-                        value={draft.label}
-                      />
-                    </td>
-                    <td className={tdClass}>
-                      <input
-                        aria-label={`Code for ${status.label}`}
-                        className={inputClass}
-                        onChange={(event) => updateStatusDraft(status.id, { value: event.target.value })}
-                        value={draft.value}
-                      />
-                    </td>
-                    <td className={tdClass}>
-                      <input
-                        aria-label={`Sort order for ${status.label}`}
-                        className={`${inputClass} max-w-28`}
-                        min={0}
-                        onChange={(event) => updateStatusDraft(status.id, { sortOrder: Number(event.target.value || 0) })}
-                        type="number"
-                        value={draft.sortOrder}
-                      />
+                      <div className="flex min-w-[280px] items-center gap-3">
+                        <button
+                          aria-label={`Drag ${status.label} to reorder`}
+                          className="admin-flow-drag-handle shrink-0"
+                          disabled={Boolean(busyAction)}
+                          draggable={!busyAction}
+                          onDragEnd={finishStatusDrag}
+                          onDragStart={(event) => startStatusDrag(event, statusIndex)}
+                          title="Drag to reorder"
+                          type="button"
+                        >
+                          <span aria-hidden="true">⠿</span>
+                        </button>
+                        <input
+                          aria-label={`Label for ${status.label}`}
+                          className={inputClass}
+                          onChange={(event) => updateStatusDraft(status.id, { label: event.target.value })}
+                          value={draft.label}
+                        />
+                      </div>
                     </td>
                     <td className={tdClass}>
                       <select
@@ -1529,6 +1572,22 @@ function AdminDashboard({ configSection = 'flows', mode = 'admin', onCustomerSta
                     </td>
                     <td className={tdClass}>
                       <div className="flex flex-wrap items-center gap-2">
+                        <div className="admin-flow-order-actions shrink-0">
+                          <button
+                            aria-label={`Move ${status.label} up`}
+                            disabled={Boolean(busyAction) || statusIndex === 0}
+                            onClick={() => void reorderCustomerStatus(statusIndex, statusIndex - 1)}
+                            title="Move up"
+                            type="button"
+                          >↑</button>
+                          <button
+                            aria-label={`Move ${status.label} down`}
+                            disabled={Boolean(busyAction) || statusIndex === customerStatuses.length - 1}
+                            onClick={() => void reorderCustomerStatus(statusIndex, statusIndex + 1)}
+                            title="Move down"
+                            type="button"
+                          >↓</button>
+                        </div>
                         <button
                           className={primaryButtonClass}
                           disabled={Boolean(busyAction) || !hasChanges || !draft.label.trim() || !draft.value.trim()}
