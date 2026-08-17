@@ -476,6 +476,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         body: JSON.stringify({
           flowId: payload.flowId,
           name: payload.name,
+          stageDueDates: payload.stageDueDates,
         }),
       })
 
@@ -489,7 +490,6 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           name: payload.name,
           price: payload.info.price || null,
           salesperson: payload.salesperson || null,
-          stageDueDates: payload.stageDueDates,
           status: payload.status,
           tagsText: payload.tagsText,
           volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
@@ -601,17 +601,13 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
     }
   }
 
-  async function handleUploadCustomerFile(file: File) {
-    if (!selectedCustomer?.databaseId) throw new Error('Please save the customer before uploading a file.')
-
+  async function uploadCustomerFile(customerId: number, file: File) {
     const data = await readFileAsBase64(file)
-    await apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/files`, {
+    await apiRequest(`/workflow/customers/${customerId}/files`, {
       method: 'POST',
       token: accessToken,
       body: JSON.stringify({ data, mimeType: file.type, name: file.name }),
     })
-    await loadOverview()
-    toast.success('Uploaded file.')
   }
 
   async function loadCustomerFile(customer: Customer, file: CustomerFile) {
@@ -1052,6 +1048,15 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
             volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
           }),
         })
+        await Promise.all(payload.fileIdsToDelete.map((fileId) =>
+          apiRequest(`/workflow/customers/${selectedCustomer.databaseId}/files/${fileId}`, {
+            method: 'DELETE',
+            token: accessToken,
+          }),
+        ))
+        await Promise.all(payload.filesToUpload.map((file) =>
+          uploadCustomerFile(selectedCustomer.databaseId as number, file),
+        ))
         await loadOverview()
       } else {
         updateCustomer(selectedCustomer.id, (customer) => {
@@ -1241,7 +1246,6 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onRemoveTag={handleRemoveCustomerEditTag}
           onLoadFile={handleLoadCustomerFile}
           onSave={handleSaveCustomerEdit}
-          onUploadFile={handleUploadCustomerFile}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
           workflowTemplate={getCustomerWorkflowTemplate(selectedCustomer)}

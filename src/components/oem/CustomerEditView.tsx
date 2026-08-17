@@ -10,6 +10,8 @@ import type { SalespersonOption } from './SalespersonCombobox'
 import StageDueDateEditor from './StageDueDateEditor'
 
 export type CustomerEditPayload = {
+  fileIdsToDelete: number[]
+  filesToUpload: File[]
   info: Customer['info']
   name: string
   salesperson: string
@@ -34,7 +36,6 @@ type CustomerEditViewProps = {
   onLoadFile?: (file: CustomerFile) => Promise<Blob>
   onRemoveTag?: (tag: CustomerTag) => Promise<void>
   onSave: (payload: CustomerEditPayload) => void
-  onUploadFile?: (file: File) => Promise<void>
 }
 
 const allowedFileTypes = new Set(['application/pdf', 'image/gif', 'image/jpeg', 'image/png', 'image/webp'])
@@ -62,7 +63,6 @@ function CustomerEditView({
   onLoadFile,
   onRemoveTag,
   onSave,
-  onUploadFile,
 }: CustomerEditViewProps) {
   const [stageDueDates, setStageDueDates] = useState<Record<number, string>>({})
   const [name, setName] = useState(customer.name)
@@ -71,7 +71,8 @@ function CustomerEditView({
   const [tagDraft, setTagDraft] = useState('')
   const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false)
   const [removingTagKey, setRemovingTagKey] = useState('')
-  const [uploadingFile, setUploadingFile] = useState(false)
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([])
+  const [fileIdsToDelete, setFileIdsToDelete] = useState<number[]>([])
   const [fileError, setFileError] = useState('')
   const [previewFile, setPreviewFile] = useState<CustomerFile | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -174,6 +175,8 @@ function CustomerEditView({
     const data = new FormData(event.currentTarget)
 
     onSave({
+      fileIdsToDelete,
+      filesToUpload,
       info: {
         costSyrup: String(data.get('costSyrup') || ''),
         costPackage: String(data.get('costPackage') || ''),
@@ -190,7 +193,7 @@ function CustomerEditView({
     })
   }
 
-  async function uploadFile(file: File) {
+  function stageFile(file: File) {
     setFileError('')
     if (!allowedFileTypes.has(file.type)) {
       setFileError('รองรับเฉพาะไฟล์ JPG, PNG, GIF, WEBP และ PDF เท่านั้น')
@@ -200,20 +203,13 @@ function CustomerEditView({
       setFileError('ไฟล์ต้องมีขนาดไม่เกิน 10 MB')
       return
     }
-    if (!onUploadFile) {
-      setFileError('กรุณาบันทึกลูกค้าก่อนอัปโหลดไฟล์')
-      return
-    }
+    setFilesToUpload((currentFiles) => [...currentFiles, file])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
-    try {
-      setUploadingFile(true)
-      await onUploadFile(file)
-    } catch (error) {
-      setFileError(error instanceof Error ? error.message : 'ไม่สามารถอัปโหลดไฟล์ได้')
-    } finally {
-      setUploadingFile(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
+  function removeExistingFile(fileId: number) {
+    setFileIdsToDelete((currentIds) => currentIds.includes(fileId) ? currentIds : [...currentIds, fileId])
+    if (previewFile?.id === fileId) closePreview()
   }
 
   async function openFile(file: CustomerFile) {
@@ -454,7 +450,7 @@ function CustomerEditView({
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0]
-                if (file) void uploadFile(file)
+                if (file) stageFile(file)
               }}
               ref={fileInputRef}
               type="file"
@@ -465,38 +461,68 @@ function CustomerEditView({
               </div>
             )}
 
-            <div className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 transition focus-within:border-teal-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-teal-100">
-              {(customer.files || []).length === 0 ? (
+            <div className="flex min-h-[72px] items-center gap-2.5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3 transition focus-within:border-teal-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-teal-100">
+              {(customer.files || []).filter((file) => !fileIdsToDelete.includes(file.id)).length === 0 && filesToUpload.length === 0 ? (
                 <span className="min-w-0 flex-1 px-2 text-xs font-semibold text-slate-400">ยังไม่มีไฟล์</span>
               ) : (
-                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5">
-                  {(customer.files || []).map((file) => {
+                <div className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0">
+                  {(customer.files || []).filter((file) => !fileIdsToDelete.includes(file.id)).map((file) => {
                     const isPdf = file.mimeType === 'application/pdf'
                     return (
-                      <button
-                        className="group inline-flex h-8 max-w-[170px] shrink-0 items-center gap-1.5 rounded-lg !border !border-slate-200 !bg-white px-2.5 text-left shadow-sm transition hover:!border-teal-300 hover:!bg-teal-50"
-                        key={file.id}
-                        onClick={() => void openFile(file)}
-                        title={`${file.name} · ${formatFileSize(file.size)}`}
-                        type="button"
-                      >
-                        {isPdf ? <TbFileTypePdf className="h-4 w-4 shrink-0 text-rose-500" /> : <TbPhoto className="h-4 w-4 shrink-0 text-sky-500" />}
-                        <span className="truncate text-xs font-bold text-slate-700">{file.name}</span>
-                        <TbEye className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-teal-700" />
-                      </button>
+                      <div className="group flex h-11 max-w-[210px] shrink-0 items-stretch overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-teal-300 hover:bg-teal-50" key={file.id}>
+                        <button
+                          className="flex !h-full !min-h-0 min-w-0 flex-1 items-center gap-1.5 !border-0 !bg-transparent py-0 pl-2.5 pr-1.5 text-left"
+                          onClick={() => void openFile(file)}
+                          title={`${file.name} · ${formatFileSize(file.size)}`}
+                          type="button"
+                        >
+                          {isPdf ? <TbFileTypePdf className="h-5 w-5 shrink-0 text-rose-500" /> : <TbPhoto className="h-5 w-5 shrink-0 text-sky-500" />}
+                          <span className="truncate text-xs font-bold text-slate-700">{file.name}</span>
+                          <TbEye className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-teal-700" />
+                        </button>
+                        <button
+                          aria-label={`Remove ${file.name}`}
+                          className="inline-flex !h-full !min-h-0 w-7 shrink-0 items-center justify-center rounded-none !border-0 !border-l !border-slate-200 !bg-transparent p-0 text-slate-400 transition hover:!bg-rose-50 hover:text-rose-600"
+                          onClick={() => removeExistingFile(file.id)}
+                          title="Remove file"
+                          type="button"
+                        >
+                          <TbX className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                  {filesToUpload.map((file, index) => {
+                    const isPdf = file.type === 'application/pdf'
+                    return (
+                      <div className="flex h-11 max-w-[210px] shrink-0 items-stretch overflow-hidden rounded-lg border border-dashed border-teal-300 bg-teal-50" key={`${file.name}-${file.size}-${index}`}>
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5 pl-2.5 pr-1.5">
+                          {isPdf ? <TbFileTypePdf className="h-5 w-5 shrink-0 text-rose-500" /> : <TbPhoto className="h-5 w-5 shrink-0 text-sky-500" />}
+                          <span className="truncate text-xs font-bold text-teal-900" title={`${file.name} · ${formatFileSize(file.size)}`}>{file.name}</span>
+                        </div>
+                        <button
+                          aria-label={`Cancel ${file.name}`}
+                          className="inline-flex !h-full !min-h-0 w-7 shrink-0 items-center justify-center rounded-none !border-0 !border-l !border-teal-200 !bg-transparent p-0 text-slate-400 transition hover:!bg-rose-50 hover:text-rose-600"
+                          onClick={() => setFilesToUpload((currentFiles) => currentFiles.filter((_, fileIndex) => fileIndex !== index))}
+                          title="Cancel upload"
+                          type="button"
+                        >
+                          <TbX className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     )
                   })}
                 </div>
               )}
               <button
                 aria-label="Upload customer file"
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg !border-0 !bg-teal-700 px-3 text-xs font-black !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-wait disabled:opacity-60"
-                disabled={uploadingFile || busy || !onUploadFile}
+                className="inline-flex !h-11 !min-h-0 shrink-0 items-center gap-2 self-center rounded-lg !border-0 !bg-teal-700 px-4 py-0 text-sm font-black leading-none !text-white shadow-sm transition hover:!bg-teal-800 disabled:cursor-wait disabled:opacity-60"
+                disabled={busy}
                 onClick={() => fileInputRef.current?.click()}
                 type="button"
               >
-                <TbUpload aria-hidden="true" className="h-4 w-4" />
-                {uploadingFile ? 'Uploading...' : 'Upload'}
+                <TbUpload aria-hidden="true" className="h-5 w-5" />
+                Upload
               </button>
             </div>
           </div>
