@@ -118,6 +118,8 @@ function mergeCustomerFlowReferences(customers: Customer[], references: Customer
 
 type FlowStructureResponse = {
   stages: {
+    dueDays?: number | null
+    id: number
     name: string
     phases: {
       label: string
@@ -133,6 +135,8 @@ type FlowStructureResponse = {
 
 function mapFlowStructureToTemplate(structure: FlowStructureResponse): CustomerWorkflowTemplate {
   const templateStages: StageTemplate[] = structure.stages.map((stage) => ({
+    dueDays: stage.dueDays ?? null,
+    id: stage.id,
     name: stage.name,
     stops: stage.phases.map((phase) => ({
       branches: (phase.branches || []).map((branch) => ({
@@ -1033,11 +1037,11 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           body: JSON.stringify({
             costPackage: payload.info.costPackage || null,
             costSyrup: payload.info.costSyrup || null,
-            dueDate: payload.dueDate || null,
             name: payload.name,
             price: payload.info.price || null,
             salesperson: payload.salesperson || null,
             status: payload.status,
+            stageDueDates: payload.stageDueDates,
             tagsText: payload.tagsText,
             volume: payload.info.volume ? payload.info.volume.replace(/,/g, '') : null,
           }),
@@ -1045,7 +1049,10 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
         await loadOverview()
       } else {
         updateCustomer(selectedCustomer.id, (customer) => {
-          customer.dueDate = payload.dueDate
+          customer.stageDueDates = payload.stageDueDates.map((item) => ({
+            ...item,
+            stageName: getCustomerWorkflowTemplate(customer).stages.find((stage) => stage.id === item.stageId)?.name || '',
+          }))
           customer.info = payload.info
           customer.name = payload.name
           customer.salesperson = payload.salesperson
@@ -1186,6 +1193,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           customerStatusOptions={customerStatusOptions}
           loading={overviewLoading}
           onCreateCustomer={openCreateCustomerPage}
+          onEditCustomer={openCustomerEditor}
           onOpenCustomer={openCustomer}
         />
       )}
@@ -1230,6 +1238,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           onUploadFile={handleUploadCustomerFile}
           salespersonName={currentUser.name}
           salespersonOptions={salespersonOptions}
+          workflowTemplate={getCustomerWorkflowTemplate(selectedCustomer)}
         />
       )}
 
@@ -1261,6 +1270,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
           ? <ConfigView
               accessToken={accessToken}
               canDeleteFlow={currentUser.role === 'admin'}
+              canReorder={currentUser.role === 'admin'}
               currentDept={currentDept}
               departments={userDepartments}
               onWorkflowTemplateChange={async () => {
@@ -1279,7 +1289,7 @@ function FlowPage({ accessToken, currentUser, onLogout, onUserChange }: FlowPage
               }}
               token={accessToken}
             />
-            : <ConfigView accessToken={accessToken} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
+            : <ConfigView accessToken={accessToken} canReorder={false} currentDept={currentDept} departments={userDepartments} onWorkflowTemplateChange={loadOverview} />
       )}
 
       {activeView === 'admin' && currentUser.role === 'admin' && (

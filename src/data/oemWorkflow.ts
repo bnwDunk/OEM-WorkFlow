@@ -15,8 +15,16 @@ export type StopTemplate = {
 }
 
 export type StageTemplate = {
+  dueDays?: number | null
+  id?: number
   name: string
   stops: StopTemplate[]
+}
+
+export type CustomerStageDueDate = {
+  dueDate: string
+  stageId: number
+  stageName: string
 }
 
 export type FlowStop = StopTemplate & {
@@ -69,6 +77,7 @@ export type Customer = {
   customerCode?: string | null
   databaseId?: number
   dueDate?: string
+  stageDueDates?: CustomerStageDueDate[]
   flowId?: number | null
   flowName?: string | null
   name: string

@@ -8,6 +8,7 @@ import { confirmToast } from '../../lib/confirmToast'
 type ConfigViewProps = {
   accessToken: string
   canDeleteFlow?: boolean
+  canReorder?: boolean
   currentDept: string
   departments: string[]
   onWorkflowTemplateChange?: () => Promise<void> | void
@@ -19,6 +20,7 @@ type WorkflowOption = {
   name: string
   phaseCount?: number
   stageCount?: number
+  
   status?: string
 }
 
@@ -28,6 +30,7 @@ type FlowStructureResponse = {
     name: string
   }
   stages: {
+    dueDays?: number | null
     id?: number
     name: string
     phases: {
@@ -69,6 +72,7 @@ type ConfigStop = {
 }
 
 type ConfigStage = {
+  dueDays?: number | null
   id?: number
   name: string
   stops: ConfigStop[]
@@ -80,6 +84,7 @@ function normalizeDept(value: string) {
 
 function mapStructureToTemplate(structure: FlowStructureResponse) {
   return structure.stages.map((stage) => ({
+    dueDays: stage.dueDays ?? null,
     id: stage.id,
     name: stage.name,
     stops: normalizeStagePhaseLabels(stage.phases).map((phase) => ({
@@ -99,12 +104,15 @@ function mapStructureToTemplate(structure: FlowStructureResponse) {
   }))
 }
 
-function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
-  const canReorder = true
+function ConfigView({ accessToken, canDeleteFlow = false, canReorder = false, currentDept, departments, onWorkflowTemplateChange }: ConfigViewProps) {
   const [workflowTemplates, setWorkflowTemplates] = useState<Record<string, ConfigStage[]>>({})
   const [workflowOptions, setWorkflowOptions] = useState<WorkflowOption[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [newFlowOpen, setNewFlowOpen] = useState(false)
+  const [newFlowName, setNewFlowName] = useState('')
+  const [newFlowSourceId, setNewFlowSourceId] = useState<number | null>(null)
+  const [creatingFlow, setCreatingFlow] = useState(false)
   const [addPhaseOpen, setAddPhaseOpen] = useState(false)
   const [newPhaseLabel, setNewPhaseLabel] = useState('')
   const [newPhaseName, setNewPhaseName] = useState('')
@@ -135,6 +143,8 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
     [selectedWorkflowId, workflowTemplates],
   )
   const selectedWorkflow = workflowOptions.find((flow) => flow.id === selectedWorkflowId) || null
+  const workflowListPath = canDeleteFlow ? '/admin/flows' : '/workflow/flows'
+  const workflowStructureBasePath = canDeleteFlow ? '/admin/flows' : '/workflow/flows'
 
   const editableDept = useMemo(() => {
     const current = departments.find((department) => normalizeDept(department) === normalizeDept(currentDept))
@@ -170,7 +180,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
         setLoadingWorkflows(true)
         setWorkflowError('')
 
-        const response = await apiRequest<{ flows: WorkflowOption[] }>('/workflow/flows', { token: accessToken })
+        const response = await apiRequest<{ flows: WorkflowOption[] }>(workflowListPath, { token: accessToken })
 
         if (!active) return
 
@@ -195,7 +205,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
     return () => {
       active = false
     }
-  }, [accessToken])
+  }, [accessToken, workflowListPath])
 
   useEffect(() => {
     if (selectedWorkflowId === null || workflowTemplates[String(selectedWorkflowId)]) return
@@ -207,7 +217,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
         setLoadingWorkflows(true)
         setWorkflowError('')
 
-        const response = await apiRequest<FlowStructureResponse>(`/workflow/flows/${selectedWorkflowId}/structure`, { token: accessToken })
+        const response = await apiRequest<FlowStructureResponse>(`${workflowStructureBasePath}/${selectedWorkflowId}/structure`, { token: accessToken })
 
         if (!active) return
 
@@ -232,7 +242,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
     return () => {
       active = false
     }
-  }, [accessToken, selectedWorkflowId, workflowTemplates])
+  }, [accessToken, selectedWorkflowId, workflowStructureBasePath, workflowTemplates])
 
   useEffect(() => {
     setOrderDirty(false)
@@ -284,6 +294,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function reorderStage(fromIndex: number, toIndex: number, movedKey?: string) {
+    if (!canReorder) return
     if (fromIndex === toIndex || toIndex < 0 || toIndex >= workflowStages.length) return
     const movedStage = workflowStages[fromIndex]
     showMoveFeedback(movedKey || `stage-${movedStage.id || movedStage.name}`, toIndex < fromIndex ? 'up' : 'down')
@@ -297,6 +308,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function reorderPhase(stageIndex: number, fromIndex: number, toIndex: number, movedKey?: string) {
+    if (!canReorder) return
     const stage = workflowStages[stageIndex]
     if (!stage || fromIndex === toIndex || toIndex < 0 || toIndex >= stage.stops.length) return
     const movedStop = stage.stops[fromIndex]
@@ -323,6 +335,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   function startStageDrag(event: DragEvent<HTMLButtonElement>, stageIndex: number) {
+    if (!canReorder) return
     event.stopPropagation()
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', `stage:${stageIndex}`)
@@ -348,7 +361,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
   }
 
   async function saveWorkflowOrder() {
-    if (selectedWorkflowId === null || !orderDirty) return
+    if (!canReorder || selectedWorkflowId === null || !orderDirty) return
 
     try {
       setSavingOrder(true)
@@ -363,7 +376,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
           })),
         }),
       })
-      const structure = await apiRequest<FlowStructureResponse>(`/workflow/flows/${selectedWorkflowId}/structure`, { token: accessToken })
+      const structure = await apiRequest<FlowStructureResponse>(`${workflowStructureBasePath}/${selectedWorkflowId}/structure`, { token: accessToken })
       setWorkflowTemplates((current) => ({
         ...current,
         [String(selectedWorkflowId)]: mapStructureToTemplate(structure),
@@ -420,7 +433,7 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
         },
       )
       const structure = await apiRequest<FlowStructureResponse>(
-        `/workflow/flows/${selectedWorkflowId}/structure`,
+        `${workflowStructureBasePath}/${selectedWorkflowId}/structure`,
         { token: accessToken },
       )
       setWorkflowTemplates((current) => ({
@@ -480,6 +493,42 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
       toast.error(message)
     } finally {
       setDeletingFlowId(null)
+    }
+  }
+
+  async function createFlow() {
+    const name = newFlowName.trim()
+    if (!canDeleteFlow || !name) return
+
+    try {
+      setCreatingFlow(true)
+      setWorkflowError('')
+      const created = await apiRequest<{ id: number }>('/admin/flows', {
+        method: 'POST',
+        token: accessToken,
+        body: JSON.stringify({
+          name,
+          sourceFlowId: newFlowSourceId || undefined,
+        }),
+      })
+      const response = await apiRequest<{ flows: WorkflowOption[] }>(workflowListPath, { token: accessToken })
+      setWorkflowOptions(response.flows)
+      setSelectedWorkflowId(created.id)
+      setWorkflowTemplates((current) => {
+        const next = { ...current }
+        delete next[String(created.id)]
+        return next
+      })
+      setNewFlowName('')
+      setNewFlowOpen(false)
+      await onWorkflowTemplateChange?.()
+      toast.success(`Created flow ${name}.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to create flow.'
+      setWorkflowError(message)
+      toast.error(message)
+    } finally {
+      setCreatingFlow(false)
     }
   }
 
@@ -650,9 +699,23 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
                 Review workflow templates. You can edit checklist work only for {editableDept}.
               </p>
             </div>
-            <span className="config-badge config-badge-teal">
-              {workflowOptions.length} workflows
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="config-badge config-badge-teal">
+                {workflowOptions.length} workflows
+              </span>
+              {canDeleteFlow && (
+                <button
+                  className="config-btn min-h-9 rounded-lg border-0 bg-[#00a99d] px-4 text-[13px] font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-teal-700 hover:shadow-md"
+                  onClick={() => {
+                    setNewFlowSourceId((current) => current || selectedWorkflowId || workflowOptions[0]?.id || null)
+                    setNewFlowOpen(true)
+                  }}
+                  type="button"
+                >
+                  + New Flow
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="config-table-wrap">
@@ -734,6 +797,43 @@ function ConfigView({ accessToken, canDeleteFlow = false, currentDept, departmen
           </div>
         </section>
       </div>
+
+      {canDeleteFlow && newFlowOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/55 px-4 py-8 backdrop-blur-[2px]"
+          onMouseDown={(event) => event.target === event.currentTarget && !creatingFlow && setNewFlowOpen(false)}
+        >
+          <section className="w-full max-w-[480px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)]">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="mb-2 inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-teal-700">WebAdmin only</span>
+                  <h2 className="m-0 text-xl font-black text-slate-950">Create New Flow</h2>
+                  <p className="m-0 mt-1 text-sm font-medium text-slate-500">Copy an existing workflow structure and customize it later.</p>
+                </div>
+                <button aria-label="Close new flow dialog" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border-0 bg-slate-100 text-lg font-bold text-slate-500 transition hover:bg-slate-200 hover:text-slate-900" disabled={creatingFlow} onClick={() => setNewFlowOpen(false)} type="button">×</button>
+              </div>
+            </div>
+            <form className="space-y-4 px-6 py-5" onSubmit={(event) => { event.preventDefault(); void createFlow() }}>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-slate-700">Flow name</span>
+                <input autoFocus className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-50" maxLength={190} onChange={(event) => setNewFlowName(event.target.value)} placeholder="e.g. OEM Express" required value={newFlowName} />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-slate-700">Start from</span>
+                <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-50" disabled={workflowOptions.length === 0} onChange={(event) => setNewFlowSourceId(Number(event.target.value) || null)} value={newFlowSourceId || ''}>
+                  {workflowOptions.length === 0 && <option value="">Standard OEM template</option>}
+                  {workflowOptions.map((flow) => <option key={flow.id} value={flow.id}>{flow.name}</option>)}
+                </select>
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <button className="min-h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50" disabled={creatingFlow} onClick={() => setNewFlowOpen(false)} type="button">Cancel</button>
+                <button className="min-h-10 rounded-lg border-0 bg-[#00a99d] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={creatingFlow || !newFlowName.trim()} type="submit">{creatingFlow ? 'Creating...' : 'Create Flow'}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {editorOpen && (
         <div
